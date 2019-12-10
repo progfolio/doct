@@ -1,0 +1,41 @@
+* DOCT: Declarative Org Capture Templates
+DOCT is a macro that provides an alternative, declarative syntax for describing Org capture templates.
+
+** tl;dr
+#+begin_src emacs-lisp
+'(("e"
+   "Example"
+   entry
+   (file+headline "~/Documents/examples.org" "Example")
+   "* %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:%?"
+   :immediate-finish t)))
+#+end_src
+
+becomes:
+
+#+begin_src emacs-lisp
+(doct (:description "Example"
+                    "Additional descriptive strings ignored in the expansion."
+                    :keys "e"
+                    :type entry
+                    :file "~/Documents/examples.org"
+                    :+headline "Example"
+                    :immediate-finish t
+                    :template
+                    "* %{Description}"
+                    ":PROPERTIES:"
+                    ":Created: %U"
+                    ":END:"
+                    "%?")))
+#+end_src
+
+** Motivation
+I'm tired of looking up the syntax for org-capture-template entries. Using
+keywords makes the form self-describing and eliminates the need to memorize the
+order of the entry's elements. I also wanted the ability to split the template
+into multiple strings without storing the template in an external file.
+
+** TODO Installation
+;;TODO
+** TODO Documentation
+;;TODO
