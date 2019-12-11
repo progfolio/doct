@@ -208,12 +208,12 @@ The target is specified using one of several exclusive keywords:
 
 Keywords in this group are ignored after the first one is declared. e.g.
 
-  (doct :name \"An Example\"
-        :keys \"e\"
-        :clock t
-        :function (lambda () (ignore)) ;ignored
-        :id \"1\" ;also ignored
-        ...)
+  (doct (:name \"An Example\"
+         :keys \"e\"
+         :clock t
+         :function (lambda () (ignore)) ;ignored
+         :id \"1\" ;also ignored
+         ...))
 
 Expands to:
 
@@ -251,7 +251,7 @@ The following keywords may be used in combination with the :file keyword:
 The template is specified with the :template keyword. It accepts any number of
 strings which are joined by a new line in the expansion. e.g.
 
-  (doct ...:template \"* Test\" \"One\" \"Two\")
+  (doct (...:template \"* Test\" \"One\" \"Two\"))
 
 Expands to:
 
