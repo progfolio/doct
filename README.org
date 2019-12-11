@@ -14,19 +14,19 @@ DOCT is a macro that provides an alternative, declarative syntax for describing 
 becomes:
 
 #+begin_src emacs-lisp
-(doct (:description "Example"
-                    "Additional descriptive strings ignored in the expansion."
-                    :keys "e"
-                    :type entry
-                    :file "~/Documents/examples.org"
-                    :+headline "Example"
-                    :immediate-finish t
-                    :template
-                    "* %{Description}"
-                    ":PROPERTIES:"
-                    ":Created: %U"
-                    ":END:"
-                    "%?")))
+(doct (:name "Example"
+             "Additional descriptive strings ignored in the expansion."
+             :keys "e"
+             :type entry
+             :file "~/Documents/examples.org"
+             :headline "Example"
+             :immediate-finish t
+             :template
+             "* %{Description}"
+             ":PROPERTIES:"
+             ":Created: %U"
+             ":END:"
+             "%?")))
 #+end_src
 
 ** Motivation

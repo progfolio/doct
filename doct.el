@@ -142,7 +142,7 @@ FORM is an unquoted sexp."
     ;;(keys description type target template [additional options...])
     (delq nil
           `(,(nth 1 (assq :keys pargs))
-            ,(nth 1 (assq :description pargs))
+            ,(nth 1 (assq :name pargs))
             ,(nth 1 (assq :type pargs))
             ,(or (nth 1 (assq :target pargs)) target)
             ,template
@@ -156,9 +156,9 @@ that doctumentation first.
 
 The doct macro accepts a series of unquoted FORMS and returns an implicitly
 backquoted list of org capture template entries. Each form must specify, at a
-minimum, values for the :description and :keys keywords. For example:
+minimum, values for the :name and :keys keywords. For example:
 
-  (doct (:description \"An example\" :keys \"a\"))
+  (doct (:name \"An example\" :keys \"a\"))
 
 Expands to:
 
@@ -166,9 +166,9 @@ Expands to:
 
 Forms like these must precede forms that share a common prefix key. e.g.
 
-  (doct (:description \"Templates accessed by pressing \\='a\\='\" :keys \"a\")
-        (:description \"An example template\" :keys \"ae\"...)
-        (:description \"And so on...\" :keys \"as\"...))
+  (doct (:name \"Templates accessed by pressing \\='a\\='\" :keys \"a\")
+        (:name \"An example template\" :keys \"ae\"...)
+        (:name \"And so on...\" :keys \"as\"...))
 
 Forms with a capture template must specify a type, target and the template.
 
@@ -187,7 +187,7 @@ The type is specified with the :type keyword and accepts the following symbols:
 
 For example:
 
-  (doct (:description \"An example\"
+  (doct (:name \"An example\"
          :keys \"a\"
          :type entry
          ...))
@@ -208,7 +208,7 @@ The target is specified using one of several exclusive keywords:
 
 Keywords in this group are ignored after the first one is declared. e.g.
 
-  (doct :description \"An Example\"
+  (doct :name \"An Example\"
         :keys \"e\"
         :clock t
         :function (lambda () (ignore)) ;ignored
