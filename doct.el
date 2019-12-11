@@ -272,7 +272,7 @@ Expands to:
 
 See `org-capture-templates' for a full list of additional options."
 
-  (declare (indent nil))
+  (declare (indent 1))
   (let (body)
     (dolist (form `,forms)
       (push (macroexpand `(doct--process-form ,form)) body))
