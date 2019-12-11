@@ -98,7 +98,7 @@ FORM is an unquoted sexp."
       (when-let* ((file (cdr (assq :file pargs)))
                   (target-type "file")
                   (target-args file))
-        (when-let* ((extensions '(:+headline :+olp :+regexp :function))
+        (when-let* ((extensions '(:headline :olp :regexp :function))
                     (extension (doct--find-first-in-args extensions pargs))
                     (keyword (car extension)))
           (setq target-type (concat target-type
@@ -106,7 +106,7 @@ FORM is an unquoted sexp."
                                     ;;remove colon from keyword
                                     (substring (symbol-name keyword) 1))
                 target-args (append target-args (cdr extension)))
-          (when (eq keyword :+olp)
+          (when (eq keyword :olp)
             (when (nth 1 (assq :+datetree pargs))
               (setq target-type (concat target-type "+datetree")))))
         (setq target `(,(intern target-type) ,@target-args))))
@@ -230,16 +230,16 @@ A target file is specified with the :file keyword. e.g.
 
 The following keywords may be used in combination with the :file keyword:
 
-  :+headline \"node headline\"
+  :headline \"node headline\"
     File under unique heading in target file.
 
-  :+olp \"Level 1 heading\" \"Level 2 heading\"...
+  :olp \"Level 1 heading\" \"Level 2 heading\"...
     Specify the full outline in the target file.
     If :+datetree has a non-nil value, create a date tree for today's date.
     Use a non-nil :time-prompt property to prompt for a different date.
     Use a non-nil :tree-type property to create a week-tree.
 
-  :+regexp \"regexp describing location\"
+  :regexp \"regexp describing location\"
     File to the entry matching regexp in target file
 
   :function function-finding-location
