@@ -145,7 +145,7 @@ FORM is an unquoted sexp follwing the pattern: ((positional args...) (KEY VALUE.
 
       ;;TEMPLATE FORM:
       ;;(keys description type target template [additional options...])
-      ;(delq nil
+      (delq nil
             `(,(nth 1 (assq :keys pargs))
               ;;name is first positional arg
               ,(or (nth 1 (assq :name pargs))
@@ -153,7 +153,7 @@ FORM is an unquoted sexp follwing the pattern: ((positional args...) (KEY VALUE.
               ,(nth 1 (assq :type pargs))
               ,(or (nth 1 (assq :target pargs)) target)
               ,template
-              ,@(apply 'append additional-options))));)
+              ,@(apply 'append additional-options)))))
 
   (defmacro doct (&rest forms)
     "Specify Org capture templates declaratively.
