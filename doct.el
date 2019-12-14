@@ -1,7 +1,7 @@
-;;; doct.el --- DOCT: Declarative Org Capture Templates -*- lexical-binding: t; -*-
+;;; doct.el --- DOCT: Declarative Org Capture Templates -*- lexical-binding: t -*-
 ;; Copyright (C) 2019
 
-;; Author:  <progfolio@protonmail.com>
+;; Author: nv <progfolio@protonmail.com>
 ;; Keywords: org, convenience
 ;; URL: https://github.com/progfolio/doct.el
 ;; Created: December 10, 2019
@@ -26,16 +26,15 @@
 
 
 ;;; Commentary:
-;; "A spoon full of sugar helps the medicine go down."
 ;; Syntatic sugar for Org capture templates. See the `doct' docstring for details.
 
 ;;; Code:
 
 (defun doct--process-args (&rest args)
   "Collect each arg in ARGS into a list of the form:
-\((VALUE...) (KEY VALUE VALUE...) (KEY′ VALUE VALUE...)...).
-The car of the list contains positional arguments (those specified before any keywords).
-The cdr of the list contains lists associated with each keyword.
+\((VALUE...) (KEY VALUE VALUE...)...).
+The car contains positional arguments (those specified before any keywords).
+The cdr contains lists associated with each keyword.
 
 The resultant list is easily queried with `assq'."
 
@@ -70,15 +69,20 @@ The resultant list is easily queried with `assq'."
                           (assq keyword `(,arg-list)))
                         keywords))
             args))
+
 (defun doct--get (arglist &optional keyword)
+  "If KEYWORD is non-nil assume ARGLIST is returned by `doct--process-args'.
+Otherwise, assume ARGLIST is of the form: (KEYWORD VALUE).
+Return value associated with KEYWORD in either case."
   (let ((target (if keyword
                     (assq keyword arglist)
                   arglist)))
     (nth 1 target)))
 
-(defun doct--process-form (form)
-  "Convert a declarative form to the form that `org-capture-templates' expects.
-FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...)...)."
+(defun doct--convert-to-template-entry (form)
+  "Convert a declarative form to the entry `org-capture-templates' expects.
+FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
+
   (let* ((pargs (apply #'doct--process-args form))
          (target (assq :target pargs))
          (template (when-let ((template (assq :template pargs)))
@@ -86,13 +90,42 @@ FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...
                          ;;skip concatenation if single string
                          (doct--get template)
                        (string-join (cdr template)"\n"))))
-         additional-options)
+         (options '(:clock-in
+                    :clock-keep
+                    :clock-resume
+                    :empty-lines
+                    :empty-lines-after
+                    :empty-lines-before
+                    :immediate-finish
+                    :jump-to-captured
+                    :kill-buffer
+                    :no-save
+                    :prepend
+                    :table-line-pos
+                    :time-prompt
+                    :tree-type
+                    :unnarrowed))
+         (exclusive-targets '(:id :clock :function))
+         (target-extensions '(:headline
+                              :olp
+                              :regexp
+                              :function))
+         (doct-keywords '(:clock
+                          :file
+                          :keys
+                          :name
+                          :target
+                          :template
+                          :template-file
+                          :template-function
+                          :type))
+         additional-options
+         unrecognized-options)
 
     ;;Build target element of template
     ;;handle exclusive cases first: id, clock, function without file
     (unless target
-      (when-let ((exclusive-targets '(:id :clock :function))
-                 (found (doct--find-first-in-args exclusive-targets pargs))
+      (when-let ((found (doct--find-first-in-args exclusive-targets pargs))
                  (keyword (car found)))
         ;; :function keyword can be used with file or by itself
         (unless (or (and (eq keyword :function) (assq :file pargs))
@@ -106,8 +139,7 @@ FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...
       (when-let* ((file (doct--get pargs :file))
                   (target-type "file")
                   (target-args file))
-        (when-let* ((extensions '(:headline :olp :regexp :function))
-                    (extension (doct--find-first-in-args extensions pargs))
+        (when-let* ((extension (doct--find-first-in-args target-extensions pargs))
                     (keyword (car extension)))
           (setq target-type (concat target-type "+"
                                     ;;remove colon from keyword
@@ -118,26 +150,11 @@ FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...
               (setq target-type (concat target-type "+datetree")))))
         (setq target `(,(intern target-type) ,@target-args))))
 
-    (let ((options '(:clock-in
-                     :clock-keep
-                     :clock-resume
-                     :empty-lines
-                     :empty-lines-after
-                     :empty-lines-before
-                     :immediate-finish
-                     :jump-to-captured
-                     :kill-buffer
-                     :no-save
-                     :prepend
-                     :table-line-pos
-                     :time-prompt
-                     :tree-type
-                     :unnarrowed)))
-      (dolist (keyword options)
-        (when-let ((option (assq keyword pargs)))
-          ;;only push non-nil options
-          (when (doct--get option)
-            (push option additional-options)))))
+    (dolist (keyword options)
+      (when-let ((option (assq keyword pargs)))
+        ;;only push non-nil options
+        (when (doct--get option)
+          (push option additional-options))))
 
     (unless template
       (when-let* ((template-keywords '(:template-function :template-file))
@@ -157,19 +174,48 @@ FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...
             ,(doct--get pargs :type)
             ,(or (doct--get pargs :target) target)
             ,template
-            ,@(apply 'append additional-options)))))
+            ,@(apply #'append additional-options)
+            ,@(apply #'append
+                     (mapcar (lambda (arglist)
+                               (seq-take arglist 2))
+                             (seq-filter (lambda (arglist)
+                                           (not (memq (car arglist)
+                                                      `(,@options
+                                                        ,@target-extensions
+                                                        ,@exclusive-targets
+                                                        ,@doct-keywords))))
+                                         (cdr pargs))))))))
 
-(defmacro doct (&rest forms)
+(defmacro doct (&rest args)
   "Specify Org capture templates declaratively.
 
 This doctumentation overlaps `org-capture-templates'. Please read and understand
 that doctumentation first.
 
-The doct macro accepts a series of unquoted FORMS and returns an implicitly
-backquoted list of org capture template entries. Each form must specify, at a
-minimum, a name. The name can either be the first value in the form, or
-specified with the :name keyword. The :name keyword overrides the positional
-argument. A value for the :keys keyword is required as well. For example:
+The doct macro can be used in one of two ways. If ARGS is an unquoted series of
+list forms, doct will expand to a backquoted list of org-capture-template entries:
+
+  (doct ((...) (...) (...)))
+
+Expands to:
+
+  `((...) (...) (...))
+
+If ARGS are not a series of lists, doct expands into a single
+org-capture-template entry:
+
+  (doct \"An example\" :keys \"e\")
+
+Expands to:
+
+  (\"e\" \"example\")
+
+This allows doct to be used within an existing org-capture-template list.
+
+Each form must specify, at a minimum, a name. The name can either be the first
+value in the form or specified with the :name keyword. The :name keyword
+overrides the positional argument. A value for the :keys keyword is required as
+well. For example:
 
 With a positional name argument:
 
@@ -295,10 +341,11 @@ Expands to:
 ee `org-capture-templates' for a full list of additional options."
 
   (declare (indent 0))
-  (let (body)
-    (dolist (form `,forms)
-      (push (doct--process-form form) body))
-    (list '\` (nreverse body))))
+  (list '\` (if (seq-every-p 'listp `,args)
+                (nreverse
+                 (mapcar (lambda (arg) (doct--convert-to-template-entry arg))
+                         `,args))
+              (doct--convert-to-template-entry args))))
 
 (provide 'doct)
 
