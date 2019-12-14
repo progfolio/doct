@@ -31,15 +31,14 @@
 
 ;;; Code:
 
-(defmacro doct--process-args (args &optional multiple)
+(defun doct--process-args (&rest args)
   "Collect each arg in ARGS into a list of the form:
 \((VALUE...) (KEY VALUE VALUE...) (KEY′ VALUE VALUE...)...).
 The car of the list contains positional arguments (those specified before any keywords).
 The cdr of the list contains lists associated with each keyword.
-If MULTIPLE is non-nil, multiple declarations of the same keyword arg combined.
 
 The resultant list is easily queried with `assq'."
-  (declare (debug t))
+
   (let (ignored
         processed-args
         positional-args
@@ -60,103 +59,108 @@ The resultant list is easily queried with `assq'."
                         positional-args))))))
 
     `(,(nreverse positional-args)
-            ,@(nreverse (mapcar (lambda (xs)
-                                (cons (car xs) (nreverse (cdr xs))))
-                              processed-args)))))
+      ,@(nreverse (mapcar (lambda (arg)
+                            (cons (car arg) (nreverse (cdr arg))))
+                          processed-args)))))
 
-  (defun doct--find-first-in-args (keywords args)
-    "Find first occurence of one of KEYWORDS in ARGS."
-    (seq-some (lambda (arg-list)
-                (seq-some (lambda (keyword)
-                            (assq keyword `(,arg-list)))
-                          keywords))
-              args))
+(defun doct--find-first-in-args (keywords args)
+  "Find first occurence of one of KEYWORDS in ARGS."
+  (seq-some (lambda (arg-list)
+              (seq-some (lambda (keyword)
+                          (assq keyword `(,arg-list)))
+                        keywords))
+            args))
+(defun doct--get (arglist &optional keyword)
+  (let ((target (if keyword
+                    (assq keyword arglist)
+                  arglist)))
+    (nth 1 target)))
 
-  (defmacro doct--process-form (form)
-    "Convert a declarative form to the form that `org-capture-templates' expects.
-FORM is an unquoted sexp follwing the pattern: ((positional args...) (KEY VALUE...)...)."
-    (declare (indent 1))
-    (let* ((pargs (macroexpand `(doct--process-args ,form)))
-           (target (assq :target pargs))
-           (template (when-let ((template (assq :template pargs)))
-                       (if (= 2 (length template))
-                           ;;skip concatenation if single string
-                           (nth 1 template)
-                         (list '\, `(string-join
-                                     ,(list '\` `,(cdr template)) "\n")))))
-           additional-options)
+(defun doct--process-form (form)
+  "Convert a declarative form to the form that `org-capture-templates' expects.
+FORM is an unquoted sexp follwing the pattern: (positional args... (KEY VALUE...)...)."
+  (let* ((pargs (apply #'doct--process-args form))
+         (target (assq :target pargs))
+         (template (when-let ((template (assq :template pargs)))
+                     (if (= 2 (length template))
+                         ;;skip concatenation if single string
+                         (doct--get template)
+                       (string-join (cdr template)"\n"))))
+         additional-options)
 
-      ;;Build target element of template
-      ;;handle exclusive cases first: id, clock, function without file
-      (unless target
-        (when-let ((exclusive-targets '(:id :clock :function))
-                   (found (doct--find-first-in-args exclusive-targets pargs))
-                   (keyword (car found)))
-          ;; :function keyword can be used with file or by itself
-          (unless (or (and (eq keyword :function) (assq :file pargs))
-                      ;;keyword without value
-                      (not (nth 1 found)))
-            (setq target (delq nil
-                               `(,(intern (substring (symbol-name keyword) 1))
-                                 ,(unless (eq keyword :clock) (nth 1 found))))))))
+    ;;Build target element of template
+    ;;handle exclusive cases first: id, clock, function without file
+    (unless target
+      (when-let ((exclusive-targets '(:id :clock :function))
+                 (found (doct--find-first-in-args exclusive-targets pargs))
+                 (keyword (car found)))
+        ;; :function keyword can be used with file or by itself
+        (unless (or (and (eq keyword :function) (assq :file pargs))
+                    ;;keyword without value
+                    (not (doct--get found)))
+          (setq target (delq nil
+                             `(,(intern (substring (symbol-name keyword) 1))
+                               ,(unless (eq keyword :clock) (doct--get found))))))))
 
-      (unless target
-        (when-let* ((file (cdr (assq :file pargs)))
-                    (target-type "file")
-                    (target-args file))
-          (when-let* ((extensions '(:headline :olp :regexp :function))
-                      (extension (doct--find-first-in-args extensions pargs))
-                      (keyword (car extension)))
-            (setq target-type (concat target-type "+"
-                                      ;;remove colon from keyword
-                                      (substring (symbol-name keyword) 1))
-                  target-args (append target-args (cdr extension)))
-            (when (eq keyword :olp)
-              (when (nth 1 (assq :datetree pargs))
-                (setq target-type (concat target-type "+datetree")))))
-          (setq target `(,(intern target-type) ,@target-args))))
+    (unless target
+      (when-let* ((file (doct--get pargs :file))
+                  (target-type "file")
+                  (target-args file))
+        (when-let* ((extensions '(:headline :olp :regexp :function))
+                    (extension (doct--find-first-in-args extensions pargs))
+                    (keyword (car extension)))
+          (setq target-type (concat target-type "+"
+                                    ;;remove colon from keyword
+                                    (substring (symbol-name keyword) 1))
+                target-args `(,target-args ,@(cdr extension)))
+          (when (eq keyword :olp)
+            (when (doct--get pargs :datetree)
+              (setq target-type (concat target-type "+datetree")))))
+        (setq target `(,(intern target-type) ,@target-args))))
 
-      (let ((options '(:clock-in
-                       :clock-keep
-                       :clock-resume
-                       :empty-lines
-                       :empty-lines-after
-                       :empty-lines-before
-                       :immediate-finish
-                       :jump-to-captured
-                       :kill-buffer
-                       :no-save
-                       :prepend
-                       :table-line-pos
-                       :time-prompt
-                       :tree-type
-                       :unnarrowed)))
-        (dolist (keyword options)
-          (when-let ((option (assq keyword pargs)))
-            ;;only push non-nil options
-            (when (nth 1 option)
-              (push option additional-options)))))
+    (let ((options '(:clock-in
+                     :clock-keep
+                     :clock-resume
+                     :empty-lines
+                     :empty-lines-after
+                     :empty-lines-before
+                     :immediate-finish
+                     :jump-to-captured
+                     :kill-buffer
+                     :no-save
+                     :prepend
+                     :table-line-pos
+                     :time-prompt
+                     :tree-type
+                     :unnarrowed)))
+      (dolist (keyword options)
+        (when-let ((option (assq keyword pargs)))
+          ;;only push non-nil options
+          (when (doct--get option)
+            (push option additional-options)))))
 
-      (unless template
-        (when-let* ((template-keywords '(:template-function :template-file))
-                    (found (doct--find-first-in-args template-keywords pargs)))
-          (setq template `(,(intern (substring (symbol-name (car found)) (length ":template-")))
-                           ,(nth 1 found)))))
+    (unless template
+      (when-let* ((template-keywords '(:template-function :template-file))
+                  (found (doct--find-first-in-args template-keywords pargs)))
+        (pcase  (car found)
+          (:template-function (setq template `(function ,(doct--get found))))
+          (:template-file (setq template `(file ,(doct--get found)))))))
 
-      ;;TEMPLATE FORM:
-      ;;(keys description type target template [additional options...])
-      (delq nil
-            `(,(nth 1 (assq :keys pargs))
-              ;;name is first positional arg
-              ,(or (nth 1 (assq :name pargs))
-                   (car (car pargs)))
-              ,(nth 1 (assq :type pargs))
-              ,(or (nth 1 (assq :target pargs)) target)
-              ,template
-              ,@(apply 'append additional-options)))))
+    ;;TEMPLATE FORM:
+    ;;(keys description type target template [additional options...])
+    (delq nil
+          `(,(doct--get pargs :keys)
+            ;;description is first positional arg
+            ;;:name for a position independent alias
+            ,(or (doct--get pargs :name)
+                 (caar pargs))
+            ,(doct--get pargs :type)
+            ,(or (doct--get pargs :target) target)
+            ,template
+            ,@(apply 'append additional-options)))))
 
-  (defmacro doct (&rest forms)
-    "Specify Org capture templates declaratively.
+(defmacro doct (&rest forms)
+  "Specify Org capture templates declaratively.
 
 This doctumentation overlaps `org-capture-templates'. Please read and understand
 that doctumentation first.
@@ -290,12 +294,12 @@ Expands to:
 
 ee `org-capture-templates' for a full list of additional options."
 
-    (declare (indent 0))
-    (let (body)
-      (dolist (form `,forms)
-        (push (macroexpand `(doct--process-form ,form)) body))
-      (list '\` (nreverse body))))
+  (declare (indent 0))
+  (let (body)
+    (dolist (form `,forms)
+      (push (doct--process-form form) body))
+    (list '\` (nreverse body))))
 
-  (provide 'doct)
+(provide 'doct)
 
 ;;; doct.el ends here
