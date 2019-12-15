@@ -199,9 +199,9 @@ list forms, doct will expand to a backquoted list of org-capture-template entrie
 
 Expands to:
 
-  `((...) (...) (...))
+  \\=`((...) (...) (...))
 
-If ARGS are not a series of lists, doct expands into a single
+If ARGS is not a series of lists, doct expands into a single
 org-capture-template entry:
 
   (doct \"An example\" :keys \"e\")
@@ -263,7 +263,7 @@ The target is specified using one of several exclusive keywords:
 
   :id \"id of existing Org entry\"
     File as child of this entry, or in the body of the entry
-    (see `org-get-create-id' in addition to `org-capture-templates')
+    (see `org-id-get-create' in addition to `org-capture-templates')
 
   :clock t
     File to the entry that is currently being clocked
@@ -338,7 +338,7 @@ Expands to:
 
   \\=`((...))
 
-ee `org-capture-templates' for a full list of additional options."
+see `org-capture-templates' for a full list of additional options."
 
   (declare (indent 0))
   (list '\` (if (seq-every-p 'listp `,args)

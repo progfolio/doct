@@ -38,4 +38,200 @@ into multiple strings without storing the template in an external file.
 ** TODO Installation
 ;;TODO
 ** TODO Documentation
-;;TODO
+#+begin_src emacs-lisp
+(doct &rest ARGS)
+#+end_src
+
+The doct macro can be used in one of two ways. If /ARGS/ is an unquoted series of
+list forms, doct will expand to a backquoted list of org-capture-template entries:
+
+  #+begin_src emacs-lisp
+  (doct ((...) (...) (...)))
+  #+end_src
+
+Expands to:
+
+  #+begin_src emacs-lisp
+  `((...) (...) (...))
+  #+end_src
+
+If /ARGS/ is not a series of lists, doct expands into a single
+org-capture-template entry:
+
+  #+begin_src emacs-lisp
+  (doct "An example" :keys "e")
+  #+end_src
+
+Expands to:
+
+  #+begin_src emacs-lisp
+  ("e" "example")
+  #+end_src
+
+This allows doct to be used within an existing [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]] list.
+*** :name & :keys
+Each form must specify, at a minimum, a name. The name can either be the first
+value in the form or specified with the ~:name~ keyword. The ~:name~ keyword
+overrides the positional argument. A value for the ~:keys~ keyword is required as
+well. For example:
+
+
+With a positional name argument:
+
+  #+begin_src emacs-lisp
+  (doct ("An example" :keys "a"))
+  #+end_src
+
+Or with a ~:name~ keyword:
+
+  #+begin_src emacs-lisp
+  (doct ("I’m ignored and optional in this case"
+          :keys "a"
+          :name "An Example"))
+  #+end_src
+
+Both expand to:
+
+  #+begin_src emacs-lisp
+  `(("a" "An example"))
+  #+end_src
+
+Forms like these must precede forms that share a common prefix key. e.g.
+
+  #+begin_src emacs-lisp
+  (doct ("Templates accessed by pressing 'a'" :keys "a")
+        ("An example template" :keys "ae"...)
+        ("And so on..." :keys "as"...))
+  #+end_src
+*** :type
+
+The type is specified with the ~:type~ keyword and accepts the following symbols:
+
+   - entry ::
+   an Org node, with a headline. Will be filed as the child of the target entry
+   or as a top level entry.
+
+   - item ::
+   a plain list item, will be placed in the first plain list at the target
+   location.
+
+   - checkitem ::
+   a checkbox item. This differs from the plain list item only in so far as it
+   uses a different default template.
+
+   - table-line ::
+   a new line in the first table at target location.
+
+   - plain ::
+   text to be inserted as it is.
+
+For example:
+
+  #+begin_src emacs-lisp
+  (doct ("An example"
+         :keys "a"
+         :type entry
+         ...))
+  #+end_src
+*** :target
+The target is specified using one of several exclusive keywords:
+
+  - :id "id of existing Org entry" ::
+    File as child of this entry, or in the body of the entry
+    (see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-id.el#L45][org-id-get-create]] and [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]])
+
+  - :clock t ::
+    File to the entry that is currently being clocked
+
+  - :function (lambda () ;visit file and move point to desired location...) ::
+    This keyword is exclusive when used without the ~:file~ keyword. If ~:file~ is
+    used, it is combined with it and expected to find the desired location
+    within the file specified by ~:file~.
+
+Keywords in this group are ignored after the first one is declared. e.g.
+
+  #+begin_src emacs-lisp
+  (doct ("An Example"
+         :keys "e"
+         :clock t
+         :function (lambda () (ignore)) ;ignored
+         :id "1" ;also ignored
+         ...))
+  #+end_src
+
+Expands to:
+
+  #+begin_src emacs-lisp
+  `(("e" "An Example" (clock)...))
+  #+end_src
+
+The target may also be specified directly using the ~:target~ keyword. This
+overrides all other target keywords. e.g.
+
+  #+begin_src emacs-lisp
+  (doct (... :target '(file "/path/to/target.org")))
+  #+end_src
+*** :file
+A target file is specified with the ~:file~ keyword. e.g.
+
+  #+begin_src emacs-lisp
+  (doct (... :file "/path/to/target.org"))
+  #+end_src
+
+The following keywords may be used in combination with the ~:file~ keyword:
+
+  - :headline "node headline" ::
+          File under unique heading in target file.
+
+  - :olp: "Level 1 heading" "Level 2 heading"... ::
+
+    Specify the full outline in the target file.
+    If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
+    Use a non-nil ~:time-prompt~ property to prompt for a different date.
+    Use a non-nil ~:tree-type~ property to create a week-tree.
+
+  - :regexp: "regexp describing location" ::
+
+    File to the entry matching regexp in target file
+
+  - :function: function-finding-location ::
+
+    If used in addition to the ~:file~ keyword, the value should be a function
+    that finds the desired location in that file. If used as an exclusive
+    keyword (see above), the function must locate both the target file and move
+    point to the desired location.
+
+*** :template
+The template is specified with the ~:template~ keyword. It accepts any number of
+strings which are joined by a new line in the expansion. e.g.
+
+  #+begin_src emacs-lisp
+  (doct (...:template "* Test" "One" "Two"))
+  #+end_src
+
+Expands to:
+
+  #+begin_src emacs-lisp
+  `((..."Test\nOne\nTwo"))
+  #+end_src
+
+The template may also be specified using ~:template-function~, which expects a
+function returning the template, or ~:template-file~, which expects a path to the
+file containing the template. The first template keyword declared overrides any
+that follow it.
+
+*** Additional options
+Additional options may be specified as key value pairs. Option keywords with a
+nil value are ignored in the expansion. e.g.
+
+  #+begin_src emacs-lisp
+  (doct (...:immediate-finish nil))
+  #+end_src
+
+Expands to:
+
+  #+begin_src emacs-lisp
+  `((...))
+  #+end_src
+
+see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]] for a full list of additional options.
