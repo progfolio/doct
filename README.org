@@ -183,18 +183,18 @@ The following keywords may be used in combination with the ~:file~ keyword:
   - :headline "node headline" ::
           File under unique heading in target file.
 
-  - :olp: "Level 1 heading" "Level 2 heading"... ::
+  - :olp "Level 1 heading" "Level 2 heading"... ::
 
     Specify the full outline in the target file.
     If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
     Use a non-nil ~:time-prompt~ property to prompt for a different date.
     Use a non-nil ~:tree-type~ property to create a week-tree.
 
-  - :regexp: "regexp describing location" ::
+  - :regexp "regexp describing location" ::
 
     File to the entry matching regexp in target file
 
-  - :function: function-finding-location ::
+  - :function function-finding-location ::
 
     If used in addition to the ~:file~ keyword, the value should be a function
     that finds the desired location in that file. If used as an exclusive
