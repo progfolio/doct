@@ -189,11 +189,8 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
 (defmacro doct (&rest args)
   "Specify Org capture templates declaratively.
 
-This doctumentation overlaps `org-capture-templates'. Please read and understand
-that doctumentation first.
-
-The doct macro can be used in one of two ways. If ARGS is an unquoted series of
-list forms, doct will expand to a backquoted list of org-capture-template entries:
+The doct macro expands in one of two ways. If ARGS is an unquoted series of list
+forms, doct will expand to a backquoted list of org-capture-template entries:
 
   (doct ((...) (...) (...)))
 
@@ -204,119 +201,109 @@ Expands to:
 If ARGS is not a series of lists, doct expands into a single
 org-capture-template entry:
 
-  (doct \"An example\" :keys \"e\")
+  (doct \"example\" :keys \"e\")
 
 Expands to:
 
   (\"e\" \"example\")
 
-This allows doct to be used within an existing org-capture-template list.
+This allows one to mix doct forms with the rest of their
+`org-capture-templates'.
 
-Each form must specify, at a minimum, a name. The name can either be the first
-value in the form or specified with the :name keyword. The :name keyword
-overrides the positional argument. A value for the :keys keyword is required as
-well. For example:
 
-With a positional name argument:
+Each form must specify, at a minimum, a name and keys. The name can either be
+the first value in the form or specified with the :name keyword. The :name
+keyword overrides the positional argument. The :keys keyword specifies the keys
+to access the template from the capture menu.
 
-  (doct (\"An example\" :keys \"a\"))
+A positional name argument:
 
-Or with a :name keyword:
+  (doct (\"example\" :keys \"e\"))
 
-  (doct (\"I'm ignored and optional in this case\"
-          :keys \"a\"
-          :name \"An Example\"))
+Or the :name keyword:
+
+  (doct (\"I'm ignored and optional in this case\" :keys \"e\" :name
+          \"example\"))
 
 Both expand to:
 
-  \\=`((\"a\" \"An example\"))
+  \\=`((\"e\" \"example\"))
 
 Forms like these must precede forms that share a common prefix key. e.g.
 
-  (doct (\"Templates accessed by pressing \\='a\\='\" :keys \"a\")
-        (\"An example template\" :keys \"ae\"...)
-        (\"And so on...\" :keys \"as\"...))
+  (doct (\"Templates accessed by pressing \\='e\\='\" :keys \"e\") (\"example
+        one\" :keys \"eo\"...) (\"example two\" :keys \"et\"...))
 
-Forms with a capture template must specify a type, target and the template.
 
-The type is specified with the :type keyword and accepts the following symbols:
-   entry       an Org node, with a headline.  Will be filed
-               as the child of the target entry or as a
-               top level entry.
-   item        a plain list item, will be placed in the
-               first plain list at the target
-               location.
-   checkitem   a checkbox item.  This differs from the
-               plain list item only in so far as it uses a
-               different default template.
-   table-line  a new line in the first table at target location.
-   plain       text to be inserted as it is.
+The :type keyword specifies the entry's type and accepts the following symbols:
+
+   entry An Org node with a headline. The template becomes a child of the target
+               entry or a top level entry.
+
+   item A plain list item, placed in the first plain list at the target
+               location. checkitem A checkbox item. This differs from the plain
+               list item only in so far as it uses a different default template.
+
+   table-line A new line in the first table at target location.
+
+   plain Text inserted as is.
 
 For example:
 
-  (doct (\"An example\"
-         :keys \"a\"
-         :type entry
-         ...))
+  (doct (\"example\" :keys \"e\" :type entry ...))
 
-The target is specified using one of several exclusive keywords:
 
-  :id \"id of existing Org entry\"
-    File as child of this entry, or in the body of the entry
-    (see `org-id-get-create' in addition to `org-capture-templates')
+The :target keyword specifies the location of the inserted template text. Using
+:target directly overrides all of the other target keywords. e.g.
 
-  :clock t
-    File to the entry that is currently being clocked
+  (doct (... :target '(file \"/path/to/target.org\")))
 
-  :function (lambda () ;visit file and move point to desired location...)
-    This keyword is exclusive when used without the :file keyword. If :file is
-    used, it is combined with it and expected to find the desired location
-    within the file specified by :file.
+The first keyword declared in the following group exclusively sets the target.
+\(The :file keyword is not necessary for these)
 
-Keywords in this group are ignored after the first one is declared. e.g.
+  :id \"id of existing Org entry\" File as child of this entry, or in the body
+    of the entry (see `org-id-get-create' in addition to
+    `org-capture-templates')
 
-  (doct (\"An Example\"
-         :keys \"e\"
-         :clock t
-         :function (lambda () (ignore)) ;ignored
-         :id \"1\" ;also ignored
-         ...))
+  :clock t File to the currently clocked entry
+
+  :function (lambda () ;visit file and move point to desired location...) This
+    keyword is exclusive when used without the :file keyword. It is responsible
+    for finding the proper file and location to insert the capture item. If
+    :file specifies a target file, then the function is only responsible for
+    moving point to the desired location within that file.
+
+  (doct (\"example\" :keys \"e\" :clock t :function (lambda () (ignore))
+         ;ignored :id \"1\" ;also ignored ...))
 
 Expands to:
 
-  \\=`((\"e\" \"An Example\" (clock)...))
+  \\=`((\"e\" \"example\" (clock)...))
 
-The target may also be specified directly using the :target keyword. This
-overrides all other target keywords. e.g.
 
-  (doct (... :target \\='(file \"/path/to/target.org\")))
-
-A target file is specified with the :file keyword. e.g.
+The :file keyword specifies the target file for the capture template.
 
   (doct (... :file \"/path/to/target.org\"))
 
-The following keywords may be used in combination with the :file keyword:
+The following keywords refine the target file location:
 
-  :headline \"node headline\"
-    File under unique heading in target file.
+  :headline \"node headline\" File under unique heading in target file.
 
-  :olp \"Level 1 heading\" \"Level 2 heading\"...
-    Specify the full outline in the target file.
-    If :+datetree has a non-nil value, create a date tree for today's date.
-    Use a non-nil :time-prompt property to prompt for a different date.
-    Use a non-nil :tree-type property to create a week-tree.
+  :olp \"Level 1 heading\" \"Level 2 heading\"... Specify the full outline in
+    the target file. If :+datetree has a non-nil value, create a date tree for
+    today's date. Use a non-nil :time-prompt property to prompt for a different
+    date. Use a non-nil :tree-type property to create a week-tree.
 
-  :regexp \"regexp describing location\"
-    File to the entry matching regexp in target file
+  :regexp \"regexp describing location\" File to the entry matching regexp in
+    target file
 
-  :function function-finding-location
-    If used in addition to the :file keyword, the value should be a function that
-    finds the desired location in that file. If used as an exclusive keyword (see
-    above), the function must locate both the target file and move point to the
-    desired location.
+  :function function-finding-location If used in addition to the :file keyword,
+    the value should be a function that finds the desired location in that file.
+    If used as an exclusive keyword (see above), the function must locate both
+    the target file and move point to the desired location.
 
-The template is specified with the :template keyword. It accepts any number of
-strings which are joined by a new line in the expansion. e.g.
+The :template keyword specifies the template for creating the capture item.
+Multiple strings expand into a single string joined by newlines.
 
   (doct (...:template \"* Test\" \"One\" \"Two\"))
 
@@ -324,13 +311,14 @@ Expands to:
 
   \\=`((...\"Test\\nOne\\nTwo\"))
 
-The template may also be specified using :template-function, which expects a
-function returning the template, or :template-file, which expects a path to the
-file containing the template. The first template keyword declared overrides any
-that follow it.
+The :template-file: keyword specifies a file containing the text of the
+template.
+The :template-function: keyword specifies a function which returns the template.
+The first of these keywords found overrides any additional template
+declarations.
 
-Additional options may be specified as key value pairs. Option keywords with a
-nil value are ignored in the expansion. e.g.
+Key Value pairs specify additional options. Doct does not include keywords with
+a nil value in the expansion.
 
   (doct (...:immediate-finish nil))
 

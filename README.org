@@ -30,10 +30,10 @@ becomes:
 #+end_src
 
 ** Motivation
-I'm tired of looking up the syntax for org-capture-template entries. Using
-keywords makes the form self-describing and eliminates the need to memorize the
-order of the entry's elements. I also wanted the ability to split the template
-into multiple strings without storing the template in an external file.
+Using keywords makes each entry form self-describing and eliminates the need to
+memorize the order of the entry's elements. I also wanted the ability to split
+the template into multiple strings without storing the template in an external
+file.
 
 ** TODO Installation
 ;;TODO
@@ -42,7 +42,7 @@ into multiple strings without storing the template in an external file.
 (doct &rest ARGS)
 #+end_src
 
-The doct macro can be used in one of two ways. If /ARGS/ is an unquoted series of
+The doct macro expands in one of two ways. If /ARGS/ is an unquoted series of
 list forms, doct will expand to a backquoted list of org-capture-template entries:
 
   #+begin_src emacs-lisp
@@ -59,7 +59,7 @@ If /ARGS/ is not a series of lists, doct expands into a single
 org-capture-template entry:
 
   #+begin_src emacs-lisp
-  (doct "An example" :keys "e")
+  (doct "example" :keys "e")
   #+end_src
 
 Expands to:
@@ -68,93 +68,100 @@ Expands to:
   ("e" "example")
   #+end_src
 
-This allows doct to be used within an existing [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]] list.
-*** :name & :keys
-Each form must specify, at a minimum, a name. The name can either be the first
-value in the form or specified with the ~:name~ keyword. The ~:name~ keyword
-overrides the positional argument. A value for the ~:keys~ keyword is required as
-well. For example:
+ This allows one to mix doct forms in with the rest of their [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]].
 
+*** Name & Keys
+Each form must specify, at a minimum, a name and keys. The name can either be
+the first value in the form or specified with the ~:name~ keyword. The ~:name~
+keyword overrides the positional argument. The ~:keys~ keyword specifies the keys
+to access the template from the capture menu.
 
-With a positional name argument:
+A positional name argument:
 
   #+begin_src emacs-lisp
-  (doct ("An example" :keys "a"))
+  (doct ("example" :keys "e"))
   #+end_src
 
-Or with a ~:name~ keyword:
+Or the ~:name~ keyword:
 
   #+begin_src emacs-lisp
   (doct ("I’m ignored and optional in this case"
-          :keys "a"
-          :name "An Example"))
+          :keys "e"
+          :name "example"))
   #+end_src
 
 Both expand to:
 
   #+begin_src emacs-lisp
-  `(("a" "An example"))
+  `(("e" "example"))
   #+end_src
 
 Forms like these must precede forms that share a common prefix key. e.g.
 
   #+begin_src emacs-lisp
-  (doct ("Templates accessed by pressing 'a'" :keys "a")
-        ("An example template" :keys "ae"...)
-        ("And so on..." :keys "as"...))
+  (doct ("Templates accessed by pressing 'e'" :keys "e")
+        ("example one" :keys "eo"...)
+        ("example two" :keys "et"...))
   #+end_src
-*** :type
+*** Type
 
-The type is specified with the ~:type~ keyword and accepts the following symbols:
+The ~:type~ keyword specifies the entry's type and accepts the following symbols:
 
    - entry ::
-   an Org node, with a headline. Will be filed as the child of the target entry
-   or as a top level entry.
+   An Org node with a headline. The template becomes a child of the target entry
+   or a top level entry.
 
    - item ::
-   a plain list item, will be placed in the first plain list at the target
-   location.
+   A plain list item, placed in the first plain list at the target location.
 
    - checkitem ::
-   a checkbox item. This differs from the plain list item only in so far as it
+   A checkbox item. This differs from the plain list item only in so far as it
    uses a different default template.
 
    - table-line ::
-   a new line in the first table at target location.
+   A new line in the first table at target location.
 
    - plain ::
-   text to be inserted as it is.
+   Text inserted as is.
 
 For example:
 
   #+begin_src emacs-lisp
-  (doct ("An example"
-         :keys "a"
+  (doct ("example"
+         :keys "e"
          :type entry
          ...))
   #+end_src
-*** :target
-The target is specified using one of several exclusive keywords:
+*** Target
+The ~:target~ keyword specifies the location of the inserted template text.
+Using ~:target~ directly overrides all of the other target keywords.
+
+  #+begin_src emacs-lisp
+  (doct (... :target '(file "/path/to/target.org")))
+  #+end_src
+
+The first keyword declared in the following group exclusively sets the target.
+(The ~:file~ keyword is not necessary for these)
 
   - :id "id of existing Org entry" ::
     File as child of this entry, or in the body of the entry
-    (see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-id.el#L45][org-id-get-create]] and [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]])
+    (see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-id.el#L45][org-id-get-create]] and the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]])
 
   - :clock t ::
-    File to the entry that is currently being clocked
+    File to the currently clocked entry
 
   - :function (lambda () ;visit file and move point to desired location...) ::
-    This keyword is exclusive when used without the ~:file~ keyword. If ~:file~ is
-    used, it is combined with it and expected to find the desired location
-    within the file specified by ~:file~.
+    This keyword is exclusive when used without the ~:file~ keyword. It is
+    responsible for finding the proper file and location to insert the capture
+    item. If ~:file~ specifies a target file, then the function is only
+    responsible for moving point to the desired location within that file.
 
-Keywords in this group are ignored after the first one is declared. e.g.
 
   #+begin_src emacs-lisp
-  (doct ("An Example"
+  (doct ("example"
          :keys "e"
          :clock t
-         :function (lambda () (ignore)) ;ignored
+         :function (lambda () (ignore)) ;ignored because clock is first
          :id "1" ;also ignored
          ...))
   #+end_src
@@ -162,23 +169,16 @@ Keywords in this group are ignored after the first one is declared. e.g.
 Expands to:
 
   #+begin_src emacs-lisp
-  `(("e" "An Example" (clock)...))
+  `(("e" "example" (clock)...))
   #+end_src
 
-The target may also be specified directly using the ~:target~ keyword. This
-overrides all other target keywords. e.g.
-
-  #+begin_src emacs-lisp
-  (doct (... :target '(file "/path/to/target.org")))
-  #+end_src
-*** :file
-A target file is specified with the ~:file~ keyword. e.g.
+The ~:file~ keyword specifies the target file for the capture template.
 
   #+begin_src emacs-lisp
   (doct (... :file "/path/to/target.org"))
   #+end_src
 
-The following keywords may be used in combination with the ~:file~ keyword:
+The following keywords refine the target file location:
 
   - :headline "node headline" ::
           File under unique heading in target file.
@@ -201,9 +201,9 @@ The following keywords may be used in combination with the ~:file~ keyword:
     keyword (see above), the function must locate both the target file and move
     point to the desired location.
 
-*** :template
-The template is specified with the ~:template~ keyword. It accepts any number of
-strings which are joined by a new line in the expansion. e.g.
+*** Template
+The ~:template~ keyword specifies the template for creating the capture item.
+Multiple strings expand into a single string joined by newlines.
 
   #+begin_src emacs-lisp
   (doct (...:template "* Test" "One" "Two"))
@@ -215,14 +215,13 @@ Expands to:
   `((..."Test\nOne\nTwo"))
   #+end_src
 
-The template may also be specified using ~:template-function~, which expects a
-function returning the template, or ~:template-file~, which expects a path to the
-file containing the template. The first template keyword declared overrides any
-that follow it.
+The ~:template-file:~ keyword specifies a file containing the text of the template.
+The ~:template-function:~ keyword specifies a function which returns the template.
+The first of these keywords found overrides any additional template declarations.
 
 *** Additional options
-Additional options may be specified as key value pairs. Option keywords with a
-nil value are ignored in the expansion. e.g.
+Key Value pairs specify additional options.
+Doct does not include keywords with a ~nil~ value in the expansion.
 
   #+begin_src emacs-lisp
   (doct (...:immediate-finish nil))
@@ -234,4 +233,4 @@ Expands to:
   `((...))
   #+end_src
 
-see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]] for a full list of additional options.
+see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
