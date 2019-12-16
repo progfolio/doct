@@ -148,7 +148,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
           (when (eq keyword :olp)
             (when (doct--get pargs :datetree)
               (setq target-type (concat target-type "+datetree")))))
-        (setq target `(,(intern target-type) ,@target-args))))
+        (setq target `(,(intern target-type) ,@`(,target-args)))))
 
     (dolist (keyword options)
       (when-let ((option (assq keyword pargs)))

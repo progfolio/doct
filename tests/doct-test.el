@@ -41,3 +41,10 @@
   "doct should expand into a single org capture template entry when arguments aren't lists"
   (should (equal (macroexpand (doct "test" :keys "t"))
                  '("t" "test"))))
+
+(ert-deftest file-without-target-expands-properly()
+  "doct shouldn't return a dotted list when its target is a string.
+It should return a proper list."
+  (let ((form (doct :file "test")))
+    (and (should (equal form '((file "test"))))
+         (should-not (equal form '((file . "test")))))))
