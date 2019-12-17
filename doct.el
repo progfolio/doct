@@ -79,11 +79,16 @@ Return value associated with KEYWORD in either case."
                   arglist)))
     (nth 1 target)))
 
+(defvar doct--keys-alist '()
+  "Used to compute keys for entries that have a :parent.")
+
 (defun doct--convert-to-template-entry (form)
   "Convert a declarative form to the entry `org-capture-templates' expects.
 FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
 
   (let* ((pargs (apply #'doct--process-args form))
+         (name (or (doct--get pargs :name)
+                   (caar pargs)))
          (target (assq :target pargs))
          (template (when-let ((template (assq :template pargs)))
                      (if (= 2 (length template))
@@ -114,6 +119,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
                           :file
                           :keys
                           :name
+                          :parent
                           :target
                           :template
                           :template-file
@@ -163,56 +169,64 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
           (:template-function (setq template `(function ,(doct--get found))))
           (:template-file (setq template `(file ,(doct--get found)))))))
 
-    ;;TEMPLATE FORM:
-    ;;(keys description type target template [additional options...])
-    (delq nil
-          `(,(doct--get pargs :keys)
-            ;;description is first positional arg
-            ;;:name for a position independent alias
-            ,(or (doct--get pargs :name)
-                 (caar pargs))
-            ,(doct--get pargs :type)
-            ,(or (doct--get pargs :target) target)
-            ,template
-            ,@(apply #'append additional-options)
-            ,@(apply #'append
-                     (mapcar (lambda (arglist)
-                               (seq-take arglist 2))
-                             (seq-filter (lambda (arglist)
-                                           (not (memq (car arglist)
-                                                      `(,@options
-                                                        ,@target-extensions
-                                                        ,@exclusive-targets
-                                                        ,@doct-keywords))))
-                                         (cdr pargs))))))))
 
-(defmacro doct (&rest args)
+    (let ((computed-keys (concat
+                          (cdr (assoc (doct--get pargs :parent) doct--keys-alist))
+                          (doct--get pargs :keys))))
+      (prog1
+
+          ;;TEMPLATE FORM:
+          ;;(keys description type target template [additional options...])
+          (delq nil
+                `(,computed-keys
+                  ,name
+                  ,(doct--get pargs :type)
+                  ,(or (doct--get pargs :target) target)
+                  ,template
+                  ,@(apply #'append additional-options)
+                  ,@(apply #'append
+                           (mapcar (lambda (arglist)
+                                     (seq-take arglist 2))
+                                   (seq-filter (lambda (arglist)
+                                                 (not (memq (car arglist)
+                                                            `(,@options
+                                                              ,@target-extensions
+                                                              ,@exclusive-targets
+                                                              ,@doct-keywords))))
+                                               (cdr pargs))))))
+
+        (push `(,name . ,computed-keys) doct--keys-alist)))))
+
+(defun doct (&rest entries)
   "Specify Org capture templates declaratively.
 
-The doct macro expands in one of two ways. If ARGS is an unquoted series of list
-forms, doct will expand to a backquoted list of org-capture-template entries:
+The doct function's return value depends on the value of ENTRIES.
+If ENTRIES is a list of declarative entry forms, doct will return a list of
+org-capture-template entries:
 
-  (doct ((...) (...) (...)))
+  (doct '((...) (...) (...)))
 
-Expands to:
+returns:
 
-  \\=`((...) (...) (...))
+  \\='((...) (...) (...))
 
-If ARGS is not a series of lists, doct expands into a single
+If ENTRIES is not a list of declarative entries, doct returns a single
 org-capture-template entry:
 
   (doct \"example\" :keys \"e\")
 
-Expands to:
+returns:
 
   (\"e\" \"example\")
 
 This allows one to mix doct forms with the rest of their
 `org-capture-templates'.
 
+Name & Keys
+===========
 
-Each form must specify, at a minimum, a name and keys. The name can either be
-the first value in the form or specified with the :name keyword. The :name
+Each entry must specify, at a minimum, a name and keys. The name can either be
+the first value in the entry or specified with the :name keyword. The :name
 keyword overrides the positional argument. The :keys keyword specifies the keys
 to access the template from the capture menu.
 
@@ -225,15 +239,35 @@ Or the :name keyword:
   (doct (\"I'm ignored and optional in this case\" :keys \"e\" :name
           \"example\"))
 
-Both expand to:
+Both return:
 
-  \\=`((\"e\" \"example\"))
+  \\='((\"e\" \"example\"))
 
-Forms like these must precede forms that share a common prefix key. e.g.
+Entries like these must precede entries that share a common prefix key. e.g.
 
-  (doct (\"Templates accessed by pressing \\='e\\='\" :keys \"e\") (\"example
-        one\" :keys \"eo\"...) (\"example two\" :keys \"et\"...))
+  (doct '((\"Templates accessed by pressing \\='e\\='\" :keys \"e\")
+         (\"example one\" :keys \"eo\"...)
+         (\"example two\" :keys \"et\"...)))
 
+Parent
+======
+
+Adding the :parent keyword to an entry computes its prefix keys.
+The :parent keyword's value is the name of the entry that will prefix the
+current entry's keys.
+
+  \\=(doct '((\"parent\" :keys \"p\")
+             (\"child\"
+               :keys \"c\"
+               :parent \"parent\")))
+
+Returns:
+
+  \\='((\"p\" \"parent\")
+       (\"pc\" \"child\"))
+
+Type
+====
 
 The :type keyword specifies the entry's type and accepts the following symbols:
 
@@ -250,13 +284,18 @@ The :type keyword specifies the entry's type and accepts the following symbols:
 
 For example:
 
-  (doct (\"example\" :keys \"e\" :type entry ...))
+  (doct (\"example\"
+           :keys \"e\"
+           :type entry
+           ...))
 
+Target
+======
 
 The :target keyword specifies the location of the inserted template text. Using
 :target directly overrides all of the other target keywords. e.g.
 
-  (doct (... :target '(file \"/path/to/target.org\")))
+  (doct ... :target '(file \"/path/to/target.org\"))
 
 The first keyword declared in the following group exclusively sets the target.
 \(The :file keyword is not necessary for these)
@@ -273,17 +312,20 @@ The first keyword declared in the following group exclusively sets the target.
     :file specifies a target file, then the function is only responsible for
     moving point to the desired location within that file.
 
-  (doct (\"example\" :keys \"e\" :clock t :function (lambda () (ignore))
-         ;ignored :id \"1\" ;also ignored ...))
+  (doct (\"example\"
+          :keys \"e\"
+          :clock t
+          :function (lambda () (ignore)) ;ignored
+          :id \"1\" ;also ignored ...))
 
-Expands to:
+returns:
 
-  \\=`((\"e\" \"example\" (clock)...))
+  \\='((\"e\" \"example\" (clock)...))
 
 
 The :file keyword specifies the target file for the capture template.
 
-  (doct (... :file \"/path/to/target.org\"))
+  (doct ... :file \"/path/to/target.org\")
 
 The following keywords refine the target file location:
 
@@ -302,38 +344,43 @@ The following keywords refine the target file location:
     If used as an exclusive keyword (see above), the function must locate both
     the target file and move point to the desired location.
 
+Template
+========
+
 The :template keyword specifies the template for creating the capture item.
-Multiple strings expand into a single string joined by newlines.
+Multiple strings are joined by newlines.
 
   (doct (...:template \"* Test\" \"One\" \"Two\"))
 
-Expands to:
+returns:
 
-  \\=`((...\"Test\\nOne\\nTwo\"))
+  \\='((...\"Test\\nOne\\nTwo\"))
 
 The :template-file: keyword specifies a file containing the text of the
 template.
 The :template-function: keyword specifies a function which returns the template.
-The first of these keywords found overrides any additional template
-declarations.
+The first declared overrides the other.
+
+Additional Options
+==================
 
 Key Value pairs specify additional options. Doct does not include keywords with
 a nil value in the expansion.
 
   (doct (...:immediate-finish nil))
 
-Expands to:
+returns:
 
-  \\=`((...))
+  \\='((...))
 
 see `org-capture-templates' for a full list of additional options."
 
-  (declare (indent 0))
-  (list '\` (if (seq-every-p 'listp `,args)
-                (nreverse
-                 (mapcar (lambda (arg) (doct--convert-to-template-entry arg))
-                         `,args))
-              (doct--convert-to-template-entry args))))
+  (setq doct--keys-alist nil)
+
+  (if (= 1 (length entries))
+      (mapcar (lambda (entry) (doct--convert-to-template-entry entry))
+              (car entries))
+    (doct--convert-to-template-entry entries)))
 
 (provide 'doct)
 

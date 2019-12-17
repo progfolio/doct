@@ -39,30 +39,31 @@ file.
 ;;TODO
 ** TODO Documentation
 #+begin_src emacs-lisp
-(doct &rest ARGS)
+(doct &rest ENTRIES)
 #+end_src
 
-The doct macro expands in one of two ways. If /ARGS/ is an unquoted series of
-list forms, doct will expand to a backquoted list of org-capture-template entries:
+The doct function's return value depends on the value of /ENTRIES/.
+If /ENTRIES/ is a list of declarative entry forms, doct will return a list of
+org-capture-template entries:
 
   #+begin_src emacs-lisp
   (doct ((...) (...) (...)))
   #+end_src
 
-Expands to:
+returns:
 
   #+begin_src emacs-lisp
-  `((...) (...) (...))
+  '((...) (...) (...))
   #+end_src
 
-If /ARGS/ is not a series of lists, doct expands into a single
+If /ENTRIES/ is not a list of declarative entries, doct returns a single
 org-capture-template entry:
 
   #+begin_src emacs-lisp
   (doct "example" :keys "e")
   #+end_src
 
-Expands to:
+returns:
 
   #+begin_src emacs-lisp
   ("e" "example")
@@ -71,8 +72,8 @@ Expands to:
  This allows one to mix doct forms in with the rest of their [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]].
 
 *** Name & Keys
-Each form must specify, at a minimum, a name and keys. The name can either be
-the first value in the form or specified with the ~:name~ keyword. The ~:name~
+Each entry must specify, at a minimum, a name and keys. The name can either be
+the first value in the entry or specified with the ~:name~ keyword. The ~:name~
 keyword overrides the positional argument. The ~:keys~ keyword specifies the keys
 to access the template from the capture menu.
 
@@ -90,19 +91,39 @@ Or the ~:name~ keyword:
           :name "example"))
   #+end_src
 
-Both expand to:
+Both return:
 
   #+begin_src emacs-lisp
-  `(("e" "example"))
+  '(("e" "example"))
   #+end_src
 
-Forms like these must precede forms that share a common prefix key. e.g.
+Entries like these must precede forms that share a common prefix key. e.g.
 
   #+begin_src emacs-lisp
-  (doct ("Templates accessed by pressing 'e'" :keys "e")
-        ("example one" :keys "eo"...)
-        ("example two" :keys "et"...))
+  (doct '(("Templates accessed by pressing 'e'" :keys "e")
+          ("example one" :keys "eo"...)
+          ("example two" :keys "et"...)))
   #+end_src
+
+**** Parent
+
+Adding the :parent keyword to an entry computes its prefix keys.
+The :parent keyword's value is the name of the entry that will prefix the
+current entry's keys.
+
+  #+begin_src emacs-lisp
+(doct '(("parent" :keys "p")
+        ("child"
+         :keys "c"
+         :parent "parent")))
+  #+end_src
+
+Returns:
+
+  #+begin_src emacs-lisp
+  '((p parent) (pc child))
+  #+end_src
+
 *** Type
 
 The ~:type~ keyword specifies the entry's type and accepts the following symbols:
@@ -137,7 +158,7 @@ The ~:target~ keyword specifies the location of the inserted template text.
 Using ~:target~ directly overrides all of the other target keywords.
 
   #+begin_src emacs-lisp
-  (doct (... :target '(file "/path/to/target.org")))
+  (doct ... :target '(file "/path/to/target.org"))
   #+end_src
 
 The first keyword declared in the following group exclusively sets the target.
@@ -166,16 +187,16 @@ The first keyword declared in the following group exclusively sets the target.
          ...))
   #+end_src
 
-Expands to:
+returns:
 
   #+begin_src emacs-lisp
-  `(("e" "example" (clock)...))
+  '(("e" "example" (clock)...))
   #+end_src
 
 The ~:file~ keyword specifies the target file for the capture template.
 
   #+begin_src emacs-lisp
-  (doct (... :file "/path/to/target.org"))
+  (doct ... :file "/path/to/target.org")
   #+end_src
 
 The following keywords refine the target file location:
@@ -209,10 +230,10 @@ Multiple strings expand into a single string joined by newlines.
   (doct (...:template "* Test" "One" "Two"))
   #+end_src
 
-Expands to:
+returns:
 
   #+begin_src emacs-lisp
-  `((..."Test\nOne\nTwo"))
+  '((..."Test\nOne\nTwo"))
   #+end_src
 
 The ~:template-file:~ keyword specifies a file containing the text of the template.
@@ -227,10 +248,10 @@ Doct does not include keywords with a ~nil~ value in the expansion.
   (doct (...:immediate-finish nil))
   #+end_src
 
-Expands to:
+returns:
 
   #+begin_src emacs-lisp
-  `((...))
+  '((...))
   #+end_src
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
