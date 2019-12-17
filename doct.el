@@ -89,7 +89,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
                      (if (= 2 (length template))
                          ;;skip concatenation if single string
                          (doct--get template)
-                       (string-join (cdr template)"\n"))))
+                       (string-join (eval (list '\` (cdr template))) "\n"))))
          (options '(:clock-in
                     :clock-keep
                     :clock-resume
