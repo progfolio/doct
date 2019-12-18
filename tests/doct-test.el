@@ -33,6 +33,15 @@
                        :clock t)
                  '("t" "clock-test" (clock)))))
 
+(ert-deftest :template-is-joined ()
+  ":template should join multiple values with a newline"
+  (should (equal (doct "template join test"
+                       :keys "t"
+                       :template "one" "two" "three")
+                 '("t" "template join test" "one
+two
+three"))))
+
 (ert-deftest :template-function ()
   "Keyword should properly convert to target entry"
   (should (equal (doct "template-function-test"
