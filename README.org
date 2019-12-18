@@ -1,5 +1,5 @@
 * DOCT: Declarative Org Capture Templates
-DOCT is a macro that provides an alternative, declarative syntax for describing Org capture templates.
+DOCT is a function that provides an alternative, declarative syntax for describing Org capture templates.
 
 ** tl;dr
 #+begin_src emacs-lisp
@@ -53,7 +53,7 @@ org-capture-template entries:
 returns:
 
   #+begin_src emacs-lisp
-  '((...) (...) (...))
+  ((...) (...) (...))
   #+end_src
 
 If /ENTRIES/ is not a list of declarative entries, doct returns a single
@@ -94,7 +94,7 @@ Or the ~:name~ keyword:
 Both return:
 
   #+begin_src emacs-lisp
-  '(("e" "example"))
+  (("e" "example"))
   #+end_src
 
 Entries like these must precede forms that share a common prefix key. e.g.
@@ -121,7 +121,7 @@ current entry's keys.
 Returns:
 
   #+begin_src emacs-lisp
-  '((p parent) (pc child))
+  ((p parent) (pc child))
   #+end_src
 
 *** Type
@@ -190,7 +190,7 @@ The first keyword declared in the following group exclusively sets the target.
 returns:
 
   #+begin_src emacs-lisp
-  '(("e" "example" (clock)...))
+  (("e" "example" (clock)...))
   #+end_src
 
 The ~:file~ keyword specifies the target file for the capture template.
@@ -233,7 +233,7 @@ Multiple strings expand into a single string joined by newlines.
 returns:
 
   #+begin_src emacs-lisp
-  '((..."Test\nOne\nTwo"))
+  ((..."Test\nOne\nTwo"))
   #+end_src
 
 The ~:template-file:~ keyword specifies a file containing the text of the template.
@@ -251,7 +251,7 @@ Doct does not include keywords with a ~nil~ value in the expansion.
 returns:
 
   #+begin_src emacs-lisp
-  '((...))
+  ((...))
   #+end_src
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
