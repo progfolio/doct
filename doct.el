@@ -94,7 +94,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
                      (if (= 2 (length template))
                          ;;skip concatenation if single string
                          (doct--get template)
-                       (string-join (eval (list '\` (cdr template))) "\n"))))
+                       (string-join (cdr template) "\n"))))
          (options '(:clock-in
                     :clock-keep
                     :clock-resume
@@ -116,6 +116,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
                               :regexp
                               :function))
          (doct-keywords '(:clock
+                          :datetree
                           :file
                           :keys
                           :name
@@ -208,7 +209,7 @@ org-capture-template entries:
 
 returns:
 
-  \\='((...) (...) (...))
+  \\=((...) (...) (...))
 
 If ENTRIES is not a list of declarative entries, doct returns a single
 org-capture-template entry:
@@ -236,12 +237,13 @@ A positional name argument:
 
 Or the :name keyword:
 
-  (doct (\"I'm ignored and optional in this case\" :keys \"e\" :name
-          \"example\"))
+  (doct (\"I'm ignored and optional in this case\"
+          :keys \"e\"
+          :name \"example\"))
 
 Both return:
 
-  \\='((\"e\" \"example\"))
+  \\=((\"e\" \"example\"))
 
 Entries like these must precede entries that share a common prefix key. e.g.
 
@@ -261,10 +263,10 @@ current entry's keys.
                :keys \"c\"
                :parent \"parent\")))
 
-Returns:
+returns:
 
-  \\='((\"p\" \"parent\")
-       (\"pc\" \"child\"))
+  \\=((\"p\" \"parent\")
+      (\"pc\" \"child\"))
 
 Type
 ====
@@ -320,7 +322,7 @@ The first keyword declared in the following group exclusively sets the target.
 
 returns:
 
-  \\='((\"e\" \"example\" (clock)...))
+  \\=((\"e\" \"example\" (clock)...))
 
 
 The :file keyword specifies the target file for the capture template.
@@ -354,7 +356,7 @@ Multiple strings are joined by newlines.
 
 returns:
 
-  \\='((...\"Test\\nOne\\nTwo\"))
+  \\=((...\"Test\\nOne\\nTwo\"))
 
 The :template-file: keyword specifies a file containing the text of the
 template.
@@ -371,7 +373,7 @@ a nil value in the expansion.
 
 returns:
 
-  \\='((...))
+  \\=((...))
 
 see `org-capture-templates' for a full list of additional options."
 
