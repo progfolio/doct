@@ -72,9 +72,9 @@ returns:
  This allows one to mix doct forms in with the rest of their [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]].
 
 *** Name & Keys
-Each entry must specify, at a minimum, a name and keys. The name can either be
-the first value in the entry or specified with the ~:name~ keyword. The ~:name~
-keyword overrides the positional argument. The ~:keys~ keyword specifies the keys
+Each entry must define, at a minimum, a name and keys. The name can either be
+the first value in the entry or defined with the ~:name~ keyword. The ~:name~
+keyword overrides the positional argument. The ~:keys~ keyword defines the keys
 to access the template from the capture menu.
 
 A positional name argument:
@@ -121,12 +121,12 @@ current entry's keys.
 Returns:
 
   #+begin_src emacs-lisp
-  ((p parent) (pc child))
+  (("p" "parent") ("pc" "child"))
   #+end_src
 
 *** Type
 
-The ~:type~ keyword specifies the entry's type and accepts the following symbols:
+The ~:type~ keyword defines the entry's type and accepts the following symbols:
 
    - entry ::
    An Org node with a headline. The template becomes a child of the target entry
@@ -154,7 +154,7 @@ For example:
          ...))
   #+end_src
 *** Target
-The ~:target~ keyword specifies the location of the inserted template text.
+The ~:target~ keyword defines the location of the inserted template text.
 Using ~:target~ directly overrides all of the other target keywords.
 
   #+begin_src emacs-lisp
@@ -174,7 +174,7 @@ The first keyword declared in the following group exclusively sets the target.
   - :function (lambda () ;visit file and move point to desired location...) ::
     This keyword is exclusive when used without the ~:file~ keyword. It is
     responsible for finding the proper file and location to insert the capture
-    item. If ~:file~ specifies a target file, then the function is only
+    item. If ~:file~ defines a target file, then the function is only
     responsible for moving point to the desired location within that file.
 
 
@@ -193,7 +193,7 @@ returns:
   (("e" "example" (clock)...))
   #+end_src
 
-The ~:file~ keyword specifies the target file for the capture template.
+The ~:file~ keyword defines the target file for the capture template.
 
   #+begin_src emacs-lisp
   (doct ... :file "/path/to/target.org")
@@ -206,7 +206,7 @@ The following keywords refine the target file location:
 
   - :olp "Level 1 heading" "Level 2 heading"... ::
 
-    Specify the full outline in the target file.
+    Define the full outline in the target file.
     If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
     Use a non-nil ~:time-prompt~ property to prompt for a different date.
     Use a non-nil ~:tree-type~ property to create a week-tree.
@@ -223,7 +223,7 @@ The following keywords refine the target file location:
     point to the desired location.
 
 *** Template
-The ~:template~ keyword specifies the template for creating the capture item.
+The ~:template~ keyword defines the template for creating the capture item.
 Multiple strings expand into a single string joined by newlines.
 
   #+begin_src emacs-lisp
@@ -236,13 +236,13 @@ returns:
   ((..."Test\nOne\nTwo"))
   #+end_src
 
-The ~:template-file:~ keyword specifies a file containing the text of the template.
-The ~:template-function:~ keyword specifies a function which returns the template.
+The ~:template-file:~ keyword defines a file containing the text of the template.
+The ~:template-function:~ keyword defines a function which returns the template.
 The first of these keywords found overrides any additional template declarations.
 
 *** Additional options
-Key Value pairs specify additional options.
-Doct does not include keywords with a ~nil~ value in the expansion.
+Key Value pairs define additional options.
+doct does not include keywords with a ~nil~ value in the expansion.
 
   #+begin_src emacs-lisp
   (doct (...:immediate-finish nil))

@@ -26,14 +26,15 @@
 
 
 ;;; Commentary:
-;; Syntatic sugar for Org capture templates. See the `doct' docstring for details.
+;; Syntatic sugar for Org capture templates.
+;; See the `doct' docstring for details.
 
 ;;; Code:
 
 (defun doct--process-args (&rest args)
   "Collect each arg in ARGS into a list of the form:
 \((VALUE...) (KEY VALUE VALUE...)...).
-The car contains positional arguments (those specified before any keywords).
+The car contains positional arguments (those defined before any keywords).
 The cdr contains lists associated with each keyword.
 
 The resultant list is easily queried with `assq'."
@@ -199,7 +200,7 @@ FORM is an unquoted sexp of the pattern: (positional args... KEY VALUE...)."
         (push `(,name . ,computed-keys) doct--keys-alist)))))
 
 (defun doct (&rest entries)
-  "Specify Org capture templates declaratively.
+  "Define Org capture templates declaratively.
 
 The doct function's return value depends on the value of ENTRIES.
 If ENTRIES is a list of declarative entry forms, doct will return a list of
@@ -226,9 +227,9 @@ This allows one to mix doct forms with the rest of their
 Name & Keys
 ===========
 
-Each entry must specify, at a minimum, a name and keys. The name can either be
-the first value in the entry or specified with the :name keyword. The :name
-keyword overrides the positional argument. The :keys keyword specifies the keys
+Each entry must define, at a minimum, a name and keys. The name can either be
+the first value in the entry or defined with the :name keyword. The :name
+keyword overrides the positional argument. The :keys keyword defines the keys
 to access the template from the capture menu.
 
 A positional name argument:
@@ -271,7 +272,7 @@ returns:
 Type
 ====
 
-The :type keyword specifies the entry's type and accepts the following symbols:
+The :type keyword defines the entry's type and accepts the following symbols:
 
    entry An Org node with a headline. The template becomes a child of the target
                entry or a top level entry.
@@ -294,7 +295,7 @@ For example:
 Target
 ======
 
-The :target keyword specifies the location of the inserted template text. Using
+The :target keyword defines the location of the inserted template text. Using
 :target directly overrides all of the other target keywords. e.g.
 
   (doct ... :target '(file \"/path/to/target.org\"))
@@ -302,17 +303,21 @@ The :target keyword specifies the location of the inserted template text. Using
 The first keyword declared in the following group exclusively sets the target.
 \(The :file keyword is not necessary for these)
 
-  :id \"id of existing Org entry\" File as child of this entry, or in the body
-    of the entry (see `org-id-get-create' in addition to
-    `org-capture-templates')
+  :id \"id of existing Org entry\"
 
-  :clock t File to the currently clocked entry
+    File as child of this entry, or in the body of the entry
+    (see `org-id-get-create' in addition to `org-capture-templates')
 
-  :function (lambda () ;visit file and move point to desired location...) This
-    keyword is exclusive when used without the :file keyword. It is responsible
-    for finding the proper file and location to insert the capture item. If
-    :file specifies a target file, then the function is only responsible for
-    moving point to the desired location within that file.
+  :clock t
+
+    File to the currently clocked entry
+
+  :function (lambda () ;visit file and move point to desired location...)
+
+    This keyword is exclusive when used without the :file keyword. It is
+    responsible for finding the proper file and location to insert the capture
+    item. If :file defines a target file, then the function is only responsible
+    for moving point to the desired location within that file.
 
   (doct (\"example\"
           :keys \"e\"
@@ -325,31 +330,38 @@ returns:
   \\=((\"e\" \"example\" (clock)...))
 
 
-The :file keyword specifies the target file for the capture template.
+The :file keyword defines the target file for the capture template.
 
   (doct ... :file \"/path/to/target.org\")
 
 The following keywords refine the target file location:
 
-  :headline \"node headline\" File under unique heading in target file.
+  :headline \"node headline\"
 
-  :olp \"Level 1 heading\" \"Level 2 heading\"... Specify the full outline in
-    the target file. If :+datetree has a non-nil value, create a date tree for
-    today's date. Use a non-nil :time-prompt property to prompt for a different
-    date. Use a non-nil :tree-type property to create a week-tree.
+    File under unique heading in target file.
 
-  :regexp \"regexp describing location\" File to the entry matching regexp in
-    target file
+  :olp \"Level 1 heading\" \"Level 2 heading\"...
 
-  :function function-finding-location If used in addition to the :file keyword,
-    the value should be a function that finds the desired location in that file.
-    If used as an exclusive keyword (see above), the function must locate both
-    the target file and move point to the desired location.
+    Define the full outline in the target file. If :+datetree has a non-nil
+    value, create a date tree for today's date. Use a non-nil :time-prompt
+    property to prompt for a different date. Use a non-nil :tree-type property
+    to create a week-tree.
+
+  :regexp \"regexp describing location\"
+
+    File to the entry matching regexp in target file
+
+  :function function-finding-location
+
+    If used in addition to the :file keyword, the value should be a function
+    that finds the desired location in that file. If used as an exclusive
+    keyword (see above), the function must locate both the target file and move
+    point to the desired location.
 
 Template
 ========
 
-The :template keyword specifies the template for creating the capture item.
+The :template keyword defines the template for creating the capture item.
 Multiple strings are joined by newlines.
 
   (doct (...:template \"* Test\" \"One\" \"Two\"))
@@ -358,15 +370,15 @@ returns:
 
   \\=((...\"Test\\nOne\\nTwo\"))
 
-The :template-file: keyword specifies a file containing the text of the
+The :template-file: keyword defines a file containing the text of the
 template.
-The :template-function: keyword specifies a function which returns the template.
+The :template-function: keyword defines a function which returns the template.
 The first declared overrides the other.
 
 Additional Options
 ==================
 
-Key Value pairs specify additional options. Doct does not include keywords with
+Key Value pairs define additional options. doct does not include keywords with
 a nil value in the expansion.
 
   (doct (...:immediate-finish nil))
