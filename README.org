@@ -3,73 +3,39 @@ DOCT is a function that provides an alternative, declarative syntax for describi
 
 ** tl;dr
 #+begin_src emacs-lisp
-'(("e"
-   "Example"
-   entry
-   (file+headline "~/Documents/examples.org" "Example")
+'(("p" "Parent")
+  ("pc" "Child" entry (file+headline "~/example.org" "Example")
    "* %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:%?"
-   :immediate-finish t)))
+   :prepend t))
 #+end_src
 
 becomes:
 
 #+begin_src emacs-lisp
-(doct (:name "Example"
-             "Additional descriptive strings ignored in the expansion."
-             :keys "e"
-             :type entry
-             :file "~/Documents/examples.org"
-             :headline "Example"
-             :immediate-finish t
-             :template
-             "* %{Description}"
-             ":PROPERTIES:"
-             ":Created: %U"
-             ":END:"
-             "%?")))
+(doct '(("Parent" :keys "p"
+         :children ("Child" :keys "c"
+                    :file "~/example.org"
+                    :headline "Example"
+                    :prepend t
+                    :template ("* %^{Description}"
+                               ":PROPERTIES:"
+                               ":Created: %U"
+                               ":END:"
+                               "%?")))))
 #+end_src
-
-** Motivation
-Using keywords makes each entry form self-describing and eliminates the need to
-memorize the order of the entry's elements. I also wanted the ability to split
-the template into multiple strings without storing the template in an external
-file.
 
 ** TODO Installation
 ;;TODO
 ** TODO Documentation
 #+begin_src emacs-lisp
-(doct &rest ENTRIES)
+(doct declarations)
 #+end_src
 
-The doct function's return value depends on the value of /ENTRIES/.
-If /ENTRIES/ is a list of declarative entry forms, doct will return a list of
-org-capture-template entries:
+Doct expects a list of declarations. Each declaration is a list
 
-  #+begin_src emacs-lisp
-  (doct ((...) (...) (...)))
-  #+end_src
 
-returns:
 
-  #+begin_src emacs-lisp
-  ((...) (...) (...))
-  #+end_src
-
-If /ENTRIES/ is not a list of declarative entries, doct returns a single
-org-capture-template entry:
-
-  #+begin_src emacs-lisp
-  (doct "example" :keys "e")
-  #+end_src
-
-returns:
-
-  #+begin_src emacs-lisp
-  ("e" "example")
-  #+end_src
-
- This allows mixing doct entries into a preexisting [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]].
+This allows mixing doct entries into a preexisting [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L123][org-capture-templates]].
 
 *** Name & Keys
 Each entry must define, at a minimum, a name and keys. The name can either be
@@ -79,31 +45,31 @@ to access the template from the capture menu.
 
 A positional name argument:
 
-  #+begin_src emacs-lisp
-  (doct ("example" :keys "e"))
-  #+end_src
+#+begin_src emacs-lisp
+(doct ("example" :keys "e"))
+#+end_src
 
 Or the ~:name~ keyword:
 
-  #+begin_src emacs-lisp
-  (doct ("I’m ignored and optional in this case"
-          :keys "e"
-          :name "example"))
-  #+end_src
+#+begin_src emacs-lisp
+(doct ("I’m ignored and optional in this case"
+       :keys "e"
+       :name "example"))
+#+end_src
 
 Both return:
 
-  #+begin_src emacs-lisp
-  (("e" "example"))
-  #+end_src
+#+begin_src emacs-lisp
+(("e" "example"))
+#+end_src
 
 Entries like these must precede forms that share a common prefix key. e.g.
 
-  #+begin_src emacs-lisp
-  (doct '(("Templates accessed by pressing 'e'" :keys "e")
-          ("example one" :keys "eo"...)
-          ("example two" :keys "et"...)))
-  #+end_src
+#+begin_src emacs-lisp
+(doct '(("Templates accessed by pressing 'e'" :keys "e")
+        ("example one" :keys "eo"...)
+        ("example two" :keys "et"...)))
+#+end_src
 
 **** Parent
 
@@ -111,18 +77,18 @@ Adding the :parent keyword to an entry computes its prefix keys.
 The :parent keyword's value is the name of the entry that will prefix the
 current entry's keys.
 
-  #+begin_src emacs-lisp
+#+begin_src emacs-lisp
 (doct '(("parent" :keys "p")
         ("child"
          :keys "c"
          :parent "parent")))
-  #+end_src
+#+end_src
 
 Returns:
 
-  #+begin_src emacs-lisp
-  (("p" "parent") ("pc" "child"))
-  #+end_src
+#+begin_src emacs-lisp
+(("p" "parent") ("pc" "child"))
+#+end_src
 
 The ~:parent~ keyword can't compute keys across invocations of doct or with
 targets outside of a doct call.
@@ -144,113 +110,113 @@ The following will not work:
 
 The ~:type~ keyword defines the entry's type and accepts the following symbols:
 
-   - entry ::
-   An Org node with a headline. The template becomes a child of the target entry
-   or a top level entry.
+- entry ::
+  An Org node with a headline. The template becomes a child of the target entry
+  or a top level entry.
 
-   - item ::
-   A plain list item, placed in the first plain list at the target location.
+  - item ::
+    A plain list item, placed in the first plain list at the target location.
 
-   - checkitem ::
-   A checkbox item. This differs from the plain list item only in so far as it
-   uses a different default template.
+    - checkitem ::
+    A checkbox item. This differs from the plain list item only in so far as it
+    uses a different default template.
 
-   - table-line ::
-   A new line in the first table at target location.
+    - table-line ::
+    A new line in the first table at target location.
 
-   - plain ::
-   Text inserted as is.
+    - plain ::
+    Text inserted as is.
 
-For example:
+    For example:
 
-  #+begin_src emacs-lisp
-  (doct ("example"
-         :keys "e"
-         :type entry
-         ...))
-  #+end_src
+    #+begin_src emacs-lisp
+(doct ("example"
+       :keys "e"
+       :type entry
+       ...))
+    #+end_src
 *** Target
 The ~:target~ keyword defines the location of the inserted template text.
 Using ~:target~ directly overrides all of the other target keywords.
 
-  #+begin_src emacs-lisp
-  (doct ... :target '(file "/path/to/target.org"))
-  #+end_src
+#+begin_src emacs-lisp
+(doct ... :target '(file "/path/to/target.org"))
+#+end_src
 
 The first keyword declared in the following group exclusively sets the target.
 The ~:file~ keyword is not necessary for these.
 
-  - :id "id of existing Org entry" ::
-    File as child of this entry, or in the body of the entry
-    (see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-id.el#L45][org-id-get-create]] and the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]])
+- :id "id of existing Org entry" ::
+  File as child of this entry, or in the body of the entry
+  (see [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-id.el#L45][org-id-get-create]] and the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]])
 
-  - :clock t ::
-    File to the currently clocked entry
+- :clock t ::
+  File to the currently clocked entry
 
-  - :function (lambda () ;visit file and move point to desired location...) ::
-    This keyword is exclusive when used without the ~:file~ keyword. It is
-    responsible for finding the proper file and location to insert the capture
-    item. If ~:file~ defines a target file, then the function is only
-    responsible for moving point to the desired location within that file.
+- :function (lambda () ;visit file and move point to desired location...) ::
+  This keyword is exclusive when used without the ~:file~ keyword. It is
+  responsible for finding the proper file and location to insert the capture
+  item. If ~:file~ defines a target file, then the function is only
+  responsible for moving point to the desired location within that file.
 
 
-  #+begin_src emacs-lisp
-  (doct ("example"
-         :keys "e"
-         :clock t
-         :function (lambda () (ignore)) ;ignored because clock is first
-         :id "1" ;also ignored
-         ...))
-  #+end_src
+#+begin_src emacs-lisp
+(doct ("example"
+       :keys "e"
+       :clock t
+       :function (lambda () (ignore)) ;ignored because clock is first
+       :id "1" ;also ignored
+       ...))
+#+end_src
 
 returns:
 
-  #+begin_src emacs-lisp
-  (("e" "example" (clock)...))
-  #+end_src
+#+begin_src emacs-lisp
+(("e" "example" (clock)...))
+#+end_src
 
 The ~:file~ keyword defines the target file for the capture template.
 
-  #+begin_src emacs-lisp
-  (doct ... :file "/path/to/target.org")
-  #+end_src
+#+begin_src emacs-lisp
+(doct ... :file "/path/to/target.org")
+#+end_src
 
 The following keywords refine the target file location:
 
-  - :headline "node headline" ::
-          File under unique heading in target file.
+- :headline "node headline" ::
+  File under unique heading in target file.
 
-  - :olp "Level 1 heading" "Level 2 heading"... ::
+- :olp "Level 1 heading" "Level 2 heading"... ::
 
-    Define the full outline in the target file.
-    If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
-    Use a non-nil ~:time-prompt~ property to prompt for a different date.
-    Use a non-nil ~:tree-type~ property to create a week-tree.
+  Define the full outline in the target file.
+  If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
+  Use a non-nil ~:time-prompt~ property to prompt for a different date.
+  Use a non-nil ~:tree-type~ property to create a week-tree.
 
-  - :regexp "regexp describing location" ::
+- :regexp "regexp describing location" ::
 
-    File to the entry matching regexp in target file
+  File to the entry matching regexp in target file
 
-  - :function function-finding-location ::
+- :function function-finding-location ::
 
-    If used in addition to the ~:file~ keyword, the value should be a function
-    that finds the desired location in that file. If used as an exclusive
-    keyword (see above), the function must locate both the target file and move
-    point to the desired location.
+  If used in addition to the ~:file~ keyword, the value should be a function
+  that finds the desired location in that file. If used as an exclusive
+  keyword (see above), the function must locate both the target file and move
+  point to the desired location.
 
 *** Template
 The ~:template~ keyword defines the template for creating the capture item.
 Multiple strings expand into a single string joined by newlines.
 
-  #+begin_src emacs-lisp
-  (doct '(...:template "* Test" "One" "Two"))
-  #+end_src
+#+begin_src emacs-lisp
+(doct '(...:template "* Test" "One" "Two"))
+#+end_src
 
 returns:
 
-  #+begin_src emacs-lisp
-  ((..."Test\nOne\nTwo"))
-  #+end_src
+#+begin_src emacs-lisp
+((..."Test\nOne\nTwo"))
+#+end_src
 
 The ~:template-file:~ keyword defines a file containing the text of the template.
 The ~:template-function:~ keyword defines a function which returns the template.
@@ -260,15 +226,15 @@ The first of these keywords found overrides any additional template declarations
 Key Value pairs define additional options.
 doct does not include keywords with a ~nil~ value in the expansion.
 
-  #+begin_src emacs-lisp
-  (doct (...:immediate-finish nil))
-  #+end_src
+#+begin_src emacs-lisp
+(doct (...:immediate-finish nil))
+#+end_src
 
 returns:
 
-  #+begin_src emacs-lisp
-  ((...))
-  #+end_src
+#+begin_src emacs-lisp
+((...))
+#+end_src
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
@@ -284,7 +250,7 @@ template's keys and adds it to the appropriate hook.
 - :hook ::
   - org-capture-mode-hook ::
 
-     Runs when entering the org-capture-mode minor mode. Useful for running a
+    Runs when entering the org-capture-mode minor mode. Useful for running a
     function immediately after filling the template out.
 
 - :prepare-finalize  ::
@@ -296,7 +262,7 @@ template's keys and adds it to the appropriate hook.
 - :before-finalize ::
   - org-capture-before-finalize-hook ::
 
-     Runs right before a capture process finalizes. The capture buffer is still
+    Runs right before a capture process finalizes. The capture buffer is still
     current and widened to the entire buffer.
 
 - :after-finalize ::
@@ -305,13 +271,13 @@ template's keys and adds it to the appropriate hook.
 
 For example:
 
-     #+begin_src emacs-lisp
+#+begin_src emacs-lisp
 (doct "example"
-        :keys "e"
-        :hook (lambda ()
-                ;;executed when selecting the "example" template
-                ;;during the org-capture-mode-hook.
-                (ignore)))
-     #+end_src
+      :keys "e"
+      :hook (lambda ()
+              ;;executed when selecting the "example" template
+              ;;during the org-capture-mode-hook.
+              (ignore)))
+#+end_src
 
 See =doct-remove-hooks= to remove and unintern generated functions.
