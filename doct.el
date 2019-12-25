@@ -196,7 +196,8 @@ For a full description of ARGS see `doct'."
                     "Parent entry only accpets name, :keys, and :children args"))
       (unless (listp children)
         (doct-error name ":children must be contained in a list"))
-      (unless (seq-every-p 'listp children)
+      (unless (or (listp children)
+                  (seq-every-p 'listp children))
         (doct-error name "Each child must be a list")))
 
     (dolist (keyword '(:olp :template))
@@ -214,7 +215,9 @@ For a full description of ARGS see `doct'."
             (mapcar (lambda (child)
                       (apply #'doct--convert
                              (append child `(:doct--parent ,args))))
-                    children)))
+                    (if (not (seq-every-p 'listp children))
+                        `(,children)
+                      children))))
     ;;inherit keys
     (setf keys (let (inherited-keys
                      parent
