@@ -1,4 +1,21 @@
-;; -*- lexical-binding: t -*-
+;;; doct-test.el --- doct test suite ;; -*- lexical-binding: t -*-
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+;;; Code:
 (require 'ert)
 (require 'doct)
 (require 'org-capture)
@@ -112,13 +129,11 @@ It should return a proper list."
                      ("aa" "a-child" entry)
                      ("ab" "b-child" entry))))))
 
-
 (ert-deftest sort-parents ()
   "Each parent/child group should be sorted by doct-sort-parents-predicate."
   ;;parents alphabetical
   ;;childern unsorted
-  (let (doct-sort-children-predicate
-        (doct-sort-parents-predicate
+  (let (doct-sort-children-predicate (doct-sort-parents-predicate
          (lambda (a b)
            ;;sort parents by their keys
            (string< (caar a) (caar b)))))
@@ -134,3 +149,4 @@ It should return a proper list."
                      ("b" "b-parent")
                      ("bb" "b-child" entry)
                      ("ba" "a-child" entry))))))
+;;; doct-test.el ends here
