@@ -215,7 +215,7 @@ see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][O
 
 *** Children
 A parent declaration may contain a list of ~:children~ declarations.
-Each child inherits its parent's ~:keys~ as a prefix to its ~:keys~.
+The parent's ~:keys~ prefix each child's ~:keys~.
 
 #+begin_src emacs-lisp
 (doct '(("parent" :keys "p"
