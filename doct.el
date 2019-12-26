@@ -177,6 +177,7 @@ ENTRY-NAME is the name of the entry the hook should run for."
 For a full description of ARGS see `doct'."
   (let ((keys (plist-get args :keys))
         (children (plist-get args :children))
+        (function (plist-get args :function))
         (target (plist-get args :target))
         (file (plist-get args :file))
         (datetree (plist-get args :datetree))
