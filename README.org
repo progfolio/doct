@@ -213,7 +213,6 @@ returns:
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
-
 *** Children
 A parent declaration may contain a list of ~:children~ declarations.
 Each child inherits its parent's ~:keys~ as a prefix to its ~:keys~.
@@ -234,3 +233,47 @@ returns:
 #+begin_src emacs-lisp
 (("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
 #+end_src
+
+*** Hooks
+Adding one of the following hook keywords in an entry will generate a function
+of the form:
+
+=doct--hook/<hook-variable-abbreviation>/KEYS=
+
+which wraps the user's function in a conditional check for the current
+template's keys and adds it to the appropriate hook.
+
+- :hook ::
+  - org-capture-mode-hook ::
+
+    Runs when entering the org-capture-mode minor mode. Useful for running a
+    function immediately after filling the template out.
+
+- :prepare-finalize  ::
+  - org-capture-prepare-finalize-hook ::
+
+    Runs before the finalization starts. The capture buffer is current and
+    narrowed.
+
+- :before-finalize ::
+  - org-capture-before-finalize-hook ::
+
+    Runs right before a capture process finalizes. The capture buffer is still
+    current and widened to the entire buffer.
+
+- :after-finalize ::
+  - org-capture-after-finalize-hook  ::
+    Runs right after a capture process finalizes. Suitable for window cleanup.
+
+For example:
+
+#+begin_src emacs-lisp
+(doct '(("example"
+         :keys "e"
+         :hook (lambda ()
+                 ;;executed when selecting the "example" template
+                 ;;during the org-capture-mode-hook.
+                 (ignore)))))
+#+end_src
+
+See =doct-remove-hooks= to remove and unintern generated functions.
