@@ -27,6 +27,7 @@ becomes:
 ** TODO Installation
 ;;TODO
 ** TODO Documentation
+*** doct
 #+begin_src emacs-lisp
 (doct declarations)
 #+end_src
@@ -48,7 +49,7 @@ A child declaration consists of:
 - hook functions defined with the hook keywords
 - additional arguments
 
-*** Name & Keys
+**** Name & Keys
 Each declaration must define, at a minimum, a name and keys. The name is the first
 value in the declaration. The ~:keys~ keyword defines the keys to access the template
 from the capture menu.
@@ -63,7 +64,7 @@ returns:
 (("e" "example"))
 #+end_src
 
-*** Type
+**** Type
 
 The ~:type~ keyword defines the entry type and accepts the following symbols:
 
@@ -108,7 +109,7 @@ Both return:
 (("e" "example" entry (file "")))
 #+end_src
 
-*** Target
+**** Target
 The ~:target~ keyword defines the location of the inserted template text.
 
 #+begin_src emacs-lisp
@@ -178,7 +179,7 @@ The following keywords refine the target file location:
   keyword (see above), the function must locate both the target file and move
   point to the desired location.
 
-*** Template
+**** Template
 The ~:template~ keyword defines the template for creating the capture item.
 It may be either a string or a list of strings. ~doct~ joins the list with new lines.
 
@@ -197,7 +198,7 @@ The ~:template-function:~ keyword defines a function which returns the template.
 
 The first of these keywords found overrides any additional template declarations.
 
-*** Additional options
+**** Additional options
 Key Value pairs define additional options.
 ~doct~ does not include keywords with a ~nil~ value in the expansion.
 
@@ -213,7 +214,7 @@ returns:
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
-*** Children
+**** Children
 A parent declaration may contain a list of ~:children~ declarations.
 The parent's ~:keys~ prefix each child's ~:keys~.
 
@@ -234,7 +235,7 @@ returns:
 (("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
 #+end_src
 
-*** Hooks
+**** Hooks
 Adding one of the following hook keywords in an entry will generate a function
 of the form:
 
@@ -277,3 +278,78 @@ For example:
 #+end_src
 
 See =doct-remove-hooks= to remove and unintern generated functions.
+
+*** custom variables
+doct supports the following variables for customization:
+
+- doct-default-entry-type 'entry ::
+  The default template entry type.
+  It can be overridden by using the ~:type~ keyword in an entry.
+
+- doct-sort-parents-predicate nil ::
+  A binary predicate function which sorts sets of parents/children.
+  A nil value skips sorting.
+  The list it sorts is of the form:
+#+begin_src emacs-lisp
+(((parent) (child)...)...)
+#+end_src
+
+For example:
+
+#+begin_src emacs-lisp :results value raw
+(let ((doct-sort-parents-predicate (lambda (a b)
+                                     (string< (caar a) (caar b)))))
+  (doct '(("b-parent" :keys "b"
+           :children (("b-child" :keys "b")
+                      ("a-child" :keys "a")))
+          ("a-parent" :keys "a"
+           :children (("b-child" :keys "b")
+                      ("a-child" :keys "a"))))))
+#+end_src
+
+returns a list with the parents sorted.
+The children are still in declaration order:
+
+#+begin_src emacs-lisp
+(("a" "a-parent")
+ ("ab" "b-child entry")
+ ("aa" "a-child" entry)
+ ("b" "b-parent")
+ ("bb" "b-child" entry)
+ ("ba" "a-child" entry))
+#+end_src
+
+- doct-sort-children-predicate nil ::
+  A binary predicate function used to sort parent's children.
+  A nil value skips sorting.
+  The list it sorts is of the form:
+
+#+begin_src emacs-lisp
+((child)...)
+#+end_src
+
+For example:
+
+#+begin_src emacs-lisp :results value raw
+(let ((doct-sort-children-predicate
+       (lambda (a b)
+         ;;sort childern alphabetically by their keys
+         (string< (car a) (car b)))))
+  (doct '(("b-parent" :keys "b"
+           :children (("b-child" :keys "b")
+                      ("a-child" :keys "a")))
+          ("a-parent" :keys "a"
+           :children (("b-child" :keys "b")
+                      ("a-child" :keys "a"))))))
+#+end_src
+
+returns a list with each parent's children sorted alphabetically by their ~:keys~.
+
+#+begin_src emacs-lisp
+(("b" "b-parent")
+ ("ba" "a-child" entry)
+ ("bb" "b-child" entry)
+ ("a" "a-parent")
+ ("aa" "a-child" entry)
+ ("ab" "b-child" entry))
+#+end_src

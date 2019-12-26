@@ -57,6 +57,12 @@
 two
 three")))))
 
+(ert-deftest :template-is-string ()
+  ":template should be returned verbatim when it is a string"
+  (should (equal (doct '(("template join test" :keys "t"
+                          :template "test")))
+                 '(("t" "template join test" entry "test")))))
+
 (ert-deftest :template-function ()
   ":template-function should properly convert to target entry"
   (should (equal (doct '(("template-function-test" :keys "t"
@@ -64,17 +70,67 @@ three")))))
                           :template-function identity)))
                  '(("t" "template-function-test" entry #'identity)))))
 
-(ert-deftest nil-additional-option-not-expanded ()
-  "Additional options with a nil value should not be included in expanded entry."
+(ert-deftest nil-additional-option-not-included ()
+  "Additional options with a nil value should not be included in returned entry."
   (should (equal (doct '(("test" :keys "t"
                           :type entry
-                       :immediate-finish nil)))
+                          :immediate-finish nil)))
                  '(("t" "test" entry)))))
 
-(ert-deftest file-without-target-expands-properly()
+(ert-deftest file-without-target-is-proper-list ()
   "doct shouldn't return a dotted list when its target is a string.
 It should return a proper list."
   (let ((form (doct '(("test" :keys "t"
                        :type entry
                        :file "test")))))
-              (should (equal form '(("t" "test" entry (file "test")))))))
+    (should (equal form '(("t" "test" entry (file "test")))))))
+
+(ert-deftest childern-inherit-keys ()
+  "Each child should inherit its parent's keys as a prefix to its own keys."
+  (should (equal (doct '(("parent" :keys "p"
+                          :children
+                          (("one" :keys "o")
+                           ("two" :keys "t")))))
+                 '(("p" "parent") ("po" "one" entry) ("pt" "two" entry)))))
+
+(ert-deftest sort-children ()
+  "Each parent's children should be sorted by doct-sort-children-predicate."
+  (let ((doct-sort-children-predicate
+         (lambda (a b)
+           ;;sort childern alphabetically by their keys
+           (string< (car a) (car b)))))
+    (should (equal (doct '(("b-parent" :keys "b"
+                            :children (("b-child" :keys "b")
+                                       ("a-child" :keys "a")))
+                           ("a-parent" :keys "a"
+                            :children (("b-child" :keys "b")
+                                       ("a-child" :keys "a")))))
+                   '(("b" "b-parent")
+                     ("ba" "a-child" entry)
+                     ("bb" "b-child" entry)
+                     ("a" "a-parent")
+                     ("aa" "a-child" entry)
+                     ("ab" "b-child" entry))))))
+
+
+(ert-deftest sort-parents ()
+  "Each parent/child group should be sorted by doct-sort-parents-predicate."
+  ;;parents alphabetical
+  ;;childern unsorted
+  (let (doct-sort-children-predicate
+        (doct-sort-parents-predicate
+         (lambda (a b)
+           ;;sort parents by their keys
+           (string< (caar a) (caar b)))))
+    (should (equal (doct '(("b-parent" :keys "b"
+                            :children (("b-child" :keys "b")
+                                       ("a-child" :keys "a")))
+                           ("a-parent" :keys "a"
+                            :children (("b-child" :keys "b")
+                                       ("a-child" :keys "a")))))
+                   '(("a" "a-parent")
+                     ("ab" "b-child" entry)
+                     ("aa" "a-child" entry)
+                     ("b" "b-parent")
+                     ("bb" "b-child" entry)
+                     ("ba" "a-child" entry))))))

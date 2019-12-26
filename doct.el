@@ -38,13 +38,18 @@ Can be overridden by using the :type keyword in an entry."
   :options '(entry item checkitem table-line plain)
   :group 'doct)
 
-(defcustom doct-sort-entries t
-  "The sorting method for templates produced by doct.
-Can be set to the following symbols:
-  t sort entries alphabetically by their :keys value.
-When nil, entries are not sorted."
-  :type 'symbol
-  :options '(t nil)
+(defcustom doct-sort-parents-predicate nil
+  "A binary predicate function which sorts a list of the form:
+\(((parent) (child)...)...).
+If nil, no sorting is performed."
+  :type 'function
+  :group 'doct)
+
+(defcustom doct-sort-children-predicate nil
+  "A binary predicate function which sorts lists of the form:
+\((child)...).
+If nil, no sorting is performed."
+  :type 'function
   :group 'doct)
 
 (defvar doct-option-keywords '(:clock-in
@@ -352,12 +357,15 @@ For a full description of ARGS see `doct'."
                        ,@(nreverse additional-options)
                        ,@(nreverse unrecognized-options)))))
       (if children
-          `(,entry ,@children)
+          `(,entry ,@(if doct-sort-children-predicate
+                         (sort children doct-sort-children-predicate)
+                       children))
         entry))))
 
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
-  (let (templates)
+  (let (templates
+        entries)
     ;;letrec allows local recursive functions without
     ;;resorting to cl-labels
     (letrec ((extract (lambda (list)
@@ -366,12 +374,15 @@ For a full description of ARGS see `doct'."
                               (funcall extract element)
                             (when (listp element)
                               (push element templates)))))))
-      (funcall extract
-               (mapcar (lambda (form)
-                         (apply 'doct--convert form))
-                       declarations))
-      (sort (nreverse templates) (lambda (a b)
-                                   (string< (car a) (car b)))))))
+
+      (setq entries (mapcar (lambda (form)
+                                        (apply 'doct--convert form))
+                                      declarations))
+
+      (funcall extract (if doct-sort-parents-predicate
+                   (sort entries doct-sort-parents-predicate)
+                   entries)))
+    (nreverse templates)))
 
 (provide 'doct)
 
