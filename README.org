@@ -361,3 +361,12 @@ returns a list with each parent's children sorted alphabetically by their ~:keys
  ("aa" "a-child" entry)
  ("ab" "b-child" entry))
 #+end_src
+
+*** Contributing
+
+Pull/feature requests, code review, angry comments are all welcome.
+
+Please add a test to the test suite if you introduce any changes.
+
+Thanks,
+nv
