@@ -139,7 +139,7 @@ From the `org-capture-mode-hook'."
       (dolist (hook-fn (symbol-value hook))
         (when (string-match keys (symbol-name hook-fn))
           (remove-hook hook hook-fn))
-        (when unintern-functions (unintern hook-fn))))))
+        (when unintern-functions (unintern hook-fn nil))))))
 
 
 (defun doct--add-hook (keys fn where &optional entry-name)
@@ -177,12 +177,8 @@ ENTRY-NAME is the name of the entry the hook should run for."
 For a full description of ARGS see `doct'."
   (let ((keys (plist-get args :keys))
         (children (plist-get args :children))
-        (function (plist-get args :function))
-        (target (plist-get args :target))
-        (file (plist-get args :file))
-        (datetree (plist-get args :datetree))
-        (template (plist-get args :template))
-        (type (plist-get args :type)))
+        target
+        template)
 
     (unless keys
       (doct-error name "entry has no :keys value"))
@@ -220,7 +216,7 @@ For a full description of ARGS see `doct'."
                         `(,children)
                       children))))
     ;;inherit keys
-    (setf keys (let (inherited-keys
+    (setq keys (let (inherited-keys
                      parent
                      (current args))
                  (while (setq parent (plist-get current :doct--parent))
@@ -245,7 +241,7 @@ For a full description of ARGS see `doct'."
                       :tree-type
                       :unnarrowed))
            (extensions '(:function :headline :olp :regexp))
-           (exclusives '(:clock :function :id))
+           (exclusives '(:clock :function :id :target :file))
            (hooks '(:after-finalize :before-finalize :hook :prepare-finalize))
            (doct-keywords '(:children
                             :datetree
@@ -263,43 +259,48 @@ For a full description of ARGS see `doct'."
                             :type))
            (recognized-options
             (append options extensions exclusives hooks doct-keywords))
-           template-target
            additional-options
            unrecognized-options)
-      ;;exclusive targets
-      (unless target
-        (setf target
-              (pcase (doct--first-in-plist args exclusives)
-                (:clock '(clock))
-                (:id `(id ,(plist-get args :id)))
-                (:function (unless file
-                             `(function ,function))))))
-      ;;file-targets
-      (when (and file (not target))
-        (setf target
-              (let (target-type target-args)
-                (when-let ((extension (doct--first-in-plist
-                                       args extensions)))
-                  (when (and (eq extension :olp) datetree)
-                    (push :datetree target-type))
-                  (push extension target-type)
-                  (push (plist-get args extension) target-args))
-                (push :file target-type)
-                (push  file target-args)
-                `(,(intern (string-join
-                            (mapcar (lambda (keyword)
-                                      (substring (symbol-name keyword) 1))
-                                    target-type) "+"))
-                  ,@target-args))))
+
+      ;;file targets
+      (setq target
+            (pcase (doct--first-in-plist args exclusives)
+              (:clock '(clock))
+              (:id `(id ,(plist-get args :id)))
+              (:function (unless (plist-get args :file)
+                           `(function ,(plist-get args :function))))
+              (:target (plist-get args :target))
+              (:file (let (target-type target-args)
+                       (pcase (doct--first-in-plist args extensions)
+                         (:olp (push (plist-get args :datetree) target-type)
+                               (push :olp target-type)
+                               (dolist (path (nreverse (plist-get args :olp)))
+                                 (push path target-args)))
+                         (extension (push extension target-type)
+                                    (push (plist-get args extension)
+                                          target-args)))
+                       (push :file target-type)
+                       (push  (plist-get args :file) target-args)
+                       `(,(intern (string-join
+                                   (mapcar (lambda (keyword)
+                                             (substring (symbol-name keyword) 1))
+                                           (delq nil target-type)) "+"))
+                         ,@(delq nil target-args))))))
 
       ;;template targets
-      (unless template
-        (pcase (doct--first-in-plist args '(:template-file :template-function))
-          (:template-function
-           (setq template-target
-                 `(function ,(plist-get args :template-function))))
-          (:template-file
-           (setq template-target `(file ,(plist-get args :template-file))))))
+      (pcase (doct--first-in-plist args '(:template
+                                          :template-file
+                                          :template-function))
+        (:template
+         (setq template (let ((template (plist-get args :template)))
+                          (if (stringp template)
+                              template
+                            (string-join template "\n")))))
+        (:template-file
+         (setq template `(file ,(plist-get args :template-file))))
+        (:template-function
+         (setq template
+               `(function ,(plist-get args :template-function)))))
 
 
       ;;additional/unrecognized options
@@ -328,14 +329,10 @@ For a full description of ARGS see `doct'."
                          ;;@FIX logic could be clearer
                          ,(unless (or children (and (= 2 (length args))
                                                     keys))
-                            (or type doct-default-entry-type))
+                            (or (plist-get args :type)
+                                doct-default-entry-type))
                          ,target
-                         ,(if template
-                              (if (and (listp template)
-                                       (seq-every-p 'stringp template))
-                                  (string-join template "\n")
-                                template)
-                            template-target)
+                         ,template
                          ,@(nreverse additional-options)
                          ,@(nreverse unrecognized-options)))))
         (if children

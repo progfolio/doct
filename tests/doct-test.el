@@ -3,26 +3,44 @@
 (require 'doct)
 (require 'org-capture)
 
-(ert-deftest :id-is-exclusive ()
-  ":id keyword should override other target keywords if declared first"
-  (should (equal (doct '(("id-test" :keys "i"
+(ert-deftest first-file-target-wins ()
+  "first file target keyword should override others"
+  (should (equal (doct '(("fft-test" :keys "f"
                           :type entry
                           :id "1"
                           :clock t
-                          :function #'identity
+                          :function identity
+                          :target (function identity)
                           :file "")))
-                 '(("i" "id-test" entry (id "1"))))))
+                 '(("f" "fft-test" entry (id "1"))))))
 
-(ert-deftest :target-is-exclusive ()
-  ":target keyword should override no matter where it is declared"
-  (should (equal (doct '(("target-test" :keys "t"
+(ert-deftest first-file-target-extension-wins ()
+  "first file target extension should override others"
+  (should (equal (doct `(("ffte-test" :keys "f"
+                          :type entry
+                          :file ""
+                          ;;@HACK, not sure why this test fails if
+                          ;;run more than once. The :olp list is
+                          ;;nreversed in doct--convert, but
+                          ;;multiple invocations of the test should
+                          ;;get a fresh copy of the list...
+                          :olp ,(seq-copy '("one" "two" "three"))
+                          :regexp "one"
+                          :headline "one"
+                          :function identity)))
+                 '(("f" "ffte-test" entry (file+olp "" "one" "two" "three"))))))
+
+(ert-deftest first-template-target-wins ()
+  "first template target keyword should override other template target keywords"
+  (should (equal (doct '(("ftt-test" :keys "tt"
                           :type entry
                           :id "1"
                           :clock t
-                          :function #'identity
-                          :file ""
-                          :target t)))
-                 '(("t" "target-test" entry t)))))
+                          :function identity
+                          :target (function identity)
+                          :file "")))
+                 '(("tt" "ftt-test" entry (id "1"))))))
+
 
 (ert-deftest :clock-target-should-not-have-cdr ()
   ":clock keyword shouldn't have a cdr when used as a target."
@@ -40,7 +58,7 @@ two
 three")))))
 
 (ert-deftest :template-function ()
-  "Keyword should properly convert to target entry"
+  ":template-function should properly convert to target entry"
   (should (equal (doct '(("template-function-test" :keys "t"
                           :type entry
                           :template-function identity)))
