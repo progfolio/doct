@@ -207,7 +207,7 @@ The first keyword declared overrides any additional template declarations.
 
 **** Additional options
 Key Value pairs define additional options.
-~doct~ does not include keywords with a ~nil~ value in the expansion.
+~doct~ does not include keywords with a ~nil~ value in the returned template.
 
 #+begin_src emacs-lisp
 (doct '((...:immediate-finish nil)))
