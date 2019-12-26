@@ -25,7 +25,14 @@ becomes:
 #+end_src
 
 ** TODO Installation
-;;TODO
+Still bug testing, and working on the code. I'll be submitting to MELPA soon.
+Until then, if interested in testing, clone the ~doct~ repo and add it to your
+load-path:
+
+#+begin_src emacs-lisp
+(use-package doct
+  :load-path "lisp/")
+#+end_src
 ** TODO Documentation
 *** doct
 #+begin_src emacs-lisp
