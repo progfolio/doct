@@ -47,6 +47,57 @@ When nil, entries are not sorted."
   :options '(t nil)
   :group 'doct)
 
+(defvar doct-option-keywords '(:clock-in
+                               :clock-keep
+                               :clock-resume
+                               :empty-lines
+                               :empty-lines-after
+                               :empty-lines-before
+                               :immediate-finish
+                               :jump-to-captured
+                               :kill-buffer
+                               :no-save
+                               :prepend
+                               :table-line-pos
+                               :time-prompt
+                               :tree-type
+                               :unnarrowed)
+  "List of Org capture template additional options.")
+
+(defvar doct-file-extension-keywords '(:function :headline :olp :regexp)
+  "List of doct keywords that refine the insertion location in the target file.")
+
+(defvar doct-exclusive-location-keywords '(:clock :function :id :target :file)
+  "List of doct keywords that exclusively set the target location.")
+
+(defvar doct-hook-keywords '(:after-finalize :before-finalize
+                                             :hook :prepare-finalize)
+  "List of doct keywords that attach hooks for the current template.")
+
+(defvar doct-keywords '(:children
+                        :datetree
+                        :doct--parent
+                        :file
+                        :function
+                        :headline
+                        :keys
+                        :olp
+                        :regexp
+                        :target
+                        :template
+                        :template-file
+                        :template-function
+                        :type)
+  "List of doct's custom keywords.")
+
+(defvar doct-recognized-keywords (append
+                                  doct-option-keywords
+                                  doct-file-extension-keywords
+                                  doct-exclusive-location-keywords
+                                  doct-hook-keywords
+                                  doct-keywords)
+  "List of the keywords doct recognizes.")
+
 (defsubst doct-error (name msg)
   "Report MSG as an error, so the user knows it came from this package.
 NAME is the name of the entry that threw the error."
@@ -178,7 +229,9 @@ For a full description of ARGS see `doct'."
   (let ((keys (plist-get args :keys))
         (children (plist-get args :children))
         target
-        template)
+        template
+        additional-options
+        unrecognized-options)
 
     (unless keys
       (doct-error name "entry has no :keys value"))
@@ -224,120 +277,83 @@ For a full description of ARGS see `doct'."
                    (setq current parent))
                  (concat (string-join inherited-keys) keys)))
 
-    ;;@OPTIMIZE: move these into global variables?
-    (let* ((options '(:clock-in
-                      :clock-keep
-                      :clock-resume
-                      :empty-lines
-                      :empty-lines-after
-                      :empty-lines-before
-                      :immediate-finish
-                      :jump-to-captured
-                      :kill-buffer
-                      :no-save
-                      :prepend
-                      :table-line-pos
-                      :time-prompt
-                      :tree-type
-                      :unnarrowed))
-           (extensions '(:function :headline :olp :regexp))
-           (exclusives '(:clock :function :id :target :file))
-           (hooks '(:after-finalize :before-finalize :hook :prepare-finalize))
-           (doct-keywords '(:children
-                            :datetree
-                            :doct--parent
-                            :file
-                            :function
-                            :headline
-                            :keys
-                            :olp
-                            :regexp
-                            :target
-                            :template
-                            :template-file
-                            :template-function
-                            :type))
-           (recognized-options
-            (append options extensions exclusives hooks doct-keywords))
-           additional-options
-           unrecognized-options)
+    ;;file targets
+    (setq target
+          (pcase (doct--first-in-plist args doct-exclusive-location-keywords)
+            (:clock '(clock))
+            (:id `(id ,(plist-get args :id)))
+            (:function (unless (plist-get args :file)
+                         `(function ,(plist-get args :function))))
+            (:target (plist-get args :target))
+            (:file (let (target-type target-args)
+                     (pcase (doct--first-in-plist args
+                                                  doct-file-extension-keywords)
+                       (:olp (push (plist-get args :datetree) target-type)
+                             (push :olp target-type)
+                             (dolist (path (nreverse (plist-get args :olp)))
+                               (push path target-args)))
+                       (extension (push extension target-type)
+                                  (push (plist-get args extension)
+                                        target-args)))
+                     (push :file target-type)
+                     (push  (plist-get args :file) target-args)
+                     `(,(intern (string-join
+                                 (mapcar (lambda (keyword)
+                                           (substring (symbol-name keyword) 1))
+                                         (delq nil target-type)) "+"))
+                       ,@(delq nil target-args))))))
 
-      ;;file targets
-      (setq target
-            (pcase (doct--first-in-plist args exclusives)
-              (:clock '(clock))
-              (:id `(id ,(plist-get args :id)))
-              (:function (unless (plist-get args :file)
-                           `(function ,(plist-get args :function))))
-              (:target (plist-get args :target))
-              (:file (let (target-type target-args)
-                       (pcase (doct--first-in-plist args extensions)
-                         (:olp (push (plist-get args :datetree) target-type)
-                               (push :olp target-type)
-                               (dolist (path (nreverse (plist-get args :olp)))
-                                 (push path target-args)))
-                         (extension (push extension target-type)
-                                    (push (plist-get args extension)
-                                          target-args)))
-                       (push :file target-type)
-                       (push  (plist-get args :file) target-args)
-                       `(,(intern (string-join
-                                   (mapcar (lambda (keyword)
-                                             (substring (symbol-name keyword) 1))
-                                           (delq nil target-type)) "+"))
-                         ,@(delq nil target-args))))))
+    ;;template targets
+    (pcase (doct--first-in-plist args '(:template
+                                        :template-file
+                                        :template-function))
+      (:template
+       (setq template (let ((template (plist-get args :template)))
+                        (if (stringp template)
+                            template
+                          (string-join template "\n")))))
+      (:template-file
+       (setq template `(file ,(plist-get args :template-file))))
+      (:template-function
+       (setq template
+             `(function ,(plist-get args :template-function)))))
 
-      ;;template targets
-      (pcase (doct--first-in-plist args '(:template
-                                          :template-file
-                                          :template-function))
-        (:template
-         (setq template (let ((template (plist-get args :template)))
-                          (if (stringp template)
-                              template
-                            (string-join template "\n")))))
-        (:template-file
-         (setq template `(file ,(plist-get args :template-file))))
-        (:template-function
-         (setq template
-               `(function ,(plist-get args :template-function)))))
+    ;;additional/unrecognized options
+    (dolist (keyword (seq-filter (lambda (arg) (keywordp arg)) args))
+      (when (plist-get args keyword)
+        (pcase keyword
+          ((pred (lambda (keyword) (member keyword doct-option-keywords)))
+           (push keyword additional-options)
+           (push (plist-get args keyword) additional-options))
+          ((pred (lambda (keyword)
+                   (not (member keyword doct-recognized-keywords))))
+           (push keyword unrecognized-options)
+           (push (plist-get args keyword) unrecognized-options)))))
 
+    ;;hooks
+    (dolist (keyword doct-hook-keywords)
+      (when-let ((hook-fn (plist-get args keyword))
+                 (hook (if (eq keyword :hook) "mode"
+                         ;;remove preceding ':' from keyword
+                         (substring (symbol-name keyword) 1))))
+        (doct--add-hook keys hook-fn hook name)))
 
-      ;;additional/unrecognized options
-      (dolist (keyword (seq-filter (lambda (arg) (keywordp arg)) args))
-        (when (plist-get args keyword)
-          (pcase keyword
-            ((pred (lambda (keyword) (member keyword options)))
-             (push keyword additional-options)
-             (push (plist-get args keyword) additional-options))
-            ((pred (lambda (keyword) (not (member keyword recognized-options))))
-             (push keyword unrecognized-options)
-             (push (plist-get args keyword) unrecognized-options)))))
-
-      ;;hooks
-      (dolist (keyword hooks)
-        (when-let ((hook-fn (plist-get args keyword))
-                   (hook (if (eq keyword :hook) "mode"
-                           ;;remove preceding ':' from keyword
-                           (substring (symbol-name keyword) 1))))
-          (doct--add-hook keys hook-fn hook name)))
-
-      ;;compose entry
-      (let ((entry
-             (delq nil `(,keys
-                         ,name
-                         ;;@FIX logic could be clearer
-                         ,(unless (or children (and (= 2 (length args))
-                                                    keys))
-                            (or (plist-get args :type)
-                                doct-default-entry-type))
-                         ,target
-                         ,template
-                         ,@(nreverse additional-options)
-                         ,@(nreverse unrecognized-options)))))
-        (if children
-            `(,entry ,@children)
-          entry)))))
+    ;;compose entry
+    (let ((entry
+           (delq nil `(,keys
+                       ,name
+                       ;;@FIX logic could be clearer
+                       ,(unless (or children (and (= 2 (length args))
+                                                  keys))
+                          (or (plist-get args :type)
+                              doct-default-entry-type))
+                       ,target
+                       ,template
+                       ,@(nreverse additional-options)
+                       ,@(nreverse unrecognized-options)))))
+      (if children
+          `(,entry ,@children)
+        entry))))
 
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
