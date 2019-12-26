@@ -193,10 +193,10 @@ returns:
 ((... "Test\nOne\nTwo"))
 #+end_src
 
-The ~:template-file:~ keyword defines a file containing the text of the template.
-The ~:template-function:~ keyword defines a function which returns the template.
+The ~:template-file~ keyword defines a file containing the text of the template.
+The ~:template-function~ keyword defines a function which returns the template.
 
-The first of these keywords found overrides any additional template declarations.
+The first keyword declared overrides any additional template declarations.
 
 **** Additional options
 Key Value pairs define additional options.
@@ -272,7 +272,8 @@ For example:
 (doct '(("example"
          :keys "e"
          :hook (lambda ()
-                 ;;executed when selecting the "example" template
+                 ;;when selecting the "example" template
+                 ;;doct--hook/mode/e executes
                  ;;during the org-capture-mode-hook.
                  (ignore)))))
 #+end_src
