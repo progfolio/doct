@@ -229,7 +229,7 @@ Each child inherits its parent's ~:keys~ as a prefix to its ~:keys~.
              :template "test")))))))
 #+end_src
 
-Returns:
+returns:
 
 #+begin_src emacs-lisp
 (("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
