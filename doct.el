@@ -233,10 +233,7 @@ ENTRY-NAME is the name of the entry the hook should run for."
 For a full description of ARGS see `doct'."
   (let ((keys (plist-get args :keys))
         (children (plist-get args :children))
-        target
-        template
-        additional-options
-        unrecognized-options)
+        target template additional-options unrecognized-options)
 
     (unless keys
       (doct-error name "entry has no :keys value"))
@@ -274,9 +271,8 @@ For a full description of ARGS see `doct'."
                         `(,children)
                       children))))
     ;;inherit keys
-    (setq keys (let (inherited-keys
-                     parent
-                     (current args))
+    (setq keys (let ((current args)
+                     inherited-keys parent)
                  (while (setq parent (plist-get current :doct--parent))
                    (push (plist-get parent :keys) inherited-keys)
                    (setq current parent))
@@ -344,18 +340,17 @@ For a full description of ARGS see `doct'."
         (doct--add-hook keys hook-fn hook name)))
 
     ;;compose entry
-    (let ((entry
-           (delq nil `(,keys
-                       ,name
-                       ;;@FIX logic could be clearer
-                       ,(unless (or children (and (= 2 (length args))
-                                                  keys))
-                          (or (plist-get args :type)
-                              doct-default-entry-type))
-                       ,target
-                       ,template
-                       ,@(nreverse additional-options)
-                       ,@(nreverse unrecognized-options)))))
+    (let ((entry (delq nil `(,keys
+                             ,name
+                             ;;@FIX logic could be clearer
+                             ,(unless (or children (and (= 2 (length args))
+                                                        keys))
+                                (or (plist-get args :type)
+                                    doct-default-entry-type))
+                             ,target
+                             ,template
+                             ,@(nreverse additional-options)
+                             ,@(nreverse unrecognized-options)))))
       (if children
           `(,entry ,@(if doct-sort-children-predicate
                          (sort children doct-sort-children-predicate)
@@ -364,8 +359,7 @@ For a full description of ARGS see `doct'."
 
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
-  (let (templates
-        entries)
+  (let (templates entries)
     ;;letrec allows local recursive functions without
     ;;resorting to cl-labels
     (letrec ((extract (lambda (list)
@@ -376,12 +370,12 @@ For a full description of ARGS see `doct'."
                               (push element templates)))))))
 
       (setq entries (mapcar (lambda (form)
-                                        (apply 'doct--convert form))
-                                      declarations))
+                              (apply 'doct--convert form))
+                            declarations))
 
       (funcall extract (if doct-sort-parents-predicate
-                   (sort entries doct-sort-parents-predicate)
-                   entries)))
+                           (sort entries doct-sort-parents-predicate)
+                         entries)))
     (nreverse templates)))
 
 (provide 'doct)
