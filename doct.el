@@ -52,6 +52,9 @@ If nil, no sorting is performed."
   :type 'function
   :group 'doct)
 
+(defvar doct--current-form nil
+  "The current form being processed by doct. Used in error processing.")
+
 (defvar doct-option-keywords '(:clock-in
                                :clock-keep
                                :clock-resume
@@ -103,10 +106,8 @@ If nil, no sorting is performed."
                                   doct-keywords)
   "List of the keywords doct recognizes.")
 
-(defsubst doct-error (name msg)
-  "Report MSG as an error, so the user knows it came from this package.
-NAME is the name of the entry that threw the error."
-  (user-error "Doct: Error processing \"%s\" entry\n%s" name msg))
+(define-error 'doct-no-keys "Entry has no :keys value" 'doct-error)
+(define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
 
 (defun doct--first-in-plist (plist keywords)
   "Find first occurence of one of KEYWORDS in PLIST."
@@ -228,134 +229,148 @@ ENTRY-NAME is the name of the entry the hook should run for."
         (add-hook hook wrapper))
     (user-error "Doct: couldnt add %s as doct--hook/%s to %s" fn keys where)))
 
-(defun doct--convert (name &rest args)
-  "Convert declarative form to template named NAME with ARGS.
-For a full description of ARGS see `doct'."
-  (let ((keys (plist-get args :keys))
-        (children (plist-get args :children))
-        target template additional-options unrecognized-options)
+(defun doct--inherit-keys (form)
+  "Recursively prepend each of FORM's parent's keys to FORM's keys."
+  (if-let ((keys (plist-get form :keys)))
+      (let (inherited-keys parent)
+        (unless (stringp keys)
+          (signal 'doct-wrong-type-argument `(stringp ,keys
+                                                      ,doct--current-form)))
+        (while (setq parent (plist-get form :doct--parent))
+          (push (plist-get parent :keys) inherited-keys)
+          (setq form parent))
+        (concat (string-join inherited-keys) keys))
+    (signal 'doct-no-keys `(,doct--current-form))))
 
-    (unless keys
-      (doct-error name "entry has no :keys value"))
+(defun doct--string-or-list-of-strings-p (arg)
+  "Retrun t if ARG is a string or a list of strings."
+  (or (stringp arg)
+      (and (listp arg)
+           (seq-every-p 'stringp arg))))
 
-    ;;parent entries should only have keys and children
-    ;;and template entries shouldn't have children
-    (when children
-      (unless (or (= (length args) 4)
-                  (and (plist-member args :doct--parent)
-                       (= (length args) 6)))
-        (doct-error name
-                    "Parent entry only accpets name, :keys, and :children args"))
-      (unless (listp children)
-        (doct-error name ":children must be contained in a list"))
-      (unless (or (listp children)
-                  (seq-every-p 'listp children))
-        (doct-error name "Each child must be a list")))
+(defun doct--get-target-file (form)
+  "Convert declarative FORM's :file and file-extensions to Org capture template syntax"
+  (let (target-type target-args)
+    (pcase (doct--first-in-plist form
+                                 doct-file-extension-keywords)
+      (:olp (let ((path (plist-get form :olp)))
+              (unless (and (listp path)
+                           (seq-every-p 'stringp path))
+                (signal 'doct-wrong-type-argument
+                        `((stringp) ,path ,doct--current-form)))
+              (push (plist-get form :datetree) target-type)
+              (push :olp target-type)
+              (dolist (heading (nreverse path))
+                (push heading target-args))))
+      (extension (push extension target-type)
+                 (push (plist-get form extension)
+                       target-args)))
+    (push :file target-type)
+    (push (plist-get form :file) target-args)
+    `(,(intern (string-join
+                (mapcar (lambda (keyword)
+                          (substring (symbol-name keyword) 1))
+                        (delq nil target-type)) "+"))
+      ,@(delq nil target-args))))
 
-    (dolist (keyword '(:olp :template))
-      (when-let ((val (plist-get args keyword)))
-        (unless (or (stringp val)
-                    (and (listp val)
-                         (seq-every-p 'stringp val)))
-          (doct-error
-           (format name ":%s must be string or list of strings"
-                   keyword  (eval keyword))))))
+(defun doct--get-target (form)
+  "Convert declarative FORM's target to Org captures target"
+  (pcase (doct--first-in-plist form doct-exclusive-location-keywords)
+    (:clock '(clock))
+    (:id `(id ,(plist-get form :id)))
+    (:function (unless (plist-get form :file)
+                 `(function ,(plist-get form :function))))
+    (:target (plist-get form :target))
+    (:file (doct--get-target-file form))))
 
-    ;;recursively convert children
-    (when children
-      (setf children
-            (mapcar (lambda (child)
-                      (apply #'doct--convert
-                             (append child `(:doct--parent ,args))))
-                    (if (not (seq-every-p 'listp children))
-                        `(,children)
-                      children))))
-    ;;inherit keys
-    (setq keys (let ((current args)
-                     inherited-keys parent)
-                 (while (setq parent (plist-get current :doct--parent))
-                   (push (plist-get parent :keys) inherited-keys)
-                   (setq current parent))
-                 (concat (string-join inherited-keys) keys)))
+(defun doct--get-template-target (form)
+  "Convert FORM's template target to Org capture template syntax."
+  (pcase (doct--first-in-plist form '(:template
+                                      :template-file
+                                      :template-function))
+    (:template
+     (setq template (let ((template (plist-get form :template)))
+                      (unless (doct--string-or-list-of-strings-p template)
+                        (signal 'doct-wrong-type-argument
+                                `((stringp listp)
+                                  ,template ,doct--current-form)))
+                      (if (stringp template)
+                          template
+                        (string-join template "\n")))))
+    (:template-file
+     (setq template `(file ,(plist-get form :template-file))))
+    (:template-function
+     (setq template
+           `(function ,(plist-get form :template-function))))))
 
-    ;;file targets
-    (setq target
-          (pcase (doct--first-in-plist args doct-exclusive-location-keywords)
-            (:clock '(clock))
-            (:id `(id ,(plist-get args :id)))
-            (:function (unless (plist-get args :file)
-                         `(function ,(plist-get args :function))))
-            (:target (plist-get args :target))
-            (:file (let (target-type target-args)
-                     (pcase (doct--first-in-plist args
-                                                  doct-file-extension-keywords)
-                       (:olp (push (plist-get args :datetree) target-type)
-                             (push :olp target-type)
-                             (dolist (path (nreverse (plist-get args :olp)))
-                               (push path target-args)))
-                       (extension (push extension target-type)
-                                  (push (plist-get args extension)
-                                        target-args)))
-                     (push :file target-type)
-                     (push  (plist-get args :file) target-args)
-                     `(,(intern (string-join
-                                 (mapcar (lambda (keyword)
-                                           (substring (symbol-name keyword) 1))
-                                         (delq nil target-type)) "+"))
-                       ,@(delq nil target-args))))))
-
-    ;;template targets
-    (pcase (doct--first-in-plist args '(:template
-                                        :template-file
-                                        :template-function))
-      (:template
-       (setq template (let ((template (plist-get args :template)))
-                        (if (stringp template)
-                            template
-                          (string-join template "\n")))))
-      (:template-file
-       (setq template `(file ,(plist-get args :template-file))))
-      (:template-function
-       (setq template
-             `(function ,(plist-get args :template-function)))))
-
-    ;;additional/unrecognized options
-    (dolist (keyword (seq-filter (lambda (arg) (keywordp arg)) args))
-      (when (plist-get args keyword)
+(defun doct--get-additional-unrecognized-args (form)
+  "Convert FORM's additional-unrecognized args to Org capture syntax.
+Returns a list of ((ADDITIONAL ARGS) (UNRECOGNIZED ARGS))."
+  (let (additional-options unrecognized-options)
+    (dolist (keyword (seq-filter 'keywordp form))
+      (when (plist-get form keyword)
         (pcase keyword
           ((pred (lambda (keyword) (member keyword doct-option-keywords)))
            (push keyword additional-options)
-           (push (plist-get args keyword) additional-options))
+           (push (plist-get form keyword) additional-options))
           ((pred (lambda (keyword)
                    (not (member keyword doct-recognized-keywords))))
            (push keyword unrecognized-options)
-           (push (plist-get args keyword) unrecognized-options)))))
+           (push (plist-get form keyword) unrecognized-options)))))
+    `(,(nreverse additional-options) ,(nreverse unrecognized-options))))
 
-    ;;hooks
-    (dolist (keyword doct-hook-keywords)
-      (when-let ((hook-fn (plist-get args keyword))
-                 (hook (if (eq keyword :hook) "mode"
-                         ;;remove preceding ':' from keyword
-                         (substring (symbol-name keyword) 1))))
-        (doct--add-hook keys hook-fn hook name)))
+(defun doct--add-hooks (form)
+  "Add hooks declared in FORM."
+  (dolist (keyword doct-hook-keywords)
+    (when-let ((hook-fn (plist-get form keyword))
+               (hook (if (eq keyword :hook) "mode"
+                       ;;remove preceding ':' from keyword
+                       (substring (symbol-name keyword) 1))))
+      (doct--add-hook keys hook-fn hook name))))
 
-    ;;compose entry
-    (let ((entry (delq nil `(,keys
-                             ,name
-                             ;;@FIX logic could be clearer
-                             ,(unless (or children (and (= 2 (length args))
-                                                        keys))
-                                (or (plist-get args :type)
-                                    doct-default-entry-type))
-                             ,target
-                             ,template
-                             ,@(nreverse additional-options)
-                             ,@(nreverse unrecognized-options)))))
-      (if children
-          `(,entry ,@(if doct-sort-children-predicate
-                         (sort children doct-sort-children-predicate)
-                       children))
-        entry))))
+(define-error 'doct-malformed-parent
+  "Parent entry is malformed" 'doct-error)
+
+(defun doct--parent-p (form)
+  "Return t if FORM only has a :keys and :children possibly :doct--parent,
+nil otherwise."
+  (not (seq-filter (lambda (keyword)
+                     (not (member keyword '(:children :doct--parent :keys))))
+                   (seq-filter 'keywordp form))))
+
+(defun doct--convert (name &rest args)
+  "Convert declarative form to template named NAME with ARGS.
+For a full description of ARGS see `doct'."
+  (let ((parent (doct--parent-p args))
+        (children (plist-get args :children))
+        (additional-unrecognized-args
+         (doct--get-additional-unrecognized-args args))
+        entry)
+
+    (when children
+      (unless parent
+        (signal 'doct-malformed-parent `((:keys :children) ,doct--current-form)))
+      (setf children (mapcar (lambda (child)
+                               (apply #'doct--convert
+                                      (append child `(:doct--parent ,args))))
+                             (if (not (seq-every-p 'listp children))
+                                 `(,children)
+                               children))))
+    (doct--add-hooks args)
+
+    (setq entry (delq nil `(,(doct--inherit-keys args)
+                            ,name
+                            ,(unless parent (or (plist-get args :type)
+                                                doct-default-entry-type))
+                            ,(doct--get-target args)
+                            ,(doct--get-template-target args)
+                            ,@(car additional-unrecognized-args)
+                            ,@(cadr additional-unrecognized-args))))
+    (if parent
+        `(,entry ,@(if doct-sort-children-predicate
+                       (sort children doct-sort-children-predicate)
+                     children))
+      entry)))
 
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
@@ -370,7 +385,13 @@ For a full description of ARGS see `doct'."
                               (push element templates)))))))
 
       (setq entries (mapcar (lambda (form)
-                              (apply 'doct--convert form))
+                              (setq doct--current-form form)
+                              (condition-case err
+                                  (apply 'doct--convert form)
+                                (doct-error
+                                 (user-error
+                                  (format "doct %s" (error-message-string err)))
+                                 nil)))
                             declarations))
 
       (funcall extract (if doct-sort-parents-predicate
