@@ -108,7 +108,7 @@ It should return a proper list."
                           :children
                           (("one" :keys "o")
                            ("two" :keys "t")))))
-                 '(("p" "parent") ("po" "one" entry) ("pt" "two" entry)))))
+                 '(("p" "parent") ("po" "one") ("pt" "two")))))
 
 (ert-deftest sort-children ()
   "Each parent's children should be sorted by doct-sort-children-predicate."
