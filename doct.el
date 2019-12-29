@@ -101,7 +101,6 @@ Its value is not stored betewen invocations to doct.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
 (define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
-(define-error 'doct-malformed-parent "Parent entry is malformed" 'doct-error)
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
@@ -344,10 +343,6 @@ Returns a list of ((ADDITIONAL OPTIONS) (UNRECOGNIZED ARGS))."
                        (substring (symbol-name keyword) 1))))
       (doct--add-hook keys hook-fn hook name))))
 
-(defun doct--parent-p (form)
-  "Return t if FORM is a valid parent, nil otherwise."
-  (not (not (plist-get form :children))))
-
 (defun doct--type (form)
   "Return FORM's :type value or `doct-default-entry-type'."
   (let ((type (or (plist-get form :type)
@@ -361,8 +356,7 @@ Returns a list of ((ADDITIONAL OPTIONS) (UNRECOGNIZED ARGS))."
   "Convert declarative form to template named NAME with ARGS.
 For a full description of ARGS see `doct'."
   (setq doct--current-form `(,name ,@args))
-  (let ((is-parent (doct--parent-p args))
-        (children (plist-get args :children))
+  (let ((children (plist-get args :children))
         (keys (doct--keys args))
         (additional-args
          (doct--additional-args args))
@@ -373,8 +367,6 @@ For a full description of ARGS see `doct'."
               `(stringp ,name ,doct--current-form)))
 
     (when children
-      (unless is-parent
-        (signal 'doct-malformed-parent `((:keys :children) ,doct--current-form)))
       (setq children (mapcar (lambda (child)
                                (apply #'doct--convert
                                       (append child `(:doct--parent ,args))))
@@ -382,17 +374,18 @@ For a full description of ARGS see `doct'."
                                  `(,children)
                                children))))
 
-    (doct--add-hooks name args keys)
+    (unless children
+      (doct--add-hooks name args keys))
 
     (setq entry (delq nil `(,keys
                             ,name
-                            ,@(unless is-parent
+                            ,@(unless children
                                 `(,(doct--type args)
                                   ,(doct--target args)
                                   ,(doct--template args)
                                   ,@(car additional-args)
                                   ,@(cadr additional-args))))))
-    (if is-parent
+    (if children
         `(,entry ,@children)
       entry)))
 
