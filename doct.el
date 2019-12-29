@@ -314,14 +314,13 @@ Returns a list of ((ADDITIONAL OPTIONS) (UNRECOGNIZED ARGS))."
            (push (plist-get form keyword) unrecognized-args)))))
     `(,(nreverse additional-options) ,(nreverse unrecognized-args))))
 
-(defun doct--add-hooks (name form)
-  "Add hooks declared in FORM for template NAME."
+(defun doct--add-hooks (name form keys)
+  "Add hooks declared in FORM for template NAME with KEYS."
   (dolist (keyword doct-hook-keywords)
     (when-let ((hook-fn (plist-get form keyword))
                (hook (if (eq keyword :hook) "mode"
                        ;;remove preceding ':' from keyword
-                       (substring (symbol-name keyword) 1)))
-               (keys (plist-get form :keys)))
+                       (substring (symbol-name keyword) 1))))
       (doct--add-hook keys hook-fn hook name))))
 
 
@@ -346,6 +345,7 @@ For a full description of ARGS see `doct'."
   (setq doct--current-form `(,name ,@args))
   (let ((is-parent (doct--parent-p args))
         (children (plist-get args :children))
+        (keys (doct--keys args))
         (additional-args
          (doct--additional-args args))
         entry)
@@ -364,9 +364,9 @@ For a full description of ARGS see `doct'."
                                  `(,children)
                                children))))
 
-    (doct--add-hooks name args)
+    (doct--add-hooks name args keys)
 
-    (setq entry (delq nil `(,(doct--keys args)
+    (setq entry (delq nil `(,keys
                             ,name
                             ,@(unless is-parent
                                 `(,(doct--type args)
