@@ -33,27 +33,27 @@
 
 (defcustom doct-default-entry-type 'entry
   "The default template entry type.
-Can be overridden by using the :type keyword in an entry."
+Can be overridden by using the :type keyword in a declarative form."
   :type 'symbol
   :options '(entry item checkitem table-line plain)
   :group 'doct)
 
 (defcustom doct-after-conversion-hook nil
-  "Hook run after doct has converted declarative forms to org capture syntax.
-Hook functions are run with one arg, the list of converted templates.
-The templates have not been flattened at this point, and are of the form:
+  "Hook run after doct has converted declarative forms to templates.
+Hook functions are run with the list of templates as their only argument.
+The templates have not been flattened at this point and are of the form:
 \(((parent) (child)...)...)."
   :group 'doct
   :type 'hook)
 
 (defvar doct-templates nil
   "If non-nil, this is used as the return value of doct.
-Functions run during `doct-after-conversion-hook' may use this value
-to alter the list of templates before it is returned.
+Use this variable to return an altered list from a function run during
+`doct-after-conversion-hook'
 Its value is not stored betewen invocations to doct.")
 
 (defvar doct--current-form nil
-  "The current form being processed by doct. Used in error processing.")
+  "The current form being processed by doct. Used for error processing.")
 
 (defvar doct-option-keywords '(:clock-in
                                :clock-keep
@@ -70,31 +70,34 @@ Its value is not stored betewen invocations to doct.")
                                :time-prompt
                                :tree-type
                                :unnarrowed)
-  "List of Org capture template additional options.")
+  "Keywords that define a template's additional options.")
 
 (defvar doct-file-extension-keywords '(:datetree :function :headline :olp :regexp)
-  "List of doct keywords that refine the insertion location in the target file.")
+  "Keywords that define the insertion location in the target file.")
 
 (defvar doct-exclusive-location-keywords '(:clock :file :function :id)
-  "List of doct keywords that exclusively set the target location.")
+  "Keywords that exclusively set the target location.")
 
 (defvar doct-hook-keywords '(:after-finalize :before-finalize :hook :prepare-finalize)
-  "List of doct keywords that attach hooks for the current template.")
+  "Keywords that attach hooks for the current template.")
 
 (defvar doct-template-keywords '(:template :template-file :template-function)
-  "List of doct keywords for defining the template.")
+  "Keywords that define the template string.")
 
-(defvar doct-keywords '(:children :doct--parent :keys :olp :type)
-  "List of doct's custom keywords.")
-
-(defvar doct-recognized-keywords (append
-                                  doct-option-keywords
-                                  doct-file-extension-keywords
-                                  doct-exclusive-location-keywords
-                                  doct-hook-keywords
-                                  doct-template-keywords
-                                  doct-keywords)
-  "List of the keywords doct recognizes.")
+(defvar doct-recognized-keywords `(:children
+                                   :doct--parent
+                                   :keys
+                                   :type
+                                   ,@(append
+                                      ;;:function is in two categories
+                                      ;;only need to add once
+                                      (remq :function
+                                            doct-file-extension-keywords)
+                                      doct-exclusive-location-keywords
+                                      doct-hook-keywords
+                                      doct-template-keywords
+                                      doct-option-keywords))
+"List of the keywords doct recognizes.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
 (define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
@@ -375,19 +378,20 @@ For a full description of ARGS see `doct'."
         `(,entry ,@children)
       entry)))
 
-;;@FIX needs better name and docstring
-;;close to 'flatten', but not quite
-(defun doct--extract (list)
-  "Convert a LIST of possibly nested lists to a list of unnested lists."
-  (let (extracted)
-    (letrec ((extract (lambda (list)
+(defun doct-flatten-lists-in (list-of-lists)
+  "Flatten each list in LIST-OF-LISTS.
+For example:
+  '((1) ((2) (3)) (((4))))
+returns:
+  '((1) (2) (3) (4))"
+  (let (flattend)
+    (letrec ((flatten (lambda (list)
                         (dolist (element list)
                           (if (seq-every-p 'listp element)
-                              (funcall extract element)
-                            (when (listp element)
-                              (push element extracted)))))))
-      (funcall extract list)
-      (nreverse extracted))))
+                              (funcall flatten element)
+                            (push element flattend))))))
+      (funcall flatten list-of-lists)
+      (nreverse flattend))))
 
 ;;@FIX needs overview docstring
 (defun doct (declarations)
@@ -404,7 +408,7 @@ For a full description of ARGS see `doct'."
         (progn
           (run-hook-with-args 'doct-after-conversion-hook entries)
           ;;hook functions may set doct-templates to return manipulated list
-          (or doct-templates (doct--extract entries)))
+          (or doct-templates (doct-flatten-lists-in entries)))
       (setq doct-templates nil))))
 
 (provide 'doct)
