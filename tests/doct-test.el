@@ -94,15 +94,6 @@ three")))))
                           :file "")))
                  '(("t" "template-function-test" entry (file "") #'identity)))))
 
-(ert-deftest nil-additional-option-not-included ()
-  "Additional options with a nil value should not be included in returned entry."
-  (should (equal (doct '(("test" :keys "t"
-                          :type entry
-                          :file ""
-                          :template ""
-                          :immediate-finish nil)))
-                 '(("t" "test" entry (file "") "")))))
-
 (ert-deftest additional-option-not-duplicated ()
   "If declared multiple times, first additional option value is returned once."
   (should (equal (doct '(("test" :keys "t"
@@ -128,9 +119,21 @@ It should return a proper list."
   "Each child should inherit its parent's keys as a prefix to its own keys."
   (should (equal (doct '(("parent" :keys "p"
                           :children
-                          (("one" :keys "o")
-                           ("two" :keys "t")))))
-                 '(("p" "parent") ("po" "one") ("pt" "two")))))
+                          (("one" :keys "o" :file "" :template "")
+                           ("two" :keys "t" :file "" :template "")))))
+                 '(("p" "parent")
+                   ("po" "one" entry (file "") "")
+                   ("pt" "two" entry (file "") "")))))
+
+(ert-deftest children-inherit-properties ()
+  "Each child should inherit its ancestor's properties."
+  (should (equal (doct '(("parent" :keys "p"
+                          :foo t
+                          :file ""
+                          :template ""
+                          :children ("child" :keys "c"))))
+                 '(("p" "parent")
+                   ("pc" "child" entry (file "") "" :foo t)))))
 
 ;;error handling
 (let ((types '(nil t symbol :keyword 1 1.0 "string" ?c '("list"))))
