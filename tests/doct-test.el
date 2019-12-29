@@ -24,19 +24,17 @@
   "first file target keyword should override others"
   (should (equal (doct '(("fft-test" :keys "f"
                           :type entry
-                          :template ""
                           :id "1"
                           :clock t
                           :function identity
                           :file "")))
-                 '(("f" "fft-test" entry (id "1") "")))))
+                 '(("f" "fft-test" entry (id "1") nil)))))
 
 (ert-deftest first-file-target-extension-wins ()
   "first file target extension should override others"
   (should (equal (doct `(("ffte-test" :keys "f"
                           :type entry
                           :file ""
-                          :template ""
                           ;;@HACK, not sure why this test fails if
                           ;;run more than once. The :olp list is
                           ;;nreversed in doct--convert, but
@@ -46,7 +44,10 @@
                           :regexp "one"
                           :headline "one"
                           :function identity)))
-                 '(("f" "ffte-test" entry (file+olp "" "one" "two" "three") "")))))
+                 '(("f" "ffte-test"
+                    entry
+                    (file+olp "" "one" "two" "three")
+                    nil)))))
 
 (ert-deftest first-template-target-wins ()
   "first template target keyword should override other template target keywords"
@@ -55,20 +56,18 @@
                           :id "1"
                           :clock t
                           :function identity
-                          :template ""
                           :template-function ignore
                           :template-file "./template.txt"
                           :file "")))
-                 '(("tt" "ftt-test" entry (id "1") "")))))
+                 '(("tt" "ftt-test" entry (id "1") #'ignore)))))
 
 
 (ert-deftest :clock-target-should-not-have-cdr ()
   ":clock keyword shouldn't have a cdr when used as a target."
   (should (equal (doct '(("clock-test" :keys "c"
-                          :type entry
                           :clock t
-                          :template "")))
-                 '(("c" "clock-test" entry (clock) "")))))
+                          :template "test")))
+                 '(("c" "clock-test" entry (clock) "test")))))
 
 (ert-deftest :template-is-joined ()
   ":template should join multiple values with a newline"
@@ -99,57 +98,80 @@ three")))))
   (should (equal (doct '(("test" :keys "t"
                           :type entry
                           :file ""
-                          :template ""
                           :immediate-finish t
                           :custom-option t
                           :immediate-finish nil
                           :custom-option nil)))
-                 '(("t" "test" entry (file "") "" :immediate-finish t :custom-option t)))))
+                 '(("t" "test" entry (file "") nil :immediate-finish t :custom-option t)))))
 
 (ert-deftest file-without-target-is-proper-list ()
   "doct shouldn't return a dotted list when its target is a string.
 It should return a proper list."
   (let ((form (doct '(("test" :keys "t"
                        :type entry
-                       :file "test"
-                       :template "")))))
-    (should (equal form '(("t" "test" entry (file "test") ""))))))
+                       :file "")))))
+    (should (equal form '(("t" "test" entry (file "") nil))))))
 
 (ert-deftest childern-inherit-keys ()
   "Each child should inherit its parent's keys as a prefix to its own keys."
   (should (equal (doct '(("parent" :keys "p"
                           :children
-                          (("one" :keys "o" :file "" :template "")
-                           ("two" :keys "t" :file "" :template "")))))
+                          (("one" :keys "o" :file "")
+                           ("two" :keys "t" :file "")))))
                  '(("p" "parent")
-                   ("po" "one" entry (file "") "")
-                   ("pt" "two" entry (file "") "")))))
+                   ("po" "one" entry (file "") nil)
+                   ("pt" "two" entry (file "") nil)))))
 
 (ert-deftest children-inherit-properties ()
   "Each child should inherit its ancestor's properties."
   (should (equal (doct '(("parent" :keys "p"
                           :foo t
                           :file ""
-                          :template ""
                           :children ("child" :keys "c"))))
                  '(("p" "parent")
-                   ("pc" "child" entry (file "") "" :foo t)))))
+                   ("pc" "child"
+                    entry
+                    (file "")
+                    nil
+                    :foo t)))))
+
+(ert-deftest childs-properties-override-ancestors ()
+  "If a child has a property set it should override that inherited property."
+  (should (equal (doct '(("parent" :keys "p"
+                          :foo t
+                          :file ""
+                          :children ("child" :keys "c" :foo nil))))
+                 '(("p" "parent")
+                   ("pc" "child"
+                    entry
+                    (file "")
+                    nil
+                    :foo nil)))))
 
 ;;error handling
-(let ((types '(nil t symbol :keyword 1 1.0 "string" ?c '("list"))))
+(let ((types '(nil t 'doct-unbound-symbol #'function :keyword 1 1.0 "string" ?c '("list"))))
   (ert-deftest name-type-error ()
     "Error if name isn't a string."
     (dolist (garbage (seq-remove 'stringp types))
       (should-error (doct `((,garbage :keys "t" :children ()))) :type 'user-error)))
 
-  (ert-deftest entry-type-error ()
-    "Error if :type isn't a valid type symbol."
-    ;;nil is valid, type will be determined by `doct-default-entry-type'.
-    (dolist (garbage (delq nil types))
-      (should-error (doct `(("test" :keys "t" :type ,garbage :file "" :template "")))
-                    :type 'user-error)))
-
   (ert-deftest keys-type-error ()
     "Error if :keys isn't a string."
     (dolist (garbage (seq-remove 'stringp types))
-      (should-error (doct `(("test" :keys ,garbage))) :type 'user-error))))
+      (should-error (doct `(("test" :keys ,garbage))) :type 'user-error)))
+
+  (ert-deftest entry-type-error ()
+    "Error if :type isn't a valid type symbol."
+    ;;nil is valid, type will be determined by `doct-default-entry-type'.
+    (dolist (garbage (remq nil types))
+      (should-error (doct `(("test" :keys "t" :type ,garbage :file "")))
+                    :type 'user-error)))
+
+  (ert-deftest target-file-type-error ()
+    "Error if :file is not:
+- a string
+- a function returning a file path
+- a or variable evaluating to a file path."
+    (dolist (garbage (seq-remove 'stringp types))
+      (should-error (doct `(("test" :keys "t" :file ,garbage)))
+                    :type 'user-error))))

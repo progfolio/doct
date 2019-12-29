@@ -106,12 +106,16 @@ Its value is not stored betewen invocations to doct.")
 
 (defun doct--first-in-form (form keywords)
   "Find first occurence of one of KEYWORDS in FORM.
-If not found in FORM, recursively search FORM's ancestors."
-  (or (car (seq-some (lambda (property)
-                       (and (keywordp property) (member property keywords)))
-                     form))
+If not found in FORM, recursively search FORM's ancestors.
+Return (KEYWORD VAL)."
+  (let ((keyword (car (seq-some (lambda (element)
+                                  (and (keywordp element)
+                                       (member element keywords)))
+                                form))))
+    (if keyword
+        `(,keyword ,(plist-get form keyword))
       (when-let ((parent (plist-get form :doct--parent)))
-        (doct--first-in-form parent keywords))))
+        (doct--first-in-form parent keywords)))))
 
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
@@ -162,13 +166,13 @@ From the `org-capture-mode-hook'."
                    keys
                  (concat keys "$")))
          (hook-symbols (pcase hooks
-                         ((pred (not)) (mapcar #'intern-soft
-                                               (completing-read-multiple
-                                                "Hooks: " '("after-finalize"
-                                                            "before-finalize"
-                                                            "mode"
-                                                            "prepare-finalize"
-                                                            "t"))))
+                         ('nil (mapcar #'intern-soft
+                                       (completing-read-multiple
+                                        "Hooks: " '("after-finalize"
+                                                    "before-finalize"
+                                                    "mode"
+                                                    "prepare-finalize"
+                                                    "t"))))
                          ((pred (lambda (hook)
                                   (memq hook '(after-finalize
                                                before-finalize
@@ -225,15 +229,14 @@ ENTRY-NAME is the name of the entry the hook should run for."
                  (when (string= ,keys (plist-get org-capture-plist :key))
                    (funcall (quote ,fn)))))
         (add-hook hook wrapper))
-    (error "Doct: couldnt add %s as doct--hook/%s to %s" fn keys where)))
+    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
 
 (defun doct--get (form keyword)
   "Recursively search FORM and FORM's ancestors for KEYWORD.
 Returns KEYWORD's value."
-  (if (member keyword form)
-      (plist-get form keyword)
-    (when-let ((parent (plist-get form :doct--parent)))
-      (doct--get parent keyword))))
+  (or (cadr (plist-member form keyword))
+      (when-let ((parent (plist-get form :doct--parent)))
+        (doct--get parent keyword))))
 
 (defun doct--keys (form)
   "Prepend each of FORM's ancestors's keys to its keys."
@@ -248,118 +251,141 @@ Returns KEYWORD's value."
         (concat (string-join inherited-keys) keys))
     (signal 'doct-no-keys `(,doct--current-form))))
 
+(defun doct--validate-file (target)
+  "Check to see if TARGET is a valid :file target. If it is, return TARGET.
+Otherwise, throw an error."
+  (let* ((fn (cond ((functionp target) 'funcall)
+                   ((and (symbolp target) (boundp target)) 'eval)
+                   ((stringp target) 'identity)
+                   (t (signal 'doct-wrong-type-argument
+                              `((stringp functionp boundp)
+                                ,target ,doct--current-form)))))
+         (path (funcall fn target)))
+    (unless (stringp path)
+      (signal 'doct-wrong-type-argument
+              `(stringp ,target ,path ,doct--current-form)))))
 
-(defun doct--target-file (form)
-  "Convert declarative FORM's :file and file-extensions to Org capture template syntax."
-  (let (target-type target-args)
+(defun doct--target-file (form file-target)
+  "Convert declarative FORM's :file and file-extensions to Org capture template syntax.
+FILE is the value for FORM's :file keyword."
+  (doct--validate-file file-target)
+  (let (type target)
     (pcase (doct--first-in-form form
                                 ;;datetree is only used when :olp is specified
                                 (remq :datetree doct-file-extension-keywords))
-      (:olp (let ((path (doct--get form :olp)))
-              (unless (and (listp path)
-                           (seq-every-p 'stringp path))
-                (signal 'doct-wrong-type-argument
-                        `((stringp) ,path ,doct--current-form)))
-              (push (doct--get form :datetree) target-type)
-              (push :olp target-type)
-              (dolist (heading (nreverse path))
-                (push heading target-args))))
-      (extension (push extension target-type)
-                 (push (doct--get form extension)
-                       target-args)))
-    (push :file target-type)
-    (push (doct--get form :file) target-args)
+      (`(:olp ,path) (unless (and (listp path)
+                                  (seq-every-p 'stringp path))
+                       (signal 'doct-wrong-type-argument
+                               `((listp stringp) ,path ,doct--current-form)))
+       (when (doct--get form :datetree)
+         (push :datetree type))
+       (push :olp type)
+       (dolist (heading (nreverse path))
+         (push heading target)))
+      ;;function headline regexp
+      (`(,keyword ,extension)
+       (let ((predicate (if (eq keyword :function) 'functionp 'stringp)))
+         (unless (funcall predicate extension)
+           (signal 'doct-wrong-type-argument
+                   `(,predicate ,extension ,doct--current-form)))
+         (push extension target)
+         (push keyword type))))
+    (push :file type)
+    (push file-target target)
     `(,(intern (string-join
                 (mapcar (lambda (keyword)
                           (substring (symbol-name keyword) 1))
-                        (delq nil target-type)) "+"))
-      ,@(delq nil target-args))))
+                        (delq nil type)) "+"))
+      ,@(delq nil target))))
 
 (defun doct--target (form)
   "Convert declarative FORM's target to Org captures target."
   (pcase (doct--first-in-form form doct-exclusive-location-keywords)
-    ('nil (signal 'doct-no-target `(,doct-exclusive-location-keywords
-                                    nil ,doct--current-form)))
-    (:clock '(clock))
-    (:id `(id ,(doct--get form :id)))
-    (:function (unless (doct--get form :file)
-                 `(function ,(doct--get form :function))))
-    (:file (doct--target-file form))))
+    ((and (or 'nil `(,key nil)) nil-target)
+     (signal 'doct-no-target `(,doct-exclusive-location-keywords
+                               ,nil-target
+                               ,doct--current-form)))
+    (`(:clock ,bool) '(clock))
+    (`(:id ,id) `(id ,id))
+    (`(:function ,fn) (unless (doct--get form :file)
+                        `(function ,fn)))
+    (`(:file ,file) (doct--target-file form file))))
 
 (defun doct--template (form)
   "Convert FORM's template target to Org capture template syntax."
   (pcase (doct--first-in-form form doct-template-keywords)
-    ('nil (signal 'doct-no-template `(,doct-template-keywords
-                                      nil ,doct--current-form)))
-    (:template
-     (setq template (let ((template (doct--get form :template)))
-                      (unless (or (stringp template)
-                                  (and (listp template)
-                                       (seq-every-p 'stringp template)))
-                        (signal 'doct-wrong-type-argument
-                                `((stringp listp)
-                                  ,template ,doct--current-form)))
-                      (if (stringp template)
-                          template
-                        (string-join template "\n")))))
-    (:template-file
-     (setq template `(file ,(doct--get form :template-file))))
-    (:template-function
-     (setq template
-           `(function ,(doct--get form :template-function))))))
+    (`(:template ,template)
+     (unless (or (and (stringp template)
+                      (not (string-empty-p template)))
+                 ;;nil intentionally passes these predicates
+                 (and (listp template)
+                      (seq-every-p 'stringp template)))
+       (signal 'doct-wrong-type-argument
+               `(((not (string-empty-p)) listp)
+                 ,template ,doct--current-form)))
+     ;;nil template is valid, uses default template for various entry types
+     (unless (null template)
+       (if (stringp template)
+           template
+         (string-join template "\n"))))
+    (`(:template-file ,file) `(file ,file))
+    (`(:template-function ,fn) `(function ,fn))))
 
+(defun doct--additional-properties (form)
+  "Convert FORM's additional properties to Org capture syntax.
+Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
+  (letrec ((recurse
+            (lambda (form)
+              (let ((keywords (delete-dups (seq-filter 'keywordp form))))
+                (dolist (keyword keywords)
+                  (pcase keyword
+                    ((guard (and (not (member keyword additional-options))
+                                 (member keyword doct-option-keywords)))
+                     (push keyword additional-options)
+                     (push (plist-get form keyword) additional-options))
 
-(defun doct--additional-args (form)
-  "Convert FORM's additional args to Org capture syntax.
-Returns a list of ((ADDITIONAL OPTIONS) (UNRECOGNIZED ARGS))."
-  (letrec ((recurse (lambda (form)
-                      (let ((keywords (delete-dups (seq-filter 'keywordp form))))
-                        (dolist (keyword keywords)
-                          (pcase keyword
-                            ((guard (and (not (member keyword additional-options))
-                                         (member keyword doct-option-keywords)))
-                             (push keyword additional-options)
-                             (push (plist-get form keyword) additional-options))
-
-                            ((guard (and (not (member keyword
-                                                      unrecognized-args))
-                                         (not (member keyword
-                                                      doct-recognized-keywords))))
-                             (push keyword unrecognized-args)
-                             (push (plist-get form keyword) unrecognized-args))))
-                        (when-let ((parent (plist-get form :doct--parent)))
-                          (funcall recurse parent)))))
+                    ((guard (and (not (member keyword
+                                              custom-properties))
+                                 (not (member keyword
+                                              doct-recognized-keywords))))
+                     (push keyword custom-properties)
+                     (push (plist-get form keyword) custom-properties))))
+                (when-let ((parent (plist-get form :doct--parent)))
+                  (funcall recurse parent)))))
            (additional-options nil)
-           (unrecognized-args nil))
+           (custom-properties nil))
     (funcall recurse form)
-    `(,(nreverse additional-options) ,(nreverse unrecognized-args))))
+    `(,(nreverse additional-options) ,(nreverse custom-properties))))
 
 (defun doct--add-hooks (name form keys)
   "Add hooks declared in FORM for template NAME with KEYS."
   (dolist (keyword doct-hook-keywords)
-    (when-let ((hook-fn (plist-get form keyword))
+    (when-let ((hook-fn (doct--get form keyword))
                (hook (if (eq keyword :hook) "mode"
                        ;;remove preceding ':' from keyword
                        (substring (symbol-name keyword) 1))))
+      (unless (functionp hook-fn)
+        (signal 'doct-wrong-type-argument `(functionp ,hook-fn
+                                                      ,doct--current-form)))
       (doct--add-hook keys hook-fn hook name))))
 
 (defun doct--type (form)
   "Return FORM's :type value or `doct-default-entry-type'."
-  (let ((type (or (plist-get form :type)
+  (let ((type (or (doct--get form :type)
                   doct-default-entry-type))
         (entry-types '(entry item checkitem table-line plain)))
     (unless (member type entry-types)
       (signal 'doct-wrong-type-argument `(,entry-types ,type)))
     type))
 
-(defun doct--convert (name &rest args)
-  "Convert declarative form to template named NAME with ARGS.
-For a full description of ARGS see `doct'."
-  (setq doct--current-form `(,name ,@args))
-  (let ((children (plist-get args :children))
-        (keys (doct--keys args))
-        (additional-args
-         (doct--additional-args args))
+(defun doct--convert (name &rest properties)
+  "Convert declarative form to template named NAME with PROPERTIES.
+For a full description of the PROPERTIES plist see `doct'."
+  (setq doct--current-form `(,name ,@properties))
+  (let ((children (plist-get properties :children))
+        (keys (doct--keys properties))
+        (additional-properties
+         (doct--additional-properties properties))
         entry)
 
     (unless (stringp name)
@@ -369,22 +395,23 @@ For a full description of ARGS see `doct'."
     (when children
       (setq children (mapcar (lambda (child)
                                (apply #'doct--convert
-                                      (append child `(:doct--parent ,args))))
+                                      (append child
+                                              `(:doct--parent ,properties))))
                              (if (not (seq-every-p 'listp children))
                                  `(,children)
                                children))))
 
     (unless children
-      (doct--add-hooks name args keys))
+      (doct--add-hooks name properties keys))
 
-    (setq entry (delq nil `(,keys
-                            ,name
-                            ,@(unless children
-                                `(,(doct--type args)
-                                  ,(doct--target args)
-                                  ,(doct--template args)
-                                  ,@(car additional-args)
-                                  ,@(cadr additional-args))))))
+    (setq entry `(,keys
+                  ,name
+                  ,@(unless children
+                      `(,(doct--type properties)
+                        ,(doct--target properties)
+                        ,(doct--template properties)
+                        ,@(car additional-properties)
+                        ,@(cadr additional-properties)))))
     (if children
         `(,entry ,@children)
       entry)))
@@ -411,10 +438,8 @@ returns:
           (lambda (form)
             (condition-case err
                 (apply 'doct--convert form)
-              (doct-error (user-error (format "DOCT %s"
-                                              (error-message-string err)))))))
+              (doct-error (user-error "DOCT %s" (error-message-string err))))))
          (entries (mapcar maybe-convert-form declarations)))
-
     (unwind-protect
         (progn
           (run-hook-with-args 'doct-after-conversion-hook entries)
