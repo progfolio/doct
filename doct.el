@@ -314,22 +314,24 @@ FILE is the value for FORM's :file keyword."
 (defun doct--template (form)
   "Convert FORM's template target to Org capture template syntax."
   (pcase (doct--first-in-form form doct-template-keywords)
-    (`(:template ,template)
-     (unless (or (and (stringp template)
-                      (not (string-empty-p template)))
-                 ;;nil intentionally passes these predicates
-                 (and (listp template)
-                      (seq-every-p 'stringp template)))
-       (signal 'doct-wrong-type-argument
-               `(((not (string-empty-p)) listp)
-                 ,template ,doct--current-form)))
-     ;;nil template is valid, uses default template for various entry types
-     (unless (null template)
-       (if (stringp template)
-           template
-         (string-join template "\n"))))
+    ;;@MAYBE warn if no file extension
+    ;;Org seems to create file on-demand unless no extension provided.
     (`(:template-file ,file) `(file ,file))
-    (`(:template-function ,fn) `(function ,fn))))
+    (`(:template-function ,fn) (if (functionp fn)
+                                   `(function ,fn)
+                                 (singal-error
+                                  'doct-wrong-type-argument
+                                  `(functionp ,fn ,doct--current-form))))
+    (`(:template ,template)
+     (pcase template
+       ;;treat empty string as nil
+       ((or 'nil (and (pred stringp) (pred string-empty-p))) nil)
+       ((pred stringp) template)
+       ((and (pred listp) (guard (seq-every-p 'stringp template)))
+        (string-join template "\n"))
+       (_ (signal 'doct-wrong-type-argument
+                  `((stringp listp) ,template ,doct--current-form)))))
+    (_ nil)))
 
 (defun doct--additional-properties (form)
   "Convert FORM's additional properties to Org capture syntax.
@@ -387,11 +389,9 @@ For a full description of the PROPERTIES plist see `doct'."
         (additional-properties
          (doct--additional-properties properties))
         entry)
-
     (unless (stringp name)
       (signal 'doct-wrong-type-argument
               `(stringp ,name ,doct--current-form)))
-
     (when children
       (setq children (mapcar (lambda (child)
                                (apply #'doct--convert
@@ -400,10 +400,8 @@ For a full description of the PROPERTIES plist see `doct'."
                              (if (not (seq-every-p 'listp children))
                                  `(,children)
                                children))))
-
     (unless children
       (doct--add-hooks name properties keys))
-
     (setq entry `(,keys
                   ,name
                   ,@(unless children
@@ -419,9 +417,9 @@ For a full description of the PROPERTIES plist see `doct'."
 (defun doct-flatten-lists-in (list-of-lists)
   "Flatten each list in LIST-OF-LISTS.
 For example:
-  '((1) ((2) (3)) (((4))))
+  '((1) ((2 3) (4)) (((5))))
 returns:
-  '((1) (2) (3) (4))"
+  '((1) (2) (3) (4) (5))"
   (let (flattend)
     (letrec ((flatten (lambda (list)
                         (dolist (element list)
