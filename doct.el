@@ -254,12 +254,18 @@ Returns KEYWORD's value."
 (defun doct--validate-file (target)
   "Check to see if TARGET is a valid :file target. If it is, return TARGET.
 Otherwise, throw an error."
+  ;;@FIX some of these should probably be warnings instead of errors
+  ;;org capture doesn't run the function until the template is selected,
+  ;;so it isn't technically 'wrong' to have an unbound function in the
+  ;;template definition if it is defined before the capture is called...
   (let* ((fn (cond ((functionp target) 'funcall)
                    ((and (symbolp target) (boundp target)) 'eval)
                    ((stringp target) 'identity)
                    (t (signal 'doct-wrong-type-argument
                               `((stringp functionp boundp)
                                 ,target ,doct--current-form)))))
+         ;;maybe only do this if fn is bound during doct's invocation
+         ;;and warn if not
          (path (funcall fn target)))
     (unless (stringp path)
       (signal 'doct-wrong-type-argument
