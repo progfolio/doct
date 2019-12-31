@@ -102,7 +102,12 @@ three")))))
                           :custom-option t
                           :immediate-finish nil
                           :custom-option nil)))
-                 '(("t" "test" entry (file "") nil :immediate-finish t :custom-option t)))))
+                 '(("t" "test"
+                    entry
+                    (file "")
+                    nil
+                    :immediate-finish t
+                    :doct-options (:custom-option t))))))
 
 (ert-deftest file-without-target-is-proper-list ()
   "doct shouldn't return a dotted list when its target is a string.
@@ -133,7 +138,7 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :foo t)))))
+                    :doct-options (:foo t))))))
 
 (ert-deftest childs-properties-override-ancestors ()
   "If a child has a property set it should override that inherited property."
@@ -146,7 +151,7 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :foo nil)))))
+                    :doct-options (:foo nil))))))
 
 ;;error handling
 (let ((types '(nil t 'doct-unbound-symbol #'function :keyword 1 1.0 "string" ?c '("list"))))

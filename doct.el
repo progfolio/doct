@@ -409,10 +409,12 @@ For a full description of the PROPERTIES plist see `doct'."
                         ,(doct--target properties)
                         ,(doct--template properties)
                         ,@(car additional-properties)
-                        ,@(cadr additional-properties)))))
-    (if children
-        `(,entry ,@children)
-      entry)))
+                        ,@(when-let
+                              ((custom-options (cadr additional-properties)))
+                            `(:doct-options ,custom-options))))))
+  (if children
+      `(,entry ,@children)
+    entry)))
 
 (defun doct-flatten-lists-in (list-of-lists)
   "Flatten each list in LIST-OF-LISTS.
