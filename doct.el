@@ -346,18 +346,15 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
             (lambda (form)
               (let ((keywords (delete-dups (seq-filter 'keywordp form))))
                 (dolist (keyword keywords)
-                  (pcase keyword
-                    ((guard (and (not (member keyword additional-options))
-                                 (member keyword doct-option-keywords)))
-                     (push keyword additional-options)
-                     (push (plist-get form keyword) additional-options))
-
-                    ((guard (and (not (member keyword
-                                              custom-properties))
-                                 (not (member keyword
-                                              doct-recognized-keywords))))
-                     (push keyword custom-properties)
-                     (push (plist-get form keyword) custom-properties))))
+                  (cond
+                   ((and (not (member keyword additional-options))
+                         (member keyword doct-option-keywords))
+                    (push keyword additional-options)
+                    (push (plist-get form keyword) additional-options))
+                   ((not (or (member keyword custom-properties)
+                             (member keyword doct-recognized-keywords)))
+                    (push keyword custom-properties)
+                    (push (plist-get form keyword) custom-properties))))
                 (when-let ((parent (plist-get form :doct--parent)))
                   (funcall recurse parent)))))
            (additional-options nil)
