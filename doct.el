@@ -230,16 +230,17 @@ If PAIR is non-nil, return a (KEY VAL) list."
 If not found in FORM, recursively search FORM's ancestors.
 Return (KEYWORD VAL)."
   (let ((origin form))
-    (letrec ((recurse (lambda (form keywords)
-                        (let ((keyword (car (seq-some (lambda (element)
-                                                        (and (keywordp element)
-                                                             (member element keywords)))
-                                                      form))))
-                          (if keyword
-                              (doct--get origin keyword t)
-                            (when-let ((parent (plist-get form :doct--parent)))
-                              (funcall recurse parent keywords)))))))
-      (funcall recurse form keywords))))
+    (letrec ((recurse
+              (lambda (form)
+                (if-let ((keyword (car
+                                   (seq-some (lambda (element)
+                                               (and (keywordp element)
+                                                    (member element keywords)))
+                                             form))))
+                    (doct--get origin keyword t)
+                  (when-let ((parent (plist-get form :doct--parent)))
+                    (funcall recurse parent))))))
+    (funcall recurse form))))
 
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
