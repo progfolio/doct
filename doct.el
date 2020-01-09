@@ -133,19 +133,18 @@ Intended to be used at capture template time."
 (defmacro doct--maybe-expand-template-string (template)
   "If TEMPLATE contains %doct:option expansion syntax, return a lambda
 that can be executed at runtime. Otherwise, just return TEMPLATE."
-  `(lambda () (apply
-               'mapconcat
-               ,(list '\`
-                      `(identity
-                        ,(mapcar (lambda (token)
-                                   (if (string-prefix-p "%doct" token)
-                                       (list '\,@
-                                             `(doct-get
-                                               ,(intern
-                                                 (substring token
+  `(lambda ()
+     (apply
+      'mapconcat ,(list '\``(identity
+                             ,(mapcar (lambda (token)
+                                        (if (string-prefix-p "%doct" token)
+                                            (list '\,@ `(doct-get
+                                                         ,(intern
+                                                           (substring
+                                                            token
                                                             (length "%doct")))))
-                                     token))
-                                 (split-string template " ")) " ")))))
+                                          token))
+                                      (split-string template " ")) " ")))))
 
 (defun doct--fill-deferred-template (string)
   "Call lambda expanded by `doct--maybe-expand-template-string' at capture time."
