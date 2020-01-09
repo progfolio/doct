@@ -3,77 +3,150 @@
 
 ** tl;dr
 #+begin_src emacs-lisp
-'(("p" "Parent")
-  ("pc" "Child" entry (file+headline "~/example.org" "Example")
-   "* %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:%?"
-   :prepend t))
+(defun my-org-template-hook ()
+  (when (string= (org-capture-get :key t) "p1")
+    (message "\"First Child\" selected.")))
+
+(add-hook 'org-capture-mode-hook 'my-org-template-hook)
+
+(setq org-capture-templates
+      '(("p" "Parent")
+        ("p1" "First Child"  entry (file+headline "~/example.org" "One")
+         "* TODO %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:\n%?"
+         :prepend t)
+        ("p2" "Second Child" entry (file+headline "~/example.org" "Two")
+         "* NEXT %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:\n%?"
+         :prepend t)
+        ("p3" "Third Child"  entry (file+headline "~/example.org" "Three")
+         "* MAYBE %^{Description} \n:PROPERTIES:\n:Created: %U\n:END:\n%?"
+         :prepend t)))
 #+end_src
 
 becomes:
 
 #+begin_src emacs-lisp
-(doct '(("Parent" :keys "p"
-         :children ("Child" :keys "c"
-                    :file "~/example.org"
-                    :headline "Example"
-                    :prepend t
-                    :template ("* %^{Description}"
-                               ":PROPERTIES:"
-                               ":Created: %U"
-                               ":END:"
-                               "%?")))))
+(setq org-capture-templates
+      (doct '(("Parent" :keys "p"
+               :file "~/example.org"
+               :prepend t
+               :template ("* %doct:todo-state %^{Description}"
+                          ":PROPERTIES:"
+                          ":Created: %U"
+                          ":END:"
+                          "%?")
+               :children (("First Child" :keys "1"
+                           :headline "One"
+                           :todo-state "TODO"
+                           :hook (lambda ()
+                                   (message "\"First Child\" selected.")))
+                          ("Second Child" :keys "2"
+                           :headline "Two"
+                           :todo-state "NEXT")
+                          ("Third Child" :keys "3"
+                           :headline "Three"
+                           :todo-state "MAYBE"))))))
 #+end_src
 
 ** TODO Installation
-Still bug testing, and working on the code. I'll be submitting to MELPA soon.
-Until then, if interested in testing, clone the ~doct~ repo and add it to your
-load-path:
-
+Until I submit this package to MELPA, the following are the easiest ways to install doct.
+If you're using:
+- the [[https://github.com/raxod502/straight.el][straight package manager]]:
+#+begin_src emacs-lisp
+(straight-use-package
+ '(doct :host github :repo "progfolio/doct" :branch "master"))
+#+end_src
+- [[https://github.com/jwiegley/use-package][use-package]]:
+First clone doct into your load-path.
+Then declare it in your init file.
 #+begin_src emacs-lisp
 (use-package doct
-  :load-path "lisp/")
+  :ensure nil
+  :load-path "path/to/doct")
 #+end_src
+- Neither:
+Clone doct into your load-path
+Then require it in your init file.
+
+#+begin_src emacs-lisp
+(require 'doct)
+#+end_src
+
+
 ** TODO Documentation
 *** doct
 #+begin_src emacs-lisp
 (doct declarations)
 #+end_src
 
-~doct~ expects a list of declarations. Each declaration is either a parent, or child template declaration.
-A parent declaration consists of:
+~doct~ expects a list of declarations.
+Each declaration is either a parent or child.
+A parent declaration must have:
 
 - a name
 - a ~:keys~ string
-- a list of ~:children~
+- a child or list of ~:children~
 
-A child declaration consists of:
+and may also have:
+Additional properties inherited by its children.
+
+A child declaration must have:
 
 - a name
 - a ~:keys~ string
 - a template type
 - a target
-- an item template
+- a template
+
+and may also have:
+
 - hook functions defined with the hook keywords
 - additional arguments
 
+**** Inherited properties
+A child inherits its ancestor's properties.
+It may optionally override an inherited property by specifying that property directly.
+
+For example:
+
+#+begin_src emacs-lisp
+(doct '(("Grandparent" :keys "g"
+         :file "example.org"
+         :children ("Parent" :keys "p"
+                    :children ("Child" :keys "c")))))
+#+end_src
+
+The "Child" template inherits its ~:file~ property from the "Grandparent" parent declaration.
+The "Parent" could override this value:
+
+#+begin_src emacs-lisp
+(doct '(("Grandparent" :keys "g"
+         :file "example.org"
+         :children ("Parent" :keys "p"
+                    :file "overriden.org"
+                    :children ("Child" :keys "c")))))
+#+end_src
+
+And the "Child" would have its ~:file~ property set to "overridden.org".
+
+
 **** Name & Keys
-Each declaration must define, at a minimum, a name and keys. The name is the first
+Every declaration must define a name and keys. The name is the first
 value in the declaration. The ~:keys~ keyword defines the keys to access the template
 from the capture menu.
 
 #+begin_src emacs-lisp
-(doct '(("example" :keys "e")))
+(doct '(("example" :keys "e" ...)))
 #+end_src
 
 returns:
 
 #+begin_src emacs-lisp
-(("e" "example"))
+(("e" "example" ...))
 #+end_src
 
 **** Type
 
-The ~:type~ keyword defines the entry type and accepts the following symbols:
+The ~:type~ keyword defines the template's entry type and accepts the following symbols:
 
 - entry ::
   An Org node with a headline. The template becomes a child of the target entry
@@ -113,15 +186,11 @@ And
 Both return:
 
 #+begin_src emacs-lisp
-(("e" "example" entry (file "")))
+(("e" "example" entry (file "") nil))
 #+end_src
 
 **** Target
-The ~:target~ keyword defines the location of the inserted template text.
-
-#+begin_src emacs-lisp
-(doct ... :target (file "/path/to/target.org"))
-#+end_src
+The target defines the location of the inserted template text.
 
 The first keyword declared in the following group exclusively sets the target.
 The ~:file~ keyword is not necessary for these.
@@ -154,7 +223,7 @@ The ~:file~ keyword is not necessary for these.
 returns:
 
 #+begin_src emacs-lisp
-(("e" "example" entry (clock)))
+(("e" "example" entry (clock) nil))
 #+end_src
 
 The ~:file~ keyword defines the target file for the capture template.
@@ -188,7 +257,9 @@ The following keywords refine the target file location:
 
 **** Template
 The ~:template~ keyword defines the template for creating the capture item.
-It may be either a string or a list of strings. ~doct~ joins the list with new lines.
+It may be either a string or a list of strings, or a function.
+~doct~ joins the list with new lines.
+A function must return the template text.
 
 #+begin_src emacs-lisp
 (doct '((... :template ("Test" "One" "Two"))))
@@ -201,13 +272,11 @@ returns:
 #+end_src
 
 The ~:template-file~ keyword defines a file containing the text of the template.
-The ~:template-function~ keyword defines a function which returns the template.
 
 The first keyword declared overrides any additional template declarations.
 
 **** Additional options
-Key Value pairs define additional options.
-~doct~ does not include keywords with a ~nil~ value in the returned template.
+Key-value pairs define additional options.
 
 #+begin_src emacs-lisp
 (doct '((...:immediate-finish nil)))
@@ -221,8 +290,13 @@ returns:
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
+**** Custom options
+~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct--options plist.
+This allows custom metadata to declared for a template and accessed during capture.
+See [[#doct-string-expansion]] for details.
+
 **** Children
-A parent declaration may contain a list of ~:children~ declarations.
+A parent declaration may contain a single or list of ~:children~ declarations.
 The parent's ~:keys~ prefix each child's ~:keys~.
 
 #+begin_src emacs-lisp
@@ -242,8 +316,32 @@ returns:
 (("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
 #+end_src
 
+
+**** %doct string expansion
+:PROPERTIES:
+:CUSTOM_ID: doct-string-expansion
+:END:
+A declaration may include custom metadata which is accessible during capture.
+The syntax is similar to other, built-in "%-escapes":
+
+~%doct:keyword~
+
+will insert the value declared with ~:keyword~ on the template.
+
+For example, with:
+
+#+begin_src emacs-lisp
+(doct '(("Parent" :keys "p"
+         :file ""
+         :template "* %doct:todo-state %?"
+         :children (("One" :keys "1" :todo-state "TODO")
+                    ("Two" :keys "2" :todo-state "IDEA")))))
+#+end_src
+
+Each child template has it's ~:todo-state~ value expanded in the inherited ~:template.~
+
 **** Hooks
-Adding one of the following hook keywords in an entry will generate a function
+Adding one of the following hook keywords in a declaration will generate a function
 of the form:
 
 =doct--hook/<hook-variable-abbreviation>/KEYS=
@@ -278,6 +376,7 @@ For example:
 #+begin_src emacs-lisp
 (doct '(("example"
          :keys "e"
+         :file ""
          :hook (lambda ()
                  ;;when selecting the "example" template
                  ;;doct--hook/mode/e executes
@@ -294,73 +393,13 @@ doct supports the following variables for customization:
   The default template entry type.
   It can be overridden by using the ~:type~ keyword in an entry.
 
-- doct-sort-parents-predicate nil ::
-  A binary predicate function which sorts sets of parents/children.
-  A nil value skips sorting.
-  The list it sorts is of the form:
-#+begin_src emacs-lisp
-(((parent) (child)...)...)
-#+end_src
-
-For example:
-
-#+begin_src emacs-lisp :results value raw
-(let ((doct-sort-parents-predicate (lambda (a b)
-                                     (string< (caar a) (caar b)))))
-  (doct '(("b-parent" :keys "b"
-           :children (("b-child" :keys "b")
-                      ("a-child" :keys "a")))
-          ("a-parent" :keys "a"
-           :children (("b-child" :keys "b")
-                      ("a-child" :keys "a"))))))
-#+end_src
-
-returns a list with the parents sorted.
-The children are still in declaration order:
-
-#+begin_src emacs-lisp
-(("a" "a-parent")
- ("ab" "b-child entry")
- ("aa" "a-child" entry)
- ("b" "b-parent")
- ("bb" "b-child" entry)
- ("ba" "a-child" entry))
-#+end_src
-
-- doct-sort-children-predicate nil ::
-  A binary predicate function used to sort parent's children.
-  A nil value skips sorting.
-  The list it sorts is of the form:
-
-#+begin_src emacs-lisp
-((child)...)
-#+end_src
-
-For example:
-
-#+begin_src emacs-lisp :results value raw
-(let ((doct-sort-children-predicate
-       (lambda (a b)
-         ;;sort childern alphabetically by their keys
-         (string< (car a) (car b)))))
-  (doct '(("b-parent" :keys "b"
-           :children (("b-child" :keys "b")
-                      ("a-child" :keys "a")))
-          ("a-parent" :keys "a"
-           :children (("b-child" :keys "b")
-                      ("a-child" :keys "a"))))))
-#+end_src
-
-returns a list with each parent's children sorted alphabetically by their ~:keys~.
-
-#+begin_src emacs-lisp
-(("b" "b-parent")
- ("ba" "a-child" entry)
- ("bb" "b-child" entry)
- ("a" "a-parent")
- ("aa" "a-child" entry)
- ("ab" "b-child" entry))
-#+end_src
+- doct-after-conversion-hook ::
+  Hook run after doct has converted declarative forms to templates.
+  Hook functions run with the list of templates as their only argument.
+  The templates are not flattened at this point and are of the form:
+  #+begin_src emacs-lisp
+  (((parent) (child)...)...).
+  #+end_src
 
 *** Contributing
 
