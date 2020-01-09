@@ -209,18 +209,18 @@ Rules to follow here..."
   "Recursively search FORM and FORM's ancestors for KEYWORD.
 Returns KEYWORD's value.
 If PAIR is non-nil, return a (KEY VAL) list."
-  (let (values)
-    (letrec ((recurse (lambda (form keyword &optional pair)
-                        (let* ((member (plist-member form keyword))
-                               (additive (doct--additive-keyword keyword))
-                               (additive-val (plist-get form additive)))
+  (let ((additive (doct--additive-keyword keyword))
+        values)
+    (letrec ((recurse (lambda (form)
+                        (let ((member (plist-member form keyword))
+                              (additive-val (plist-get form additive)))
                           (if member
                               (push (cadr member) values)
                             (when additive-val
                               (push additive-val values))
                             (when-let ((parent (plist-get form :doct--parent)))
-                              (funcall recurse parent keyword pair)))))))
-      (funcall recurse form keyword pair)
+                              (funcall recurse parent)))))))
+      (funcall recurse form)
       (if pair
           `(,keyword ,(doct--merge-values keyword values))
         (doct--merge-values keyword values)))))
