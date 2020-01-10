@@ -371,11 +371,11 @@ ENTRY-NAME is the name of the entry the hook should run for."
 (defun doct--validate-file (target)
   "Check to see if TARGET is a valid :file target. If it is, return TARGET.
 Otherwise, throw an error."
-    (unless (or (stringp target)
-                (functionp target)
-                (symbolp target))
-      (signal 'doct-wrong-type-argument
-              `(stringp functionp symbolp ,target ,doct--current-form))))
+  (unless (or (stringp target)
+              (functionp target)
+              (symbolp target))
+    (signal 'doct-wrong-type-argument
+            `(stringp functionp symbolp ,target ,doct--current-form))))
 
 (defun doct--target-file (form file-target)
   "Convert declarative FORM's :file and file-extensions to Org capture template syntax.
