@@ -23,12 +23,12 @@
 (ert-deftest doct--get-no-pair ()
   "Should return first explicitly set keyword value."
   (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo)
-                 t)))
+                 '(t))))
 
 (ert-deftest doct--get-pair ()
   "Should return first explicitly set keyword and its value."
   (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo t)
-                 '(:foo t))))
+                 '(:foo (t)))))
 
 (ert-deftest doct--additive-keyword ()
   "Given a keyword, return an additive keyword."
@@ -87,7 +87,6 @@
                           :id "1"
                           :clock t
                           :function identity
-                          :template-function ignore
                           :template-file "./template.txt"
                           :file "")))
                  '(("tt" "ftt-test" entry (id "1") #'ignore)))))
@@ -116,14 +115,6 @@ three")))))
                           :file "")))
                  '(("t" "template join test" entry (file "") "test")))))
 
-(ert-deftest :template-function ()
-  ":template-function should properly convert to target entry"
-  (should (equal (doct '(("template-function-test" :keys "t"
-                          :type entry
-                          :template-function identity
-                          :file "")))
-                 '(("t" "template-function-test" entry (file "") #'identity)))))
-
 (ert-deftest additional-option-not-duplicated ()
   "If declared multiple times, first additional option value is returned once."
   (should (equal (doct '(("test" :keys "t"
@@ -138,7 +129,7 @@ three")))))
                     (file "")
                     nil
                     :immediate-finish t
-                    :doct-options (:custom-option t))))))
+                    :doct-options (:custom-option (t)))))))
 
 (ert-deftest file-without-target-is-proper-list ()
   "doct shouldn't return a dotted list when its target is a string.
@@ -169,7 +160,7 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :doct-options (:foo t))))))
+                    :doct-options (:foo (t)))))))
 
 (ert-deftest childs-properties-override-ancestors ()
   "If a child has a property set it should override that inherited property."
@@ -182,7 +173,7 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :doct-options (:foo nil))))))
+                    :doct-options (:foo (nil)))))))
 
 ;;error handling
 (let ((types '(nil t 'doct-unbound-symbol #'function :keyword 1 1.0 "string" ?c '("list"))))

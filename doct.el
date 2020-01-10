@@ -26,6 +26,7 @@
 ;; templates. See the doctstring for doct for more details.
 
 ;;; Code:
+(require 'subr-x)
 (require 'seq)
 
 (defgroup doct nil
@@ -195,6 +196,9 @@ that can be executed at runtime. Otherwise, just return TEMPLATE."
       ('nil nil)
       ((or :file :template)
        ;;skip deferral for static strings
+       (when (eq keyword :file)
+         (dolist (val values)
+           (doct--validate-file val)))
        (let ((flattened (flatten-list values)))
          (if (and (seq-every-p 'stringp flattened)
                   (not (seq-some 'doct--expansion-string-p flattened)))
@@ -203,20 +207,23 @@ that can be executed at runtime. Otherwise, just return TEMPLATE."
                                   values) "")
            ;;Could be list of strings or a string
            (macroexpand-1 `(doct--defer-merge ,keyword ,values)))))
-       ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
-        ;;skip deferral for single function
-        (if (= (length values) 1)
-            (car values)
-          (macroexpand-1 `(doct--defer-merge :function, values))))
-       ;;Strings or a list of strings
-       (:olp (flatten-list values))
-       ;;These keywords should only be declared once
-       ((or :type :id) (car values))
-       ;;These keywords can only be strings
-       ((or :headline :keys :regexp :temaplate-file)
-        (mapconcat 'identity values ""))
-       ;;@INCOMPLETE: allow user to register custom merging functions
-       (_ values))))
+      ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
+       ;;skip deferral for single function
+       (if (= (length values) 1)
+           (car values)
+         (macroexpand-1 `(doct--defer-merge :function, values))))
+      ;;Strings or a list of strings
+      (:olp (flatten-list values))
+      ;;These keywords should only be declared once
+      ((or :type :id) (car values))
+      ;;These keywords can only be strings
+      ((or :headline :keys :regexp :template-file)
+       (mapconcat 'identity values ""))
+      ;;these are all single values
+      ((pred (lambda (keyword) (member keyword doct-option-keywords)))
+       (car values))
+      ;;@INCOMPLETE: allow user to register custom merging functions
+      (_ values))))
 
 (defun doct--get (form keyword &optional pair)
   "Recursively search FORM and FORM's ancestors for KEYWORD.
@@ -253,7 +260,7 @@ Return (KEYWORD VAL)."
                     (doct--get origin keyword t)
                   (when-let ((parent (plist-get form :doct--parent)))
                     (funcall recurse parent))))))
-    (funcall recurse form))))
+      (funcall recurse form))))
 
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
@@ -386,7 +393,7 @@ ENTRY-NAME is the name of the entry the hook should run for."
 Otherwise, throw an error."
   (unless (or (stringp target)
               (functionp target)
-              (symbolp target))
+              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
     (signal 'doct-wrong-type-argument
             `(stringp functionp symbolp ,target ,doct--current-form))))
 
@@ -502,14 +509,15 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
   "Convert declarative form to template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (setq doct--current-form `(,name ,@properties))
-  (let ((children (plist-get properties :children))
-        (keys (doct--keys properties))
-        (additional-properties
-         (doct--additional-properties properties))
-        entry)
-    (unless (stringp name)
+  (let* ((children (plist-get properties :children))
+         (symbolic-parent (symbolp name))
+         (keys (unless symbolic-parent (doct--keys properties)))
+         (additional-properties
+          (doct--additional-properties properties))
+         entry)
+    (unless (or (stringp name) (symbolp name))
       (signal 'doct-wrong-type-argument
-              `(stringp ,name ,doct--current-form)))
+              `((stringp symbolp),name ,doct--current-form)))
     (when children
       (setq children (mapcar (lambda (child)
                                (apply #'doct--convert
@@ -531,7 +539,9 @@ For a full description of the PROPERTIES plist see `doct'."
                               ((custom-options (cadr additional-properties)))
                             `(:doct-options ,custom-options))))))
     (if children
-        `(,entry ,@children)
+        (if (symbolp name)
+            `(,@children)
+          `(,entry ,@children))
       entry)))
 
 (defun doct-flatten-lists-in (list-of-lists)

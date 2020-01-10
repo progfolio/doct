@@ -80,9 +80,10 @@ Then require it in your init file.
 
 ~doct~ expects a list of declarations.
 Each declaration is either a parent or child.
+
 A parent declaration must have:
 
-- a name
+- a name string or symbol. If the name is a symbol, the form is not included in the list of templates. This is useful for storing properties inherited by groups of parents.
 - a ~:keys~ string
 - a child or list of ~:children~
 
