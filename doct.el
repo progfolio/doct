@@ -183,27 +183,39 @@ that can be executed at runtime. Otherwise, just return TEMPLATE."
                             ((boundp val) (symbol-value val))))
                     ',values) "")))))
 
-(defun doct--merge-values (keyword values)
-  "Merge a list of KEYWORD's VALUES to a single type.
-Rules to follow here..."
-  ;;guard against empty value list
+(defun doct--expansion-string-p (string)
+  (string-prefix-p "%doct" string))
+
+(defun doct--merge (values keyword)
+  "Merge a list of KEYWORD's VALUES into a single type."
+  ;;return nil if values empty
   (when values
     (pcase keyword
       ('nil nil)
-      ;;empty string, variable or function
-      (:file (macroexpand-1 `(doct--defer-merge :file ,values)))
-      ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
-       (macroexpand-1 `(doct--defer-merge :function ,values)))
-      (:olp (flatten-list values))
-      ((or :type :id) (car (last values)))
-      (:template (macroexpand-1 `(doct--defer-merge :template ,values)))
-      ((or :keys
-           :headline
-           :regexp
-           :template-file)
-       (mapconcat 'identity values ""))
-      ;;custom options are user's responsibilty to merge
-      (_ values))))
+      ((or :file :template)
+       ;;skip deferral for static strings
+       (let ((flattened (flatten-list values)))
+         (if (and (seq-every-p 'stringp flattened)
+                  (not (seq-some 'doct--expansion-string-p flattened)))
+             (string-join (mapcar (lambda (val) (if (listp val)
+                                                    (string-join val "\n") val))
+                                  values) "")
+           ;;Could be list of strings or a string
+           (macroexpand-1 `(doct--defer-merge ,keyword ,values)))))
+       ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
+        ;;skip deferral for single function
+        (if (= (length values) 1)
+            (car values)
+          (macroexpand-1 `(doct--defer-merge :function, values))))
+       ;;Strings or a list of strings
+       (:olp (flatten-list values))
+       ;;These keywords should only be declared once
+       ((or :type :id) (car values))
+       ;;These keywords can only be strings
+       ((or :headline :keys :regexp :temaplate-file)
+        (mapconcat 'identity values ""))
+       ;;@INCOMPLETE: allow user to register custom merging functions
+       (_ values))))
 
 (defun doct--get (form keyword &optional pair)
   "Recursively search FORM and FORM's ancestors for KEYWORD.
@@ -222,8 +234,8 @@ If PAIR is non-nil, return a (KEY VAL) list."
                               (funcall recurse parent)))))))
       (funcall recurse form)
       (if pair
-          `(,keyword ,(doct--merge-values keyword values))
-        (doct--merge-values keyword values)))))
+          `(,keyword ,(doct--merge values keyword))
+        (doct--merge values keyword)))))
 
 (defun doct--first-in-form (form keywords)
   "Find first occurence of one of KEYWORDS in FORM.
