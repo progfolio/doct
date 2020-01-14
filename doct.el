@@ -26,6 +26,7 @@
 ;; templates. See the doctstring for doct for more details.
 
 ;;; Code:
+(require 'seq)
 
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
