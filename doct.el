@@ -155,9 +155,12 @@ that can be executed at runtime. Otherwise, just return TEMPLATE."
          (doct--replace-template-strings ,template))
     template))
 
-  (defun doct--fill-deferred-template (string)
-    "Call lambda expanded by `doct--maybe-expand-template-string' at capture time."
-    (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string))))
+(defun doct--fill-deferred-template (string)
+  "Call lambda expanded by `doct--maybe-expand-template-string' at capture time."
+  (if (doct--expansion-syntax-p string)
+      (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string)))
+    string))
+
 
   (defmacro doct--defer-merge (keyword values)
     "Return a lambda that can be called at runtime by `org-capture'."
