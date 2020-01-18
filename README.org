@@ -129,6 +129,98 @@ The "Parent" could override this value:
 
 And the "Child" would have its ~:file~ property set to "overridden.org".
 
+***** additive inheritance
+A child can add to an inherited property by declaring a keyword of the form:
+#+begin_src emacs-lisp
+:+INHERITED-KEYWORD
+#+end_src
+
+For example:
+#+begin_src emacs-lisp :results raw scalar
+(doct '((:symbolic-parent
+         :file ""
+         :template-file "~/templates/"
+         :children (("One" :keys "1"
+                     :+template-file "one.txt")
+                    ("Two" :keys "2"
+                     :+template-file "two.txt")))))
+#+end_src
+
+returns:
+
+#+begin_src emacs-lisp
+(("1" "One" entry (file "") (file "~/templates/one.txt")) ("2" "Two" entry (file "") (file "~/templates/two.txt")))
+#+end_src
+
+****** merged values
+When using additive inheritance, a list of  the keyword's values merge into a single value.
+Their types and the keyword determine how they merge. The following is a list of keywords that support
+additive inheritance and the values they merge to:
+
+- :headline, :regexp ::
+| type            | merged        |
+|-----------------+---------------|
+| list of strings | joined string |
+
+#+begin_src emacs-lisp
+:headline "one"   :+headline "two"  ⇒ "onetwo"
+:regexp   "three" :+regexp   "four" ⇒ "threefour"
+#+end_src
+
+- :olp ::
+| type                               | merged         |
+|------------------------------------+----------------|
+| list of list of strings or strings | flattened list |
+
+#+begin_src emacs-lisp
+:olp ("one" "two") :+olp "three"
+⇒ ("one" "two" "three")
+#+end_src
+
+- :file, :template ::
+
+| type              | merged                                                                                |
+|-------------------+---------------------------------------------------------------------------------------|
+| list of strings   | joined string                                                                         |
+| list of functions | lambda that joins result of calling functions in declared order at capture time       |
+| list of variables | lambda that joins result of evaluated symbols in declared order at capture time       |
+| mixed list        | lambda that joins result of evaluating each element in declared order at capture time |
+
+#+begin_src emacs-lisp
+:file "/path/to/" :+file variable-containing-more-of-path :+file (lambda () ".org")
+⇒ (lambda () (string-join `("/path/to" ,variable-containing-more-of-path ,(lambda () ".org"))))
+#+end_src
+
+- :function ::
+| type              | merged                                                        |
+|-------------------+---------------------------------------------------------------|
+| list of functions | lambda that calls functions in declared order at capture time |
+
+#+begin_src emacs-lisp
+:function  #'function-that-sets-file
+:+function #'function-that-sets-point-within-file
+⇒ (lambda () (mapc 'funcall (#'function-that-sets-file #'function-that-sets-point-within-file)))
+#+end_src
+
+****** custom option merging functions
+Custom options user merge like so by default:
+
+| type              | merged                                         | example                           |
+|-------------------+------------------------------------------------+-----------------------------------|
+| a single number   | string                                         | 1 ⇒ "1"                           |
+| list of strings   | joined with doct-merge-string-separator string | :foo "one" :+foo "two" ⇒ "onetwo" |
+| a list of numbers | string representing sum                        | :nums 1 :+nums 2 :+nums 3 ⇒ "6"   |
+
+
+Defining a function of the form:
+#+begin_src emacs-lisp
+(defun doct-merge:KEYWORD (list)
+  ;;return a single string if inserting into template
+  )
+#+end_src
+
+overrides the default merging rules for the custom option :KEYWORD.
+The function must take a list as its sole argument and return a single string.
 
 **** Name & Keys
 Every declaration must define a name and keys. The name is the first
@@ -399,7 +491,7 @@ doct supports the following variables for customization:
   Hook functions run with the list of templates as their only argument.
   The templates are not flattened at this point and are of the form:
   #+begin_src emacs-lisp
-  (((parent) (child)...)...).
+(((parent) (child)...)...).
   #+end_src
 
 *** Contributing
