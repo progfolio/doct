@@ -29,7 +29,7 @@ becomes:
       (doct '(("Parent" :keys "p"
                :file "~/example.org"
                :prepend t
-               :template ("* %doct:todo-state %^{Description}"
+               :template ("* %doct(todo-state) %^{Description}"
                           ":PROPERTIES:"
                           ":Created: %U"
                           ":END:"
@@ -325,7 +325,7 @@ returns:
 A declaration may include custom metadata which is accessible during capture.
 The syntax is similar to other, built-in "%-escapes":
 
-~%doct:keyword~
+~%doct(keyword~)
 
 will insert the value declared with ~:keyword~ on the template.
 
@@ -334,7 +334,7 @@ For example, with:
 #+begin_src emacs-lisp
 (doct '(("Parent" :keys "p"
          :file ""
-         :template "* %doct:todo-state %?"
+         :template "* %doct(todo-state) %?"
          :children (("One" :keys "1" :todo-state "TODO")
                     ("Two" :keys "2" :todo-state "IDEA")))))
 #+end_src

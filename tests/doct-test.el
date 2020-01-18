@@ -23,12 +23,12 @@
 (ert-deftest doct--get-no-pair ()
   "Should return first explicitly set keyword value."
   (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo)
-                 '(t))))
+                 t)))
 
 (ert-deftest doct--get-pair ()
   "Should return first explicitly set keyword and its value."
   (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo t)
-                 '(:foo (t)))))
+                 '(:foo t))))
 
 (ert-deftest doct--additive-keyword ()
   "Given a keyword, return an additive keyword."
@@ -88,8 +88,9 @@
                           :clock t
                           :function identity
                           :template-file "./template.txt"
+                          :template "ignored"
                           :file "")))
-                 '(("tt" "ftt-test" entry (id "1") #'ignore)))))
+                 '(("tt" "ftt-test" entry (id "1") (file "./template.txt"))))))
 
 
 (ert-deftest :clock-target-should-not-have-cdr ()
@@ -129,7 +130,7 @@ three")))))
                     (file "")
                     nil
                     :immediate-finish t
-                    :doct-options (:custom-option (t)))))))
+                    :doct-options (:custom-option t))))))
 
 (ert-deftest file-without-target-is-proper-list ()
   "doct shouldn't return a dotted list when its target is a string.
@@ -160,7 +161,7 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :doct-options (:foo (t)))))))
+                    :doct-options (:foo t))))))
 
 (ert-deftest childs-properties-override-ancestors ()
   "If a child has a property set it should override that inherited property."
@@ -173,7 +174,19 @@ It should return a proper list."
                     entry
                     (file "")
                     nil
-                    :doct-options (:foo (nil)))))))
+                    :doct-options (:foo nil))))))
+
+(ert-deftest symbolic-parent ()
+  "A form with a symbol for its name should not be included in the translated templates."
+  (should (equal (doct '((:root
+                          :inherited t
+                          :type entry
+                          :children ("Parent" :keys "p"
+                                     :children ("Child" :keys "c"
+                                                :file ""
+                                                :template nil)))))
+                 '(("p" "Parent") ("pc" "Child" entry (file "") nil
+                                   :doct-options (:inherited t))))))
 
 ;;error handling
 (let ((types '(nil t 'doct-unbound-symbol #'function :keyword 1 1.0 "string" ?c '("list"))))
@@ -199,6 +212,6 @@ It should return a proper list."
 - a string
 - a function returning a file path
 - a or variable evaluating to a file path."
-    (dolist (garbage (seq-remove 'stringp types))
+    (dolist (garbage (delq nil (seq-remove 'stringp types)))
       (should-error (doct `(("test" :keys "t" :file ,garbage)))
                     :type 'user-error))))
