@@ -188,7 +188,7 @@ additive inheritance and the values they merge to:
 
 #+begin_src emacs-lisp
 :file "/path/to/" :+file variable-containing-more-of-path :+file (lambda () ".org")
-⇒ (lambda () (string-join `("/path/to" ,variable-containing-more-of-path ,(lambda () ".org"))))
+⇒ (lambda () (string-join `("/path/to" ,variable-containing-more-of-path ,(funcall (lambda () ".org")))))
 #+end_src
 
 - :function ::
