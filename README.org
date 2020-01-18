@@ -203,7 +203,7 @@ additive inheritance and the values they merge to:
 #+end_src
 
 ****** custom option merging functions
-Custom options user merge like so by default:
+Custom user options merge like so by default:
 
 | type              | merged                                         | example                           |
 |-------------------+------------------------------------------------+-----------------------------------|
@@ -417,7 +417,7 @@ returns:
 A declaration may include custom metadata which is accessible during capture.
 The syntax is similar to other, built-in "%-escapes":
 
-~%doct(keyword~)
+~%doct(keyword)~
 
 will insert the value declared with ~:keyword~ on the template.
 
