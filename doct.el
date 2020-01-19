@@ -611,14 +611,14 @@ returns:
       (nreverse flattend))))
 
 ;;@INCOMPLETE needs overview docstring
+(defun doct--maybe-convert-form (form)
+  (condition-case err
+      (apply 'doct--convert form)
+    (doct-error (user-error "DOCT %s" (error-message-string err)))))
+
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
-  (let* ((maybe-convert-form
-          (lambda (form)
-            (condition-case err
-                (apply 'doct--convert form)
-              (doct-error (user-error "DOCT %s" (error-message-string err))))))
-         (entries (mapcar maybe-convert-form declarations)))
+  (let* ((entries (mapcar 'doct--maybe-convert-form declarations)))
     (unwind-protect
         (progn
           (run-hook-with-args 'doct-after-conversion-hook entries)
