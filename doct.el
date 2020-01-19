@@ -493,8 +493,6 @@ FILE is the value for FORM's :file keyword."
 (defun doct--template (form)
   "Convert FORM's template target to Org capture template syntax."
   (pcase (doct--first-in-form form doct-template-keywords)
-    ;;@MAYBE warn if no file extension
-    ;;Org seems to create file on-demand unless no extension provided.
     (`(:template-file ,file) `(file ,file))
     (`(:template ,template)
      (pcase template
