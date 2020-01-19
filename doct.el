@@ -556,8 +556,6 @@ For a full description of the PROPERTIES plist see `doct'."
   (let* ((children (plist-get properties :children))
          (symbolic-parent (symbolp name))
          (keys (unless symbolic-parent (doct--keys properties)))
-         (additional-properties
-          (doct--additional-properties properties))
          entry)
     (unless (or (stringp name) (symbolp name))
       (signal 'doct-wrong-type-argument
@@ -578,10 +576,13 @@ For a full description of the PROPERTIES plist see `doct'."
                       `(,(doct--type properties)
                         ,(doct--target properties)
                         ,(doct--template properties)
-                        ,@(car additional-properties)
-                        ,@(when-let
-                              ((custom-options (cadr additional-properties)))
-                            `(:doct-options ,custom-options))))))
+                        ,@(when-let ((additional-properties
+                                      (doct--additional-properties properties)))
+                            `(,@(car additional-properties)
+                              ,@(when-let
+                                    ((custom-opts (cadr additional-properties)))
+                                  `(:doct-options ,custom-opts))))))))
+
     (if children
         (if (symbolp name)
             `(,@children)
