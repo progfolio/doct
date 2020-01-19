@@ -341,7 +341,7 @@ If UNINTERN-FUNCTIONS is non-nil, the matching functions are uninterned.
 
 Example:
 
-  (doct-remove-hooks \"t.?\" \\='mode t)
+  (doct-remove-hooks \"^t\" \\='mode t)
 
 Removes:
 
@@ -355,10 +355,6 @@ But not:
 From the `org-capture-mode-hook'."
   (interactive)
   (let* ((keys (or keys (read-string "Remove hooks with keys matching: ")))
-         ;;only want to match against the end of the hook function's name
-         (keys (if (string= (substring keys -1) "$")
-                   keys
-                 (concat keys "$")))
          (hook-symbols (pcase hooks
                          ('nil (mapcar #'intern-soft
                                        (completing-read-multiple
@@ -390,9 +386,10 @@ From the `org-capture-mode-hook'."
                           hook-symbols))))
     (dolist (hook hooks)
       (dolist (hook-fn (symbol-value hook))
-        (when (string-match keys (symbol-name hook-fn))
-          (remove-hook hook hook-fn))
-        (when unintern-functions (unintern hook-fn nil))))))
+        (when (string-match
+               keys (car (last (split-string (symbol-name hook-fn) "/"))))
+          (remove-hook hook hook-fn)
+          (when unintern-functions (unintern hook-fn nil)))))))
 
 (defun doct--add-hook (keys fn where &optional entry-name)
   "Generate hook function and add to appropriate hook variable.
