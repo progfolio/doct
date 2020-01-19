@@ -261,6 +261,9 @@ Otherwise, return nil."
       ((or :type :id) (car values))
       ;;These keywords can only be strings
       ((or :headline :keys :regexp :template-file)
+       (unless (seq-every-p 'stringp values)
+          (signal 'doct-wrong-type-argument `((stringp) ,values
+                                                      ,doct--current-form)))
        (mapconcat 'identity values ""))
       ;;these are all single values
       ((pred (lambda (keyword) (member keyword doct-option-keywords)))
