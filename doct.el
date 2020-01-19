@@ -120,7 +120,7 @@ Its value is not stored betewen invocations to doct.")
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
 (defun doct--additive-keyword-p (keyword)
-  "Return t if keyword starts with a +."
+  "Return t if KEYWORD is prefixed with :+."
   (and (keywordp keyword)
        (string-prefix-p ":+" (symbol-name keyword))))
 
@@ -133,7 +133,7 @@ Its value is not stored betewen invocations to doct.")
     (intern (replace-regexp-in-string "^:" ":+" (symbol-name keyword)))))
 
 (defun doct--normalize-keyword (keyword)
-  "Returns a plain keyword if given an additive keyword."
+  "Return a plain KEYWORD if given an additive keyword."
   (unless (keywordp keyword)
     (signal 'doct-wrong-type-argument `(keyword-p ,keyword)))
   (if (doct--additive-keyword-p keyword)
@@ -146,7 +146,7 @@ Intended to be used at capture template time."
   (plist-get (plist-get org-capture-plist :doct-options) keyword))
 
 (defun doct--replace-template-strings (string)
-  "Replace each occurrence of %doct(KEYWORD) with it's corresponding doct-options value."
+  "Replace each occurrence of %doct(KEYWORD) in STRING with it's corresponding doct-options value."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
@@ -156,26 +156,26 @@ Intended to be used at capture template time."
     (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
-  "Return t if STRING contains %doct(keyword) syntax,
-else nil."
+  "Return t if STRING containing %doct(keyword) syntax, else nil."
+
   (when (string-match-p "%doct(.*?)" string) t))
 
 (defmacro doct--maybe-expand-template-string (template)
-  "If TEMPLATE contains %doct:option expansion syntax, return a lambda
-that can be executed at runtime. Otherwise, just return TEMPLATE."
+  "If TEMPLATE follows %doct(keyword) syntax, return a lambda.
+Otherwise, return TEMPLATE."
   (if (doct--expansion-syntax-p template)
       `(lambda ()
          (doct--replace-template-strings ,template))
     template))
 
 (defun doct--fill-deferred-template (string)
-  "Call lambda expanded by `doct--maybe-expand-template-string' at capture time."
+  "Replace %doct(KEYOWRD) placeholders in STRING at capture time."
   (if (doct--expansion-syntax-p string)
       (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string)))
     string))
 
 (defmacro doct--defer-merge (keyword values)
-  "Return a lambda that can be called at runtime by `org-capture'."
+  "Return a lambda that merges KEYWORD's VALUES at during `org-capture'."
   ;;functions, symbols that eval to strings, strings...etc
   (pcase keyword
     ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
@@ -208,13 +208,15 @@ that can be executed at runtime. Otherwise, just return TEMPLATE."
                     ',values) "")))))
 
 (defun doct--custom-merge-function (keyword)
-  "If a function matching the form doct-mergeKEYWORD exists return it.
-Otherwise, return nil."
+  "Return a custom registered merging function for KEYWORD, or nil.
+The function is expected to be bound to a symbol of the form:
+  doct-mergeKEYWORD"
   (let ((merge-fn (intern (concat "doct-merge" (symbol-name keyword)))))
     (when (fboundp merge-fn)
       merge-fn)))
 
 (defun doct--generic-merge (values)
+  "Merge VALUES into a single value."
   (cond
    ;;single items gets returned
    ;;if it is a number, cast to string
@@ -466,8 +468,8 @@ Otherwise, throw an error."
             `(stringp functionp symbolp ,target ,doct--current-form))))
 
 (defun doct--target-file (form file-target)
-  "Convert declarative FORM's :file and file-extensions to Org capture template syntax.
-FILE is the value for FORM's :file keyword."
+  "Convert FORM's :file and file-extensions to Org capture template syntax.
+FILE-TARGET is the value for FORM's :file keyword."
   (doct--validate-file file-target)
   (let (type target)
     (pcase (doct--first-in-form form
@@ -633,12 +635,13 @@ returns:
       (funcall flatten list-of-lists)
       (nreverse flattend))))
 
-;;@INCOMPLETE needs overview docstring
 (defun doct--maybe-convert-form (form)
+  "Attempt to convert FORM to Org capture template syntax."
   (condition-case err
       (apply 'doct--convert form)
     (doct-error (user-error "DOCT %s" (error-message-string err)))))
 
+;;@INCOMPLETE needs overview docstring
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
   (let* ((entries (mapcar 'doct--maybe-convert-form declarations)))
