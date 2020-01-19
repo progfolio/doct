@@ -233,6 +233,28 @@ Otherwise, return nil."
    ;;These cases should be handled by user with a custom merge function.
    (t values)))
 
+(if (version< emacs-version "27.1")
+    (defun doct--flatten-list (tree)
+      "Polyfill for subr.el's flatten-tree.
+Return a \"flattened\" copy of TREE.
+In other words, return a list of the non-nil terminal nodes, or
+leaves, of the tree of cons cells rooted at TREE.  Leaves in the
+returned list are in the same order as in TREE.
+
+\(flatten-tree \\='(1 (2 . 3) nil (4 5 (6)) 7))
+=> (1 2 3 4 5 6 7)"
+      (let (elems)
+        (while (consp tree)
+          (let ((elem (pop tree)))
+            (while (consp elem)
+              (push (cdr elem) tree)
+              (setq elem (car elem)))
+            (if elem (push elem elems))))
+        (if tree (push tree elems))
+        (nreverse elems)))
+  (defalias 'doct--flatten-list #'flatten-tree
+    "Alias for subr.el's flatten-tree."))
+
 (defun doct--merge (values keyword)
   "Merge a list of KEYWORD's VALUES into a single type."
   ;;return nil if values empty
@@ -244,7 +266,7 @@ Otherwise, return nil."
          (dolist (val values)
            (doct--validate-file val)))
        ;;skip deferral for static strings
-       (let ((flattened (flatten-list values)))
+       (let ((flattened (doct--flatten-list values)))
          (if (and (seq-every-p 'stringp flattened)
                   (not (seq-some 'doct--expansion-syntax-p flattened)))
              (string-join (mapcar (lambda (val) (if (listp val)
@@ -258,7 +280,7 @@ Otherwise, return nil."
            (car values)
          (macroexpand-1 `(doct--defer-merge :function, values))))
       ;;Strings or a list of strings
-      (:olp (flatten-list values))
+      (:olp (doct--flatten-list values))
       ;;These keywords should only be declared once
       ((or :type :id) (car values))
       ;;These keywords can only be strings
