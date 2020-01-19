@@ -36,20 +36,22 @@
 (defcustom doct-default-entry-type 'entry
   "The default template entry type.
 Can be overridden by using the :type keyword in a declarative form."
-  :type 'symbol
-  :options '(entry item checkitem table-line plain)
+  :type '(choice (const :tag "Regular entry" entry)
+                 (const :tag "plain list item" item)
+                 (const :tag "checklist item" checkitem)
+                 (const :tag "plain text" plain))
   :group 'doct)
 
 (defcustom doct-option-merge-function 'doct--generic-merge
   "The function used to merge unrecognized option values.
 It should take a single list of values and return a string."
-  ;;@INCOMPLETE: add rest of custom spec
-  )
+  :type 'function
+  :group 'doct)
 
 (defcustom doct-merge-string-separator nil
   "The separator for joining a list of strings passed to `doct--generic-merge'."
-  ;;@INCOMPLETE: add rest of custom spec
-  )
+  :type 'string
+  :group 'doct)
 
 (defcustom doct-after-conversion-hook nil
   "Hook run after doct has converted declarative forms to templates.
