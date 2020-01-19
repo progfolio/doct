@@ -557,19 +557,25 @@ For a full description of the PROPERTIES plist see `doct'."
          (symbolic-parent (symbolp name))
          (keys (unless symbolic-parent (doct--keys properties)))
          entry)
+
     (unless (or (stringp name) (symbolp name))
       (signal 'doct-wrong-type-argument
-              `((stringp symbolp),name ,doct--current-form)))
+              `((stringp symbolp) ,name ,doct--current-form)))
+
     (when children
       (setq children (mapcar (lambda (child)
                                (apply #'doct--convert
                                       (append child
                                               `(:doct--parent ,properties))))
+                             ;;allow a single child to be declared without
+                             ;;manually nesting it in a list
                              (if (not (seq-every-p 'listp children))
                                  `(,children)
                                children))))
+
     (unless children
       (doct--add-hooks name properties keys))
+
     (setq entry `(,keys
                   ,name
                   ,@(unless children
