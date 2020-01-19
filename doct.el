@@ -323,11 +323,11 @@ Return (KEYWORD VAL)."
   (let ((origin form))
     (letrec ((recurse
               (lambda (form)
-                (if-let ((keyword (car
-                                   (seq-some (lambda (element)
-                                               (and (keywordp element)
-                                                    (member element keywords)))
-                                             form))))
+                (if-let ((keyword (car (seq-some (lambda (element)
+                                                   (and (keywordp element)
+                                                        (member element
+                                                                keywords)))
+                                                 form))))
                     (doct--get origin keyword t)
                   (when-let ((parent (plist-get form :doct--parent)))
                     (funcall recurse parent))))))
