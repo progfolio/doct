@@ -553,14 +553,15 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
   "Convert declarative form to template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (setq doct--current-form `(,name ,@properties))
+
+  (unless (or (stringp name) (symbolp name))
+    (signal 'doct-wrong-type-argument
+            `((stringp symbolp) ,name ,doct--current-form)))
+
   (let* ((children (plist-get properties :children))
          (symbolic-parent (symbolp name))
          (keys (unless symbolic-parent (doct--keys properties)))
          entry)
-
-    (unless (or (stringp name) (symbolp name))
-      (signal 'doct-wrong-type-argument
-              `((stringp symbolp) ,name ,doct--current-form)))
 
     (when children
       (setq children (mapcar (lambda (child)
