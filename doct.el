@@ -42,17 +42,6 @@ Can be overridden by using the :type keyword in a declarative form."
                  (const :tag "plain text" plain))
   :group 'doct)
 
-(defcustom doct-option-merge-function 'doct--generic-merge
-  "The function used to merge unrecognized option values.
-It should take a single list of values and return a string."
-  :type 'function
-  :group 'doct)
-
-(defcustom doct-merge-string-separator nil
-  "The separator for joining a list of strings passed to `doct--generic-merge'."
-  :type 'string
-  :group 'doct)
-
 (defcustom doct-after-conversion-hook nil
   "Hook run after doct has converted declarative forms to templates.
 Hook functions are run with the list of templates as their only argument.
@@ -67,8 +56,11 @@ Use this variable to return an altered list from a function run during
 `doct-after-conversion-hook'
 Its value is not stored betewen invocations to doct.")
 
-(defvar doct--current-form nil
+(defvar doct--current nil
   "The current form being processed by doct. Used for error processing.")
+
+(defvar doct-entry-types '(entry item checkitem table-line plain)
+  "The allowed template entry types.")
 
 (defvar doct-option-keywords '(:clock-in
                                :clock-keep
@@ -119,27 +111,6 @@ Its value is not stored betewen invocations to doct.")
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
-(defun doct--additive-keyword-p (keyword)
-  "Return t if KEYWORD is prefixed with :+."
-  (and (keywordp keyword)
-       (string-prefix-p ":+" (symbol-name keyword))))
-
-(defun doct--additive-keyword (keyword)
-  "Return the additive version of KEYWORD."
-  (unless (keywordp keyword)
-    (signal 'doct-wrong-type-argument `(keyword-p ,keyword)))
-  (if (doct--additive-keyword-p keyword)
-      keyword
-    (intern (replace-regexp-in-string "^:" ":+" (symbol-name keyword)))))
-
-(defun doct--normalize-keyword (keyword)
-  "Return a plain KEYWORD if given an additive keyword."
-  (unless (keywordp keyword)
-    (signal 'doct-wrong-type-argument `(keyword-p ,keyword)))
-  (if (doct--additive-keyword-p keyword)
-      (intern (concat ":" (substring (symbol-name keyword) 2)))
-    keyword))
-
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-options in `org-capture-plist'.
 Intended to be used at capture template time."
@@ -152,12 +123,12 @@ Intended to be used at capture template time."
     (goto-char (point-min))
     (save-match-data
       (while (re-search-forward "%doct(\\(.*?\\))" nil :no-error)
-        (replace-match (doct-get (intern (concat ":" (match-string 1)))))))
+        (replace-match (or (doct-get (intern (concat ":" (match-string 1))))
+                           ""))))
     (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
   "Return t if STRING containing %doct(keyword) syntax, else nil."
-
   (when (string-match-p "%doct(.*?)" string) t))
 
 (defmacro doct--maybe-expand-template-string (template)
@@ -174,167 +145,272 @@ Otherwise, return TEMPLATE."
       (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string)))
     string))
 
-(defmacro doct--defer-merge (keyword values)
-  "Return a lambda that merges KEYWORD's VALUES at during `org-capture'."
-  ;;functions, symbols that eval to strings, strings...etc
-  (pcase keyword
-    ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
-     `(lambda () (mapc 'funcall ',values)))
-    (:file `(lambda ()
-              (let ((merged (string-join (mapcar
-                                          (lambda (val)
-                                            (cond ((stringp val) val)
-                                                  ((functionp val) (funcall val))
-                                                  ((boundp val)
-                                                   (symbol-value val))))
-                                          ',values) "")))
-                (if (string= "" merged)
-                    org-default-notes-file
-                  merged))))
-    (:template `(lambda ()
-                  (string-join
-                   (mapcar
-                    (lambda (val)
-                      (cond ((stringp val)
-                             (doct--fill-deferred-template val))
-                            ((and (listp val) (seq-every-p 'stringp val))
-                             (string-join
-                              (mapcar (lambda (string)
-                                        (doct--fill-deferred-template string))
-                                      val) "\n"))
-                            ((functionp val)
-                             (doct--fill-deferred-template (funcall val)))
-                            ((boundp val) (symbol-value val))))
-                    ',values) "")))))
-
-(defun doct--custom-merge-function (keyword)
-  "Return a custom registered merging function for KEYWORD, or nil.
-The function is expected to be bound to a symbol of the form:
-  doct-mergeKEYWORD"
-  (let ((merge-fn (intern (concat "doct-merge" (symbol-name keyword)))))
-    (when (fboundp merge-fn)
-      merge-fn)))
-
-(defun doct--generic-merge (values)
-  "Merge VALUES into a single value."
-  (cond
-   ;;single items gets returned
-   ;;if it is a number, cast to string
-   ((= (length values) 1)
-    (let ((val (car values)))
-      (cond
-       ((stringp val) val)
-       ((numberp val) (number-to-string val))
-       (t val))))
-   ;;if the whole list is strings, join them
-   ((seq-every-p 'stringp values)
-    (string-join values doct-merge-string-separator))
-   ;;if the whole list is numbers, add them
-   ((seq-every-p 'numberp values)
-    (number-to-string (apply '+ values)))
-   ;;These cases should be handled by user with a custom merge function.
-   (t values)))
-
-(if (version< emacs-version "27.1")
-    (defun doct--flatten-list (tree)
-      "Polyfill for subr.el's flatten-tree.
-Return a \"flattened\" copy of TREE.
-In other words, return a list of the non-nil terminal nodes, or
-leaves, of the tree of cons cells rooted at TREE.  Leaves in the
-returned list are in the same order as in TREE.
-
-\(flatten-tree \\='(1 (2 . 3) nil (4 5 (6)) 7))
-=> (1 2 3 4 5 6 7)"
-      (let (elems)
-        (while (consp tree)
-          (let ((elem (pop tree)))
-            (while (consp elem)
-              (push (cdr elem) tree)
-              (setq elem (car elem)))
-            (if elem (push elem elems))))
-        (if tree (push tree elems))
-        (nreverse elems)))
-  (defalias 'doct--flatten-list #'flatten-tree
-    "Alias for subr.el's flatten-tree."))
-
-(defun doct--merge (values keyword)
-  "Merge a list of KEYWORD's VALUES into a single type."
-  ;;return nil if values empty
-  (when values
-    (pcase keyword
-      ('nil nil)
-      ((or :file :template)
-       (when (eq keyword :file)
-         (dolist (val values)
-           (doct--validate-file val)))
-       ;;skip deferral for static strings
-       (let ((flattened (doct--flatten-list values)))
-         (if (and (seq-every-p 'stringp flattened)
-                  (not (seq-some 'doct--expansion-syntax-p flattened)))
-             (string-join (mapcar (lambda (val) (if (listp val)
-                                                    (string-join val "\n") val))
-                                  values) "")
-           ;;Could be list of strings or a string
-           (macroexpand-1 `(doct--defer-merge ,keyword ,values)))))
-      ((or :function (pred (lambda (keyword) (member keyword doct-hook-keywords))))
-       ;;skip deferral for single function
-       (if (= (length values) 1)
-           (car values)
-         (macroexpand-1 `(doct--defer-merge :function, values))))
-      ;;Strings or a list of strings
-      (:olp (doct--flatten-list values))
-      ;;These keywords should only be declared once
-      ((or :type :id) (car values))
-      ;;These keywords can only be strings
-      ((or :headline :keys :regexp :template-file)
-       (unless (seq-every-p 'stringp values)
-         (signal 'doct-wrong-type-argument `((stringp) ,values
-                                             ,doct--current-form)))
-       (mapconcat 'identity values ""))
-      ;;these are all single values
-      ((pred (lambda (keyword) (member keyword doct-option-keywords)))
-       (car values))
-      (_ (funcall (or (doct--custom-merge-function keyword)
-                      doct-option-merge-function)
-                  values)))))
-
-(defun doct--get (form keyword &optional pair)
-  "Recursively search FORM and FORM's ancestors for KEYWORD.
-Returns KEYWORD's value.
-If PAIR is non-nil, return a (KEY VAL) list."
-  (let ((additive (doct--additive-keyword keyword))
-        values)
-    (letrec ((recurse (lambda (form)
-                        (let ((member (plist-member form keyword))
-                              (additive-val (plist-get form additive)))
-                          (if member
-                              (push (cadr member) values)
-                            (when additive-val
-                              (push additive-val values))
-                            (when-let ((parent (plist-get form :doct--parent)))
-                              (funcall recurse parent)))))))
-      (funcall recurse form)
-      (if pair
-          `(,keyword ,(doct--merge values keyword))
-        (doct--merge values keyword)))))
-
-(defun doct--first-in-form (form keywords)
-  "Find first occurence of one of KEYWORDS in FORM.
-If not found in FORM, recursively search FORM's ancestors.
+(defun doct--first-in (plist keywords)
+  "Find first occurence of one of KEYWORDS in PLIST.
+If not found in PLIST, recursively search FORM's ancestors.
 Return (KEYWORD VAL)."
-  (let ((origin form))
-    (letrec ((recurse
-              (lambda (form)
-                (if-let ((keyword (car (seq-some (lambda (element)
-                                                   (and (keywordp element)
-                                                        (member element
-                                                                keywords)))
-                                                 form))))
-                    (doct--get origin keyword t)
-                  (when-let ((parent (plist-get form :doct--parent)))
-                    (funcall recurse parent))))))
-      (funcall recurse form))))
+  (seq-some (lambda (keyword)
+              (when (member keyword keywords)
+                `(,keyword ,(plist-get plist keyword))))
+            (seq-filter 'keywordp plist)))
 
+(defun doct--validate-file (target)
+  "Type check :file TARGET."
+  (unless (or (stringp target)
+              (functionp target)
+              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
+    (signal 'doct-wrong-type-argument
+            `(stringp functionp symbolp ,target ,doct--current))))
+
+(defun doct--target-file (plist file-target)
+  "Convert PLIST's :file and file-extensions to Org capture template syntax.
+FILE-TARGET is the value for PLIST's :file keyword."
+  (doct--validate-file file-target)
+  (let (type target)
+    ;;datetree is only used when :olp is specified
+    (pcase (doct--first-in plist (remq :datetree doct-file-extension-keywords))
+      (`(:olp ,path) (unless (and (listp path) (seq-every-p 'stringp path))
+                       (signal 'doct-wrong-type-argument
+                               `((listp stringp) ,path ,doct--current)))
+       (when (plist-get plist :datetree)
+         (push :datetree type))
+       (push :olp type)
+       (dolist (heading (nreverse (seq-copy path)))
+         (push heading target)))
+      ;;function headline regexp
+      (`(,keyword ,extension)
+       (let ((predicate (if (eq keyword :function) 'functionp 'stringp)))
+         (unless (funcall predicate extension)
+           (signal 'doct-wrong-type-argument
+                   `(,predicate ,extension ,doct--current)))
+         (push extension target)
+         (push keyword type))))
+    (push :file type)
+    (push file-target target)
+    `(,(intern (string-join
+                (mapcar (lambda (keyword)
+                          (substring (symbol-name keyword) 1))
+                        (delq nil type)) "+"))
+      ,@(delq nil target))))
+
+(defun doct--target (plist)
+  "Convert PLIST's target to Org capture template target."
+  (pcase (doct--first-in plist doct-exclusive-location-keywords)
+    ((and (or 'nil `(,key nil)) nil-target)
+     (signal 'doct-no-target `(,doct-exclusive-location-keywords
+                               ,nil-target
+                               ,doct--current)))
+    (`(:clock ,bool) '(clock))
+    (`(:id ,id) (if (stringp id)
+                    `(id ,id)
+                  (signal 'doct-wrong-type-argument '(stringp
+                                                      ,id ,doct--current))))
+    (`(:function ,fn) (if (functionp fn)
+                          (unless (plist-get plist :file)
+                            `(function ,fn))
+                        (signal 'doct-wrong-type-argument
+                                '(functionp ,fn ,doct--current))))
+    (`(:file ,file) (doct--target-file plist file))))
+
+(defun doct--template (plist)
+  "Convert PLIST's template target to Org capture template syntax."
+  (pcase (doct--first-in plist doct-template-keywords)
+    (`(:template-file ,file) (if (stringp file)
+                                 `(file ,file)
+                               (signal 'doct-wrong-type-argument
+                                       '(stringp ,file ,doct--current))))
+    (`(:template ,template)
+     (pcase template
+       ((or 'nil (and (pred stringp) (pred string-empty-p))) nil)
+       ;;@INCOMPLETE: we want to set up %doct(keyword) lambdas here
+       ((pred functionp)
+        `(function (lambda ()
+                     (doct--fill-deferred-template (funcall ,template)))))
+       ((pred stringp) (if (doct--expansion-syntax-p template)
+                           `(function
+                             (lambda ()
+                               (doct--fill-deferred-template ,template)))
+                         template))
+       ((and (pred listp) (guard (seq-every-p 'stringp template)))
+        (if (seq-some 'doct--expansion-syntax-p template)
+            `(function
+              (lambda ()
+                (string-join (mapcar 'doct--fill-deferred-template
+                                     ,template) "\n")))
+          (string-join template "\n")))
+       (_ (signal 'doct-wrong-type-argument
+                  `((stringp listp functionp) ,template ,doct--current)))))
+    (_ nil)))
+
+(defun doct--additional-properties (plist)
+  "Convert PLIST's additional properties to Org capture syntax.
+Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
+  (let ((keywords (delete-dups (seq-filter 'keywordp plist)))
+        additional-options
+        custom-properties)
+    (dolist (keyword keywords)
+      (cond
+       ((and (not (member keyword additional-options))
+             (member keyword doct-option-keywords))
+        (push keyword additional-options)
+        (push (plist-get plist keyword) additional-options))
+       ((not (or (member keyword custom-properties)
+                 (member keyword doct-recognized-keywords)))
+        (push keyword custom-properties)
+        (push (plist-get plist keyword) custom-properties))))
+    `(,(nreverse additional-options) ,(nreverse custom-properties))))
+
+(defun doct--inherit (parent child)
+  "Inherit PARENT's plist members unless CHILD has already declared them.
+The only exception to this is the :keys property.
+PARENT's :keys are concated with CHILD's."
+  (dolist (keyword (seq-filter (lambda (el)
+                                 (and (keywordp el)
+                                      (not (eq el :children))))
+                               parent))
+    (let ((keysp (eq keyword :keys)))
+      (unless (and (plist-member child keyword)
+                   (not keysp)
+                   (not (eq keyword :children)))
+        (plist-put child keyword (if keysp
+                                     (concat (plist-get parent keyword)
+                                             (plist-get child keyword))
+                                   (plist-get parent keyword))))))
+  child)
+
+(defun doct--add-hook (keys fn where &optional entry-name)
+  "Generate hook function and add to appropriate hook variable.
+The generated hook function takes the form \"doct--hook/WHERE/KEYS\".
+FN is called when an org-capture-template's keys match KEYS.
+WHERE is one of the following strings:
+\"mode\"
+\"after-finalize\"
+\"before-finalize\"
+\"prepare-finalize\"
+ENTRY-NAME is the name of the entry the hook should run for."
+  (if-let ((wrapper (intern (string-join `("doct--hook" ,where ,keys) "/")))
+           (hook (intern-soft (concat "org-capture-" where "-hook"))))
+      (progn
+        (eval `(defun ,wrapper ()
+                 ,(string-join
+                   `("Auto generated by `doct--add-hook'."
+                     ,(concat "It is run as part of `" (symbol-name hook) "'"
+                              (if entry-name
+                                  (concat " when the \"" entry-name
+                                          "\" template is selected.")
+                                "'."))
+                     "It can be removed using `doct-remove-hooks' like so:"
+                     ,(concat "(doct-remove-hooks \""
+                              keys "\" \\='" where " t)"))
+                   "\n")
+                 (when (string= ,keys (plist-get org-capture-plist :key))
+                   (funcall (quote ,fn)))))
+        (add-hook hook wrapper))
+    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
+
+(defun doct--add-hooks (name plist keys)
+  "Add hooks declared in PLIST for template NAME with KEYS."
+  (dolist (keyword doct-hook-keywords)
+    (when-let ((hook-fn (plist-get plist keyword))
+               (hook (if (eq keyword :hook) "mode"
+                       ;;remove preceding ':' from keyword
+                       (substring (symbol-name keyword) 1))))
+      (unless (functionp hook-fn)
+        (signal 'doct-wrong-type-argument `(functionp ,hook-fn
+                                                      ,doct--current)))
+      (doct--add-hook keys hook-fn hook name))))
+
+(defun doct--entry-type (plist)
+  "Return PLIST's :type value or `doct-default-entry-type'."
+  (let ((type (or (plist-get plist :type) doct-default-entry-type)))
+    (or (car (member type doct-entry-types))
+        (signal 'doct-wrong-type-argument
+                `(,doct-entry-types ,type ,doct--current)))))
+
+(defun doct--keys (plist)
+  "Type check and return PLIST's :keys value."
+  (unless (plist-member plist :keys)
+    (signal 'doct-no-keys `(,doct--current)))
+  (let ((keys (plist-get plist :keys)))
+    (unless (stringp keys)
+      (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
+    keys))
+
+(defun doct--convert (name &rest properties)
+  "Convert declarative form to template named NAME with PROPERTIES.
+For a full description of the PROPERTIES plist see `doct'."
+  (setq doct--current `(,name ,@properties))
+  (unless (or (stringp name) (symbolp name))
+    (signal 'doct-wrong-type-argument
+            `((stringp symbolp) ,name ,doct--current)))
+  (let* ((children (plist-get properties :children))
+         (symbolic-parent (symbolp name))
+         (keys (unless symbolic-parent (doct--keys properties)))
+         entry)
+    (when children
+      (when symbolic-parent
+        (plist-put properties :keys nil))
+      (setq children (mapcar (lambda (child)
+                               (apply #'doct--convert
+                                      `(,(car child)
+                                        ,@(doct--inherit properties
+                                                         (cdr child)))))
+                             (if (seq-every-p 'listp children)
+                                 children
+                               `(,children)))))
+    (unless children
+      (doct--add-hooks name properties keys))
+    (setq entry `(,keys
+                  ,name
+                  ,@(unless children
+                      `(,(doct--entry-type properties)
+                        ,(doct--target properties)
+                        ,(doct--template properties)
+                        ,@(when-let ((additional-properties
+                                      (doct--additional-properties properties)))
+                            `(,@(car additional-properties)
+                              ,@(when-let
+                                    ((custom-opts (cadr additional-properties)))
+                                  `(:doct-options ,custom-opts))))))))
+    (if children
+        (if (symbolp name)
+            `(,@children)
+          `(,entry ,@children))
+      entry)))
+
+(defun doct-flatten-lists-in (list-of-lists)
+  "Flatten each list in LIST-OF-LISTS.
+For example:
+  '((1) ((2 3) (4)) (((5))))
+returns:
+  '((1) (2) (3) (4) (5))"
+  (let (flattend)
+    (letrec ((flatten (lambda (list)
+                        (dolist (element list)
+                          (if (seq-every-p 'listp element)
+                              (funcall flatten element)
+                            (push element flattend))))))
+      (funcall flatten list-of-lists)
+      (nreverse flattend))))
+
+(defun doct--maybe-convert-form (form)
+  "Attempt to convert FORM to Org capture template syntax."
+  (condition-case err
+      (apply 'doct--convert form)
+    (doct-error (user-error "DOCT %s" (error-message-string err)))))
+
+;;@INCOMPLETE needs overview docstring
+(defun doct (declarations)
+  "DECLARATIONS is a list of declarative forms."
+  (let* ((entries (mapcar 'doct--maybe-convert-form declarations)))
+    (unwind-protect
+        (progn
+          (run-hook-with-args 'doct-after-conversion-hook entries)
+          ;;hook functions may set doct-templates to return manipulated list
+          (or doct-templates (doct-flatten-lists-in entries)))
+      (setq doct-templates nil))))
+
+;;commands
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
 doct hook functions follow the form:
@@ -414,243 +490,6 @@ From the `org-capture-mode-hook'."
                keys (car (last (split-string (symbol-name hook-fn) "/"))))
           (remove-hook hook hook-fn)
           (when unintern-functions (unintern hook-fn nil)))))))
-
-(defun doct--add-hook (keys fn where &optional entry-name)
-  "Generate hook function and add to appropriate hook variable.
-The generated hook function takes the form \"doct--hook/WHERE/KEYS\".
-FN is called when an org-capture-template's keys match KEYS.
-WHERE is one of the following strings:
-\"mode\"
-\"after-finalize\"
-\"before-finalize\"
-\"prepare-finalize\"
-ENTRY-NAME is the name of the entry the hook should run for."
-  (if-let ((wrapper (intern (string-join `("doct--hook" ,where ,keys) "/")))
-           (hook (intern-soft (concat "org-capture-" where "-hook"))))
-      (progn
-        (eval `(defun ,wrapper ()
-                 ,(string-join
-                   `("Auto generated by `doct--add-hook'."
-                     ,(concat "It is run as part of `" (symbol-name hook) "'"
-                              (if entry-name
-                                  (concat " when the \"" entry-name
-                                          "\" template is selected.")
-                                "'."))
-                     "It can be removed using `doct-remove-hooks' like so:"
-                     ,(concat "(doct-remove-hooks \""
-                              keys "\" \\='" where " t)"))
-                   "\n")
-                 (when (string= ,keys (plist-get org-capture-plist :key))
-                   (funcall (quote ,fn)))))
-        (add-hook hook wrapper))
-    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
-
-(defun doct--keys (form)
-  "Prepend each of FORM's ancestors's keys to its keys."
-  (if-let ((keys (plist-get form :keys)))
-      (let (inherited-keys parent)
-        (unless (stringp keys)
-          (signal 'doct-wrong-type-argument `(stringp ,keys
-                                                      ,doct--current-form)))
-        (while (setq parent (plist-get form :doct--parent))
-          (push (plist-get parent :keys) inherited-keys)
-          (setq form parent))
-        (concat (string-join inherited-keys) keys))
-    (signal 'doct-no-keys `(,doct--current-form))))
-
-(defun doct--validate-file (target)
-  "Check to see if TARGET is a valid :file target. If it is, return TARGET.
-Otherwise, throw an error."
-  (unless (or (stringp target)
-              (functionp target)
-              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
-    (signal 'doct-wrong-type-argument
-            `(stringp functionp symbolp ,target ,doct--current-form))))
-
-(defun doct--target-file (form file-target)
-  "Convert FORM's :file and file-extensions to Org capture template syntax.
-FILE-TARGET is the value for FORM's :file keyword."
-  (doct--validate-file file-target)
-  (let (type target)
-    (pcase (doct--first-in-form form
-                                ;;datetree is only used when :olp is specified
-                                (remq :datetree doct-file-extension-keywords))
-      (`(:olp ,path) (unless (and (listp path)
-                                  (seq-every-p 'stringp path))
-                       (signal 'doct-wrong-type-argument
-                               `((listp stringp) ,path ,doct--current-form)))
-       (when (doct--get form :datetree)
-         (push :datetree type))
-       (push :olp type)
-       (dolist (heading (nreverse path))
-         (push heading target)))
-      ;;function headline regexp
-      (`(,keyword ,extension)
-       (let ((predicate (if (eq keyword :function) 'functionp 'stringp)))
-         (unless (funcall predicate extension)
-           (signal 'doct-wrong-type-argument
-                   `(,predicate ,extension ,doct--current-form)))
-         (push extension target)
-         (push keyword type))))
-    (push :file type)
-    (push file-target target)
-    `(,(intern (string-join
-                (mapcar (lambda (keyword)
-                          (substring (symbol-name keyword) 1))
-                        (delq nil type)) "+"))
-      ,@(delq nil target))))
-
-(defun doct--target (form)
-  "Convert declarative FORM's target to Org captures target."
-  (pcase (doct--first-in-form form doct-exclusive-location-keywords)
-    ((and (or 'nil `(,key nil)) nil-target)
-     (signal 'doct-no-target `(,doct-exclusive-location-keywords
-                               ,nil-target
-                               ,doct--current-form)))
-    (`(:clock ,bool) '(clock))
-    (`(:id ,id) `(id ,id))
-    (`(:function ,fn) (unless (doct--get form :file)
-                        `(function ,fn)))
-    (`(:file ,file) (doct--target-file form file))))
-
-(defun doct--template (form)
-  "Convert FORM's template target to Org capture template syntax."
-  (pcase (doct--first-in-form form doct-template-keywords)
-    (`(:template-file ,file) `(file ,file))
-    (`(:template ,template)
-     (pcase template
-       ((or 'nil (and (pred stringp) (pred string-empty-p))) nil)
-       ((pred functionp) `(function ,template))
-       ((pred stringp) template)
-       ((and (pred listp) (guard (seq-every-p 'stringp template)))
-        (string-join template "\n"))
-       (_ (signal 'doct-wrong-type-argument
-                  `((stringp listp functionp) ,template ,doct--current-form)))))
-    (_ nil)))
-
-(defun doct--additional-properties (form)
-  "Convert FORM's additional properties to Org capture syntax.
-Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
-  (letrec ((recurse
-            (lambda (form)
-              (let ((keywords (delete-dups (seq-filter 'keywordp form))))
-                (dolist (keyword keywords)
-                  (let ((keyword (doct--normalize-keyword keyword)))
-                    (cond
-                     ((and (not (member keyword additional-options))
-                           (member keyword doct-option-keywords))
-                      (push keyword additional-options)
-                      (push (doct--get form keyword) additional-options))
-                     ((not (or (member keyword custom-properties)
-                               (member keyword doct-recognized-keywords)))
-                      (push keyword custom-properties)
-                      (push (doct--get form keyword) custom-properties)))))
-                (when-let ((parent (plist-get form :doct--parent)))
-                  (funcall recurse parent)))))
-           (additional-options nil)
-           (custom-properties nil))
-    (funcall recurse form)
-    `(,(nreverse additional-options) ,(nreverse custom-properties))))
-
-(defun doct--add-hooks (name form keys)
-  "Add hooks declared in FORM for template NAME with KEYS."
-  (dolist (keyword doct-hook-keywords)
-    (when-let ((hook-fn (doct--get form keyword))
-               (hook (if (eq keyword :hook) "mode"
-                       ;;remove preceding ':' from keyword
-                       (substring (symbol-name keyword) 1))))
-      (unless (functionp hook-fn)
-        (signal 'doct-wrong-type-argument `(functionp ,hook-fn
-                                                      ,doct--current-form)))
-      (doct--add-hook keys hook-fn hook name))))
-
-(defun doct--type (form)
-  "Return FORM's :type value or `doct-default-entry-type'."
-  (let ((type (or (doct--get form :type)
-                  doct-default-entry-type))
-        (entry-types '(entry item checkitem table-line plain)))
-    (unless (member type entry-types)
-      (signal 'doct-wrong-type-argument `(,entry-types ,type)))
-    type))
-
-(defun doct--convert (name &rest properties)
-  "Convert declarative form to template named NAME with PROPERTIES.
-For a full description of the PROPERTIES plist see `doct'."
-  (setq doct--current-form `(,name ,@properties))
-
-  (unless (or (stringp name) (symbolp name))
-    (signal 'doct-wrong-type-argument
-            `((stringp symbolp) ,name ,doct--current-form)))
-
-  (let* ((children (plist-get properties :children))
-         (symbolic-parent (symbolp name))
-         (keys (unless symbolic-parent (doct--keys properties)))
-         entry)
-
-    (when children
-      (setq children (mapcar (lambda (child)
-                               (apply #'doct--convert
-                                      (append child
-                                              `(:doct--parent ,properties))))
-                             ;;allow a single child to be declared without
-                             ;;manually nesting it in a list
-                             (if (not (seq-every-p 'listp children))
-                                 `(,children)
-                               children))))
-
-    (unless children
-      (doct--add-hooks name properties keys))
-
-    (setq entry `(,keys
-                  ,name
-                  ,@(unless children
-                      `(,(doct--type properties)
-                        ,(doct--target properties)
-                        ,(doct--template properties)
-                        ,@(when-let ((additional-properties
-                                      (doct--additional-properties properties)))
-                            `(,@(car additional-properties)
-                              ,@(when-let
-                                    ((custom-opts (cadr additional-properties)))
-                                  `(:doct-options ,custom-opts))))))))
-
-    (if children
-        (if (symbolp name)
-            `(,@children)
-          `(,entry ,@children))
-      entry)))
-
-(defun doct-flatten-lists-in (list-of-lists)
-  "Flatten each list in LIST-OF-LISTS.
-For example:
-  '((1) ((2 3) (4)) (((5))))
-returns:
-  '((1) (2) (3) (4) (5))"
-  (let (flattend)
-    (letrec ((flatten (lambda (list)
-                        (dolist (element list)
-                          (if (seq-every-p 'listp element)
-                              (funcall flatten element)
-                            (push element flattend))))))
-      (funcall flatten list-of-lists)
-      (nreverse flattend))))
-
-(defun doct--maybe-convert-form (form)
-  "Attempt to convert FORM to Org capture template syntax."
-  (condition-case err
-      (apply 'doct--convert form)
-    (doct-error (user-error "DOCT %s" (error-message-string err)))))
-
-;;@INCOMPLETE needs overview docstring
-(defun doct (declarations)
-  "DECLARATIONS is a list of declarative forms."
-  (let* ((entries (mapcar 'doct--maybe-convert-form declarations)))
-    (unwind-protect
-        (progn
-          (run-hook-with-args 'doct-after-conversion-hook entries)
-          ;;hook functions may set doct-templates to return manipulated list
-          (or doct-templates (doct-flatten-lists-in entries)))
-      (setq doct-templates nil))))
 
 (provide 'doct)
 

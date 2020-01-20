@@ -20,37 +20,6 @@
 (require 'doct)
 (require 'org-capture)
 
-(ert-deftest doct--get-no-pair ()
-  "Should return first explicitly set keyword value."
-  (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo)
-                 t)))
-
-(ert-deftest doct--get-pair ()
-  "Should return first explicitly set keyword and its value."
-  (should (equal (doct--get '(:foo t :doct-parent (:foo nil)) :foo t)
-                 '(:foo t))))
-
-(ert-deftest doct--additive-keyword ()
-  "Given a keyword, return an additive keyword."
-  (should (equal (doct--additive-keyword :foo) :+foo)))
-
-(ert-deftest doct--normalize-keyword ()
-  "Given an additive keyword, return a normalized keyword."
-  (should (equal (doct--normalize-keyword :+foo) :foo)))
-
-(ert-deftest doct--get-additive-keyword ()
-  "Additive keywords should inherit and extend their value."
-  (should (equal (doct '(("Grandparent" :keys "g"
-                          :file ""
-                          :template "* "
-                          :children ("Parent" :keys "p"
-                                     :+template "TODO %? "
-                                     :children ("Child" :keys "c"
-                                                :+template ":child:")))))
-                 '(("g" "Grandparent")
-                   ("gp" "Parent")
-                   ("gpc" "Child" entry (file "") "* TODO %? :child:")))))
-
 (ert-deftest first-file-target-wins ()
   "first file target keyword should override others"
   (should (equal (doct '(("fft-test" :keys "f"
@@ -91,7 +60,6 @@
                           :template "ignored"
                           :file "")))
                  '(("tt" "ftt-test" entry (id "1") (file "./template.txt"))))))
-
 
 (ert-deftest :clock-target-should-not-have-cdr ()
   ":clock keyword shouldn't have a cdr when used as a target."
