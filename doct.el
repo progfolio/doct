@@ -269,9 +269,7 @@ PARENT's :keys are concated with CHILD's."
                                       (not (eq el :children))))
                                parent))
     (let ((keysp (eq keyword :keys)))
-      (unless (and (plist-member child keyword)
-                   (not keysp)
-                   (not (eq keyword :children)))
+      (unless (and (plist-member child keyword) (not keysp))
         (plist-put child keyword (if keysp
                                      (concat (plist-get parent keyword)
                                              (plist-get child keyword))
