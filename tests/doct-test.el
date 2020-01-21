@@ -1,185 +1,128 @@
 ;;; doct-test.el --- doct test suite ;; -*- lexical-binding: t -*-
+;; Package-Requires: ((buttercup))
 
-;; This file is not part of GNU Emacs.
-
-;; This program is free software: you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
-
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+;;; Commentary:
+;; tests for doct.el
 
 ;;; Code:
-(require 'ert)
 (require 'doct)
-(require 'org-capture)
+(require 'buttercup)
 
-(ert-deftest first-file-target-wins ()
-  "first file target keyword should override others"
-  (should (equal (doct '(("fft-test" :keys "f"
-                          :type entry
-                          :id "1"
-                          :clock t
-                          :function identity
-                          :file "")))
-                 '(("f" "fft-test" entry (id "1") nil)))))
-
-(ert-deftest first-file-target-extension-wins ()
-  "first file target extension should override others"
-  (should (equal (doct `(("ffte-test" :keys "f"
-                          :type entry
-                          :file ""
-                          ;;@HACK, not sure why this test fails if
-                          ;;run more than once. The :olp list is
-                          ;;nreversed in doct--convert, but
-                          ;;multiple invocations of the test should
-                          ;;get a fresh copy of the list...
-                          :olp ,(seq-copy '("one" "two" "three"))
-                          :regexp "one"
-                          :headline "one"
-                          :function identity)))
-                 '(("f" "ffte-test"
-                    entry
-                    (file+olp "" "one" "two" "three")
-                    nil)))))
-
-(ert-deftest first-template-target-wins ()
-  "first template target keyword should override other template target keywords"
-  (should (equal (doct '(("ftt-test" :keys "tt"
-                          :type entry
-                          :id "1"
-                          :clock t
-                          :function identity
-                          :template-file "./template.txt"
-                          :template "ignored"
-                          :file "")))
-                 '(("tt" "ftt-test" entry (id "1") (file "./template.txt"))))))
-
-(ert-deftest :clock-target-should-not-have-cdr ()
-  ":clock keyword shouldn't have a cdr when used as a target."
-  (should (equal (doct '(("clock-test" :keys "c"
-                          :clock t
-                          :template "test")))
-                 '(("c" "clock-test" entry (clock) "test")))))
-
-(ert-deftest :template-is-joined ()
-  ":template should join multiple values with a newline"
-  (should (equal (doct '(("template join test" :keys "t"
-                          :file ""
-                          :template ("one" "two" "three"))))
-                 '(("t" "template join test" entry (file "") "one
+(describe
+    "DOCT"
+  (describe "Inheritance"
+    (it "prefixes children keys with ancestor keys"
+      (expect
+       (doct '(("parent" :keys "p"
+                :children
+                (("one" :keys "o" :file "") ("two" :keys "t" :file "")))))
+       :to-equal
+       '(("p" "parent") ("po" "one" entry (file "") nil)
+         ("pt" "two" entry (file "") nil))))
+    (it "puts ancestors properties on descendants."
+      (expect (doct '(("parent" :keys "p" :foo t :file ""
+                       :children ("child" :keys "c"))))
+              :to-equal
+              '(("p" "parent")
+                ("pc" "child" entry (file "") nil
+                 :doct-options (:foo t)))))
+    (it "allows a child override its inherited properties."
+      (expect (doct '(("parent" :keys "p" :foo t :file ""
+                       :children ("child" :keys "c" :foo nil))))
+              :to-equal
+              '(("p" "parent")
+                ("pc" "child" entry (file "") nil
+                 :doct-options (:foo nil)))))
+    (it "does not include symbolic parent in template list"
+      (expect (doct '((:root
+                       :inherited t
+                       :children ("Parent" :keys "p"
+                                  :children ("Child" :keys "c"
+                                             :file ""
+                                             :template nil)))))
+              :to-equal
+              '(("p" "Parent") ("pc" "Child" entry (file "") nil
+                                :doct-options (:inherited t))))))
+  (describe "Target"
+    (it "overrides other target keywords"
+      (expect (doct '(("fft-test" :keys "f" :type entry
+                       :id "1" :clock t :function identity :file "")))
+              :to-equal
+              '(("f" "fft-test" entry (id "1") nil))))
+    (it "extension overrides other extension keywords"
+      (expect (doct '(("ffte-test" :keys "f"
+                       :type entry :file "" :olp ("one" "two" "three")
+                       :regexp "one" :headline "one" :function identity)))
+              :to-equal
+              '(("f" "ffte-test"
+                 entry (file+olp "" "one" "two" "three") nil))))
+    (it "shouldn't return a dotted list when its target is a string."
+      (expect (doct '(("test" :keys "t" :type entry :file "")))
+              :to-equal
+              '(("t" "test" entry (file "") nil))))
+    (it "shouldn't have a cdr when :clock is the target."
+      (should (equal (doct '(("clock-test" :keys "c"
+                              :clock t
+                              :template "test")))
+                     '(("c" "clock-test" entry (clock) "test"))))))
+  (describe "Template"
+    (it "overrides other template target keywords"
+      (expect (doct '(("ftt-test" :keys "tt" :type entry :id "1"
+                       :template-file "./template.txt" :template "ignored")))
+              :to-equal
+              '(("tt" "ftt-test" entry (id "1") (file "./template.txt")))))
+    (it "should join multiple strings with a newline"
+      (expect (doct '(("template join test" :keys "t" :file ""
+                       :template ("one" "two" "three"))))
+              :to-equal
+              '(("t" "template join test" entry (file "") "one
 two
-three")))))
+three"))))
+    (it "should be returned verbatim when it is a string"
+      (expect (doct '(("template join test" :keys "t" :file ""
+                       :template "test")))
+              :to-equal
+              '(("t" "template join test" entry (file "") "test")))))
+  (describe "Options"
+    (it "overrides additional options for the same keyword"
+      (expect (doct '(("test" :keys "t"
+                       :file ""
+                       :immediate-finish t
+                       :custom-option t
+                       :immediate-finish nil
+                       :custom-option nil)))
+              :to-equal
+              '(("t" "test" entry (file "") nil
+                 :immediate-finish t
+                 :doct-options (:custom-option t))))))
+  (describe "Type checking"
+    (let ((types '(nil
+                   t
+                   'doct-unbound-symbol
+                   #'function
+                   :keyword 1 1.0
+                   "string"
+                   ?c
+                   '("list"))))
+      (it "errors if name isn't a string."
+        (dolist (garbage (seq-remove 'stringp types))
+          (expect (doct `((,garbage :keys "t" :children ())))
+                  :to-throw 'user-error)))
+      (it "errors if :keys isn't a string."
+        (dolist (garbage (seq-remove 'stringp types))
+          (expect (doct `(("test" :keys ,garbage)))
+                  :to-throw 'user-error)))
+      (it "errors if :type isn't a valid type symbol."
+        ;;consider nil valid, type will be determined by `doct-default-entry-type'.
+        (dolist (garbage (remq nil types))
+          (expect (doct `(("test" :keys "t" :type ,garbage :file "")))
+                  :to-throw 'user-error)))
+      (it "errors if :file isn't a string, a function returning a file path \
+or variable evaluating to a file path."
+        (dolist (garbage (delq nil (seq-remove 'stringp types)))
+          (expect (doct `(("test" :keys "t" :file ,garbage)))
+                  :to-throw 'user-error))))))
 
-(ert-deftest :template-is-string ()
-  ":template should be returned verbatim when it is a string"
-  (should (equal (doct '(("template join test" :keys "t"
-                          :template "test"
-                          :file "")))
-                 '(("t" "template join test" entry (file "") "test")))))
+(provide 'doct-test)
 
-(ert-deftest additional-option-not-duplicated ()
-  "If declared multiple times, first additional option value is returned once."
-  (should (equal (doct '(("test" :keys "t"
-                          :type entry
-                          :file ""
-                          :immediate-finish t
-                          :custom-option t
-                          :immediate-finish nil
-                          :custom-option nil)))
-                 '(("t" "test"
-                    entry
-                    (file "")
-                    nil
-                    :immediate-finish t
-                    :doct-options (:custom-option t))))))
-
-(ert-deftest file-without-target-is-proper-list ()
-  "doct shouldn't return a dotted list when its target is a string.
-It should return a proper list."
-  (let ((form (doct '(("test" :keys "t"
-                       :type entry
-                       :file "")))))
-    (should (equal form '(("t" "test" entry (file "") nil))))))
-
-(ert-deftest childern-inherit-keys ()
-  "Each child should inherit its parent's keys as a prefix to its own keys."
-  (should (equal (doct '(("parent" :keys "p"
-                          :children
-                          (("one" :keys "o" :file "")
-                           ("two" :keys "t" :file "")))))
-                 '(("p" "parent")
-                   ("po" "one" entry (file "") nil)
-                   ("pt" "two" entry (file "") nil)))))
-
-(ert-deftest children-inherit-properties ()
-  "Each child should inherit its ancestor's properties."
-  (should (equal (doct '(("parent" :keys "p"
-                          :foo t
-                          :file ""
-                          :children ("child" :keys "c"))))
-                 '(("p" "parent")
-                   ("pc" "child"
-                    entry
-                    (file "")
-                    nil
-                    :doct-options (:foo t))))))
-
-(ert-deftest childs-properties-override-ancestors ()
-  "If a child has a property set it should override that inherited property."
-  (should (equal (doct '(("parent" :keys "p"
-                          :foo t
-                          :file ""
-                          :children ("child" :keys "c" :foo nil))))
-                 '(("p" "parent")
-                   ("pc" "child"
-                    entry
-                    (file "")
-                    nil
-                    :doct-options (:foo nil))))))
-
-(ert-deftest symbolic-parent ()
-  "A form with a symbol for its name should not be included in the translated templates."
-  (should (equal (doct '((:root
-                          :inherited t
-                          :type entry
-                          :children ("Parent" :keys "p"
-                                     :children ("Child" :keys "c"
-                                                :file ""
-                                                :template nil)))))
-                 '(("p" "Parent") ("pc" "Child" entry (file "") nil
-                                   :doct-options (:inherited t))))))
-
-;;error handling
-(let ((types '(nil t 'doct-unbound-symbol #'function :keyword 1 1.0 "string" ?c '("list"))))
-  (ert-deftest name-type-error ()
-    "Error if name isn't a string."
-    (dolist (garbage (seq-remove 'stringp types))
-      (should-error (doct `((,garbage :keys "t" :children ()))) :type 'user-error)))
-
-  (ert-deftest keys-type-error ()
-    "Error if :keys isn't a string."
-    (dolist (garbage (seq-remove 'stringp types))
-      (should-error (doct `(("test" :keys ,garbage))) :type 'user-error)))
-
-  (ert-deftest entry-type-error ()
-    "Error if :type isn't a valid type symbol."
-    ;;nil is valid, type will be determined by `doct-default-entry-type'.
-    (dolist (garbage (remq nil types))
-      (should-error (doct `(("test" :keys "t" :type ,garbage :file "")))
-                    :type 'user-error)))
-
-  (ert-deftest target-file-type-error ()
-    "Error if :file is not:
-- a string
-- a function returning a file path
-- a or variable evaluating to a file path."
-    (dolist (garbage (delq nil (seq-remove 'stringp types)))
-      (should-error (doct `(("test" :keys "t" :file ,garbage)))
-                    :type 'user-error))))
+;;; doct-test.el ends here
