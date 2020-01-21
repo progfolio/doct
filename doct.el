@@ -200,7 +200,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
      (signal 'doct-no-target `(,doct-exclusive-location-keywords
                                ,nil-target
                                ,doct--current)))
-    (`(:clock ,bool) '(clock))
+    (`(:clock ,_) '(clock))
     (`(:id ,id) (if (stringp id)
                     `(id ,id)
                   (signal 'doct-wrong-type-argument '(stringp
