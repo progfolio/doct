@@ -336,7 +336,7 @@ For example, with:
                     ("Two" :keys "2" :todo-state "IDEA")))))
 #+end_src
 
-Each child template has it's ~:todo-state~ value expanded in the inherited ~:template.~
+Each child template has its ~:todo-state~ value expanded in the inherited ~:template.~
 
 **** Hooks
 Adding one of the following hook keywords in a declaration will generate a function
