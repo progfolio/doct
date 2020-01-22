@@ -33,6 +33,9 @@
               '(("p" "parent")
                 ("pc" "child" entry (file "") nil
                  :doct-options (:foo nil)))))
+    (it "errors if symbolic parent has a :keys property"
+      (expect (doct '((:symbolic :keys "a")))
+              :to-throw 'user-error))
     (it "does not include symbolic parent in template list"
       (expect (doct '((:root
                        :inherited t
@@ -56,11 +59,11 @@
               :to-equal
               '(("f" "ffte-test"
                  entry (file+olp "" "one" "two" "three") nil))))
-    (it "shouldn't return a dotted list when its target is a string."
+    (it "should not return a dotted list when its target is a string."
       (expect (doct '(("test" :keys "t" :type entry :file "")))
               :to-equal
               '(("t" "test" entry (file "") nil))))
-    (it "shouldn't have a cdr when :clock is the target."
+    (it "should not have a cdr when :clock is the target."
       (should (equal (doct '(("clock-test" :keys "c"
                               :clock t
                               :template "test")))
@@ -104,25 +107,39 @@ three"))))
                    "string"
                    ?c
                    '("list"))))
-      (it "errors if name isn't a string."
-        (dolist (garbage (seq-remove 'stringp types))
+      (it "errors if name is not a string."
+        ;;Removing symbol because we have :keys.
+        ;;That case is covered in symbolic parent keys test.
+        (dolist (garbage (seq-remove 'symbolp
+                                     (seq-remove 'stringp types)))
           (expect (doct `((,garbage :keys "t" :children ())))
                   :to-throw 'user-error)))
-      (it "errors if :keys isn't a string."
+      (it "errors if :keys is not a string."
         (dolist (garbage (seq-remove 'stringp types))
           (expect (doct `(("test" :keys ,garbage)))
                   :to-throw 'user-error)))
-      (it "errors if :type isn't a valid type symbol."
+      (it "errors if :type is not a valid type symbol."
         ;;consider nil valid, type will be determined by `doct-default-entry-type'.
         (dolist (garbage (remq nil types))
           (expect (doct `(("test" :keys "t" :type ,garbage :file "")))
                   :to-throw 'user-error)))
-      (it "errors if :file isn't a string, a function returning a file path \
+      (it "errors if :children is not a list."
+        (dolist (garbage (seq-remove 'listp types))
+          (expect (doct `(("test" :keys "t" :children ,garbage)))
+                  :to-throw 'user-error)))
+      (it "errors if :file is not a string, a function returning a file path \
 or variable evaluating to a file path."
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
           (expect (doct `(("test" :keys "t" :file ,garbage)))
-                  :to-throw 'user-error))))))
-
+                  :to-throw 'user-error)))))
+  (describe "%doct(KEYWORD) syntax"
+    (before-each (setq org-capture-plist '(:doct-options (:test "passed"))))
+    (it "should expand metadata at capture time"
+      (expect (funcall (doct--maybe-expand-template-string "it %doct(test)"))
+              :to-equal "it passed"))
+    (it "should be able to be inlined in another string"
+      (expect (funcall (doct--maybe-expand-template-string "it-%doct(test)!"))
+              :to-equal "it-passed!"))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here
