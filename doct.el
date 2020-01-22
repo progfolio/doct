@@ -6,7 +6,7 @@
 ;; URL: https://github.com/progfolio/doct
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
-;; Package-Requires: ((emacs "25.1") (subr-x) (seq))
+;; Package-Requires: ((emacs "25.1"))
 ;; Version: 1.0
 
 ;; This file is not part of GNU Emacs.
