@@ -110,6 +110,7 @@ Its value is not stored betewen invocations to doct.")
   "List of the keywords doct recognizes.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
+(define-error 'doct-symbolic-keys "Symbolic parent has :keys value" 'doct-error)
 (define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
@@ -331,56 +332,69 @@ ENTRY-NAME is the name of the entry the hook should run for."
         (signal 'doct-wrong-type-argument
                 `(,doct-entry-types ,type ,doct--current)))))
 
-(defun doct--keys (plist)
-  "Type check and return PLIST's :keys value."
-  (unless (plist-member plist :keys)
-    (signal 'doct-no-keys `(,doct--current)))
-  (let ((keys (plist-get plist :keys)))
-    (unless (stringp keys)
-      (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
-    keys))
+(defun doct--keys (plist &optional symbolic-parent)
+  "Type check and return PLIST's :keys value.
+If SYMBOLIC-PARENT is non-nil, error when :keys are present."
+  (let ((keysp (plist-member plist :keys)))
+    (if symbolic-parent
+        (when keysp (signal 'doct-symbolic-keys `(,doct--current)))
+      (unless keysp (signal 'doct-no-keys `(,doct--current)))
+      (let ((keys (plist-get plist :keys)))
+        (unless (stringp keys)
+          (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
+        keys))))
+
+(defun doct--children (plist)
+  "Type check and return PLIST's children property."
+  (let ((children (plist-get plist :children)))
+    (if (and (listp children) (not (functionp children)))
+        children
+      (signal 'doct-wrong-type-argument `(listp ,children ,doct--current)))))
+
+(defun doct--compose-entry (keys name properties parent)
+  "Return a template suitable for `org-capture-templates'.
+The list is of the form: (KEYS NAME type target template additional-options...).
+PROPERTIES provides the type, target template and additional options.
+If PARENT is non-nil, list is of the form (KEYS NAME)."
+  `(,keys
+    ,name
+    ,@(unless parent
+        `(,(doct--entry-type properties)
+          ,(doct--target properties)
+          ,(doct--template properties)
+          ,@(when-let ((additional-properties
+                        (doct--additional-properties properties)))
+              `(,@(car additional-properties)
+                ,@(when-let ((custom-opts (cadr additional-properties)))
+                    `(:doct-options ,custom-opts))))))))
 
 (defun doct--convert (name &rest properties)
   "Convert declarative form to template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (setq doct--current `(,name ,@properties))
-  (unless (or (stringp name) (symbolp name))
-    (signal 'doct-wrong-type-argument
-            `((stringp symbolp) ,name ,doct--current)))
-  (let* ((children (plist-get properties :children))
-         (symbolic-parent (symbolp name))
-         (keys (unless symbolic-parent (doct--keys properties)))
-         entry)
-    (when children
-      (when symbolic-parent
-        (plist-put properties :keys nil))
-      (setq children (mapcar (lambda (child)
-                               (apply #'doct--convert
-                                      `(,(car child)
-                                        ,@(doct--inherit properties
-                                                         (cdr child)))))
-                             (if (seq-every-p 'listp children)
-                                 children
-                               `(,children)))))
-    (unless children
-      (doct--add-hooks name properties keys))
-    (setq entry `(,keys
-                  ,name
-                  ,@(unless children
-                      `(,(doct--entry-type properties)
-                        ,(doct--target properties)
-                        ,(doct--template properties)
-                        ,@(when-let ((additional-properties
-                                      (doct--additional-properties properties)))
-                            `(,@(car additional-properties)
-                              ,@(when-let
-                                    ((custom-opts (cadr additional-properties)))
-                                  `(:doct-options ,custom-opts))))))))
-    (if children
-        (if (symbolp name)
-            `(,@children)
-          `(,entry ,@children))
-      entry)))
+  (let ((symbolic-parent (symbolp name)))
+    (unless (or (stringp name) symbolic-parent)
+      (signal 'doct-wrong-type-argument
+              `((stringp symbolp) ,name ,doct--current)))
+    (let* ((children (doct--children properties))
+           (keys (doct--keys properties symbolic-parent))
+           entry)
+      (when children
+        (setq children (mapcar (lambda (child)
+                                 (apply #'doct--convert
+                                        `(,(car child)
+                                          ,@(doct--inherit properties
+                                                           (cdr child)))))
+                               (if (seq-every-p #'listp children)
+                                   children
+                                 `(,children)))))
+      (unless children (doct--add-hooks name properties keys))
+      (setq entry (doct--compose-entry keys name properties children))
+      (if children
+          (if symbolic-parent
+              `(,@children)
+            `(,entry ,@children))
+        entry))))
 
 (defun doct-flatten-lists-in (list-of-lists)
   "Flatten each list in LIST-OF-LISTS.
