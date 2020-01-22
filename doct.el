@@ -115,8 +115,9 @@ Its value is not stored betewen invocations to doct.")
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
-(defvar org-capture-plist nil
-  "Declaration to silence byte compiler warning.")
+(defvaralias 'doct-org-capture-list 'org-capture-plist
+  "Alias to silence package-lint warning.
+`doct-get' is only used after org-capture is loaded.")
 
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-options in `org-capture-plist'.
