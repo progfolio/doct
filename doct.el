@@ -119,6 +119,7 @@ Its value is not stored betewen invocations to doct.")
   "Alias to silence package-lint warning.
 `doct-get' is only used after org-capture is loaded.")
 
+;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-options in `org-capture-plist'.
 Intended to be used at capture template time."
@@ -142,6 +143,8 @@ Intended to be used at capture template time."
 (defmacro doct--maybe-expand-template-string (template)
   "If TEMPLATE follows %doct(keyword) syntax, return a lambda.
 Otherwise, return TEMPLATE."
+  (declare (debug template)
+           (indent defun))
   (if (doct--expansion-syntax-p template)
       `(lambda ()
          (doct--replace-template-strings ,template))
@@ -230,7 +233,6 @@ FILE-TARGET is the value for PLIST's :file keyword."
     (`(:template ,template)
      (pcase template
        ((or 'nil (and (pred stringp) (pred string-empty-p))) nil)
-       ;;@INCOMPLETE: we want to set up %doct(keyword) lambdas here
        ((pred functionp)
         `(function (lambda ()
                      (doct--fill-deferred-template (funcall ,template)))))
@@ -270,8 +272,9 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
 
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
-The only exception to this is the :keys property.
-PARENT's :keys are concated with CHILD's."
+The only exceptions to this are the :keys and :children properties.
+PARENT's :keys are concated with CHILD's.
+The :children property is ignored."
   (dolist (keyword (seq-filter (lambda (el)
                                  (and (keywordp el)
                                       (not (eq el :children))))
@@ -322,8 +325,7 @@ ENTRY-NAME is the name of the entry the hook should run for."
                        ;;remove preceding ':' from keyword
                        (substring (symbol-name keyword) 1))))
       (unless (functionp hook-fn)
-        (signal 'doct-wrong-type-argument `(functionp ,hook-fn
-                                                      ,doct--current)))
+        (signal 'doct-wrong-type-argument `(functionp ,hook-fn ,doct--current)))
       (doct--add-hook keys hook-fn hook name))))
 
 (defun doct--entry-type (plist)
@@ -370,7 +372,7 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                     `(:doct-options ,custom-opts))))))))
 
 (defun doct--convert (name &rest properties)
-  "Convert declarative form to template named NAME with PROPERTIES.
+  "Convert declarative form to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (setq doct--current `(,name ,@properties))
   (let ((symbolic-parent (symbolp name)))
@@ -397,6 +399,7 @@ For a full description of the PROPERTIES plist see `doct'."
             `(,entry ,@children))
         entry))))
 
+;;;###autoload
 (defun doct-flatten-lists-in (list-of-lists)
   "Flatten each list in LIST-OF-LISTS.
 For example:
@@ -430,7 +433,6 @@ returns:
           (or doct-templates (doct-flatten-lists-in entries)))
       (setq doct-templates nil))))
 
-;;commands
 ;;;###autoload
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
@@ -464,7 +466,7 @@ Example:
 
   (doct-remove-hooks \"^t\" \\='mode t)
 
-Removes:
+Removes and uninterns:
 
   doct--hook/mode/t
   doct--hook/mode/tt
