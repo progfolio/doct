@@ -421,10 +421,301 @@ returns:
       (apply #'doct--convert form)
     (doct-error (user-error "DOCT %s" (error-message-string err)))))
 
-;;@INCOMPLETE needs overview docstring
 ;;;###autoload
 (defun doct (declarations)
-  "DECLARATIONS is a list of declarative forms."
+  "DECLARATIONS is a list of declarative forms.
+Each declaration is either a parent or child.
+
+A parent declaration must have:
+
+- a name string or symbol.
+  If the name is a symbol, the form is not included in the list of templates.
+  This is useful for storing properties inherited by groups of parents.
+- Unless name is a symbol, a :keys string
+- a child or list of :children
+
+and may also have additional properties which are inherited by its children.
+
+A child declaration must have:
+
+- a name
+- a :keys string
+- a template type
+- a target
+- a template
+
+and may also have:
+
+- hook functions defined with the hook keywords
+- additional arguments
+
+Inherited Properties
+====================
+
+A child inherits its ancestors' properties.
+It may optionally override an inherited property by specifying that poperty \
+directly.
+For example, considering:
+
+  (doct \\='((\"Grandparent\" :keys \"g\"
+              :file \"example.org\"
+              :children (\"Parent\" :keys \"p\"
+                         :children (\"Child\" :keys \"c\")))))
+
+The \"Child\" template inherits its :file property from the \"Grandparent\" \
+declaration.
+The \"Parent\" declaration could override this value:
+
+  (doct \\='((\"Grandparent\" :keys \"g\"
+              :file \"example.org\"
+              :children (\"Parent\" :keys \"p\"
+                         :file \"overriden.org\"
+                         :children (\"Child\" :keys \"c\")))))
+
+And the \"Child\" would have its :file property set to \"overriden.org\".
+
+Name & Keys
+===========
+
+Every declaration must define a name.
+Unless it is a symbolic parent, it must also define a :keys value.
+The name is the first value in the declaration.
+The :keys keyword defines the keys to access the template from the capture menu.
+
+  (doct \\='((\"example\" :keys \"e\"...)))
+
+  returns:
+
+  ((\"e\" \"example\"...))
+
+Type
+====
+
+The :type keyword defines the template's entry type and accepts the following \
+symbols:
+
+  - entry
+    An Org node with a headline.
+    The template becomes a child of the target entry or a top level entry.
+
+  - item
+    A plain list item, placed in the first plain list at the target location.
+
+  - checkitem
+    A checkbox item.
+    This differs from the plain list item only in so far as it uses a
+\different default template.
+
+  - table-line
+    A new line in the first table at target location.
+
+  - plain
+    Text inserted as is.
+
+`doct-default-entry-type' defines the entry type when the :type keyword is not \
+provided.
+
+For example, with `doct-default-entry-type' set to entry (the default):
+
+  (doct \\='((\"example\"
+              :keys \"e\"
+              :type entry
+              :file \"\")))
+
+  and:
+
+  (doct \\='((\"example\"
+              :keys \"e\"
+              :file \"\")))
+
+  both return:
+
+  ((\"e\" \"example\" entry (file \"\") nil))
+
+Target
+======
+
+The target defines the location of the inserted template text.
+
+The first keyword declared in the following group exclusively sets the target.
+The :file keyword is not necessary for these.
+
+  - :id \"id of existing Org entry\"
+    File as child of this entry, or in the body of the entry
+    (see `org-id-get-create')
+
+  - :clock t
+    File to the currently clocked entry
+
+  - :function (lambda () ;visit file and move point to desired location...)
+    This keyword is exclusive when used without the :file keyword.
+    It is responsible for finding the proper file and location to insert the \
+capture item.
+    If :file defines a target file, then the funcion is only responsible for \
+moving point to the desired location within that file.
+
+  (doct \\='((\"example\"
+              :keys \"e\"
+              :type entry
+              :clock t
+              ;;ignored byecause :clock is first
+              :function (lambda () (ignore))
+              ;;also ignored
+              :id \"1\")))
+
+  returns:
+
+  ((\"e\" \"example\" entry (clock) nil))
+
+The :file keyword defines the target file for the capture template.
+
+  (doct ... :file \"/path/to/target.org\")
+
+The following keywords refine the target file location:
+
+  - :headline \"node headline\"
+    File under unique heading in target file.
+
+  - :olp (\"Level 1 heading\" \"Level 2 heading\"...)
+    Define the full outline in the target file.
+    If :datetree has a non-nil value, creat a date tree for today's date.
+    Use a non-nil :time-prompt property to prompt for a different date.
+    Set the :tree-type property to the symbol 'week' to make a week tree \
+instead of the default month tree.
+
+  - :regexp \"regexp describing location\"
+    File to entry matching regexp in target file
+
+  - :function location-finding-function
+    If used in addition to the :file keyword, the value should be a function \
+that finds the desired location in that file.
+    If used as an exclusive keyword (see above), the function must locate \
+both the target file and move point to the desired location.
+
+Template
+========
+
+The :template keyword defines the template for creating the capture item.
+It may be either a string, list of strings, or a function.
+doct joins the list with new lines.
+A function must return the template text.
+
+  (doct \\='((... :template (\"Test\" \"One\" \"Two\"))))
+
+  returns:
+
+  ((... \"Test\\nOne\\nTwo\"))
+
+The :template-file keyword defines a file containing the text of the template.
+
+The first keywords declared overrides any additional template declarations.
+
+Additional Options
+==================
+
+Key-value pairs define additional options.
+
+  (doct \\='((... :immediate-finish t)))
+
+  returns:
+
+  ((... :immediate-finish t))
+
+see `org-capture-templates' for a full list of additional options.
+
+Custom options
+==============
+
+doct stores unrecognized keywords on the template's `org-capture-plist' \
+as members of the doct--options plist.
+This makes a template's metadata accessible during capture.
+See \"Doct String Expansion\" below for more detail.
+
+Children
+========
+
+A parent declaration may contain a single or list of :children declarations.
+The parent's :keys prefix each child's :keys.
+
+  (doct \\='((\"parent\" :keys \"p\"
+              :children
+              ((\"child\" :keys \"c\"
+                :children
+                ((\"grandchild\" :keys \"g\"
+                  :file \"\"
+                  :type plain
+                  :template \"test\")))))))
+
+  returns:
+
+  ((\"p\" \"parent\")
+   (\"pc\" \"child\")
+   (\"pcg\" \"grandchild\" plain (file \"\") \"test\"))
+
+%doct String Expansion
+======================
+
+A declaration may include custom metadata which is accessible during capture.
+The syntax is similar to other, built-in \"%-escapes\":
+
+  %doct(KEYWORD)
+
+will insert the value declared with :KEWYORD in the template.
+For example, with:
+
+  (doct \\='((\"Parent\" :keys \"p\"
+           :file \"\"
+           :template \"* %doct(todo-state) %?\"
+           :children ((\"One\" :keys \"1\" :todo-state \"TODO\")
+                      (\"Two\" :keys \"2\" :todo-state \"IDEA\")))))
+
+Each child template has its :todo-state value expanded in the inherited \
+:template.
+
+Hooks
+=====
+
+Adding one of the following hook keywords in a declaration will generate a \
+function of the form:
+
+  doct--hook/<hook-variable-abbreviation>/KEYS
+
+which wraps the user's function in a conditional check for the current \
+template's keys and adds it to the appropriate hook.
+
+  - :hook
+    `org-capture-mode-hook'
+  - :prepare-finalize
+    `org-capture-prepare-finalize-hook'
+  - :before-finalize
+    `org-capture-before-finalize-hook'
+  - :after-finalize
+    `org-capture-after-finalize-hook'
+
+For example:
+
+  (doct \\='((\"example\"
+           :keys \"e\"
+           :file \"\"
+           :hook (lambda ()
+                   ;;when selecting the \"example\" template
+                   ;;doct--hook/mode/e executes
+                   ;;during the org-capture-mode-hook.
+                   (ignore)))))
+
+defines the function doct--hook/mode/e:
+
+    (defun doct--hook/mode/e ()
+      \"Auto generated by `doct--add-hook'.
+    It is run as part of `org-capture-mode-hook' \
+ when the \"example\" template is selected.
+    It can be removed using `doct-remove-hooks' like so:
+    (doct-remove-hooks \"e\" \\='mode t)\"
+      (when (string= \"e\" (plist-get org-capture-plist :key))
+        (funcall \\='(lambda nil (ignore)))))
+
+and adds it to the `org-capture-mode-hook'.
+See `doct-remove-hooks' to remove and unintern generated functions."
   (let* ((entries (mapcar #'doct--maybe-convert-form declarations)))
     (unwind-protect
         (progn

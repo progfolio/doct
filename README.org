@@ -86,8 +86,7 @@ A parent declaration must have:
 - Unless name is a symbol, a ~:keys~ string
 - a child or list of ~:children~
 
-and may also have:
-Additional properties inherited by its children.
+and may also have additional properties inherited by its children.
 
 A child declaration must have:
 
@@ -102,7 +101,7 @@ and may also have:
 - hook functions defined with the hook keywords
 - additional arguments
 
-**** Inherited properties
+**** Inherited Properties
 A child inherits its ancestors' properties.
 It may optionally override an inherited property by specifying that property directly.
 
@@ -115,8 +114,8 @@ For example:
                     :children ("Child" :keys "c")))))
 #+end_src
 
-The "Child" template inherits its ~:file~ property from the "Grandparent" parent declaration.
-The "Parent" could override this value:
+The "Child" template inherits its ~:file~ property from the "Grandparent" declaration.
+The "Parent" declaration could override this value:
 
 #+begin_src emacs-lisp
 (doct '(("Grandparent" :keys "g"
@@ -239,7 +238,7 @@ The following keywords refine the target file location:
 - :olp ("Level 1 heading" "Level 2 heading"...) ::
 
   Define the full outline in the target file.
-  If ~:+datetree~ has a non-nil value, create a date tree for today’s date.
+  If ~:datetree~ has a non-nil value, create a date tree for today’s date.
   Use a non-nil ~:time-prompt~ property to prompt for a different date.
   Use a non-nil ~:tree-type~ property to create a week-tree.
 
@@ -256,7 +255,7 @@ The following keywords refine the target file location:
 
 **** Template
 The ~:template~ keyword defines the template for creating the capture item.
-It may be either a string or a list of strings, or a function.
+It may be either a string, list of strings, or a function.
 ~doct~ joins the list with new lines.
 A function must return the template text.
 
@@ -291,7 +290,7 @@ see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][O
 
 **** Custom options
 ~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct--options plist.
-This allows custom metadata to declared for a template and accessed during capture.
+This makes a template's metadata accessible during capture.
 See [[#doct-string-expansion]] for details.
 
 **** Children
@@ -315,16 +314,16 @@ returns:
 (("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
 #+end_src
 
-**** %doct string expansion
+**** %doct String Expansion
 :PROPERTIES:
 :CUSTOM_ID: doct-string-expansion
 :END:
 A declaration may include custom metadata which is accessible during capture.
 The syntax is similar to other, built-in "%-escapes":
 
-~%doct(keyword)~
+~%doct(KEYWORD)~
 
-will insert the value declared with ~:keyword~ on the template.
+will insert the value declared with ~:KEYWORD~ in the template.
 
 For example, with:
 
@@ -397,7 +396,7 @@ It can be removed using `doct-remove-hooks' like so:
 and adds it to the org-capture-mode-hook.
 See =doct-remove-hooks= to remove and unintern generated functions.
 
-*** custom variables
+*** Custom Variables
 ~doct~ supports the following variables for customization:
 
 - doct-default-entry-type 'entry ::
