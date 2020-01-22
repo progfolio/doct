@@ -1,10 +1,13 @@
 ;;; doct.el --- DOCT: Declarative Org capture templates -*- lexical-binding: t; -*-
-;; Author: nv <progfolio@protonmail.com>
+
+;; Copyright (C) 2019-2020 Nicholas Vollmer
+
+;; Author: Nicholas Vollmer <progfolio@protonmail.com>
 ;; URL: https://github.com/progfolio/doct
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
-;; Package-Requires: ((emacs "25.1"))
-;; Version: 0.3
+;; Package-Requires: ((emacs "25.1") (subr-x) (seq))
+;; Version: 1.0
 
 ;; This file is not part of GNU Emacs.
 
@@ -23,7 +26,7 @@
 
 ;;; Commentary:
 ;; This package provides an alternative syntax for declaring Org capture
-;; templates. See the doctstring for doct for more details.
+;; templates. See the doct docstring for more details.
 
 ;;; Code:
 (require 'subr-x)
@@ -409,6 +412,7 @@ returns:
       (setq doct-templates nil))))
 
 ;;commands
+;;;###autoload
 (defun doct-remove-hooks (&optional keys hooks unintern-functions)
   "Remove hooks matching KEYS from HOOKS.
 doct hook functions follow the form:
