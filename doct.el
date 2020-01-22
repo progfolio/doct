@@ -158,7 +158,7 @@ Return (KEYWORD VAL)."
   (seq-some (lambda (keyword)
               (when (member keyword keywords)
                 `(,keyword ,(plist-get plist keyword))))
-            (seq-filter 'keywordp plist)))
+            (seq-filter #'keywordp plist)))
 
 (defun doct--validate-file (target)
   "Type check :file TARGET."
@@ -175,7 +175,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
   (let (type target)
     ;;datetree is only used when :olp is specified
     (pcase (doct--first-in plist (remq :datetree doct-file-extension-keywords))
-      (`(:olp ,path) (unless (and (listp path) (seq-every-p 'stringp path))
+      (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
                        (signal 'doct-wrong-type-argument
                                `((listp stringp) ,path ,doct--current)))
        (when (plist-get plist :datetree)
@@ -185,7 +185,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
          (push heading target)))
       ;;function headline regexp
       (`(,keyword ,extension)
-       (let ((predicate (if (eq keyword :function) 'functionp 'stringp)))
+       (let ((predicate (if (eq keyword :function) #'functionp #'stringp)))
          (unless (funcall predicate extension)
            (signal 'doct-wrong-type-argument
                    `(,predicate ,extension ,doct--current)))
@@ -237,7 +237,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
                              (lambda ()
                                (doct--fill-deferred-template ,template)))
                          template))
-       ((and (pred listp) (guard (seq-every-p 'stringp template)))
+       ((and (pred listp) (guard (seq-every-p #'stringp template)))
         (if (seq-some 'doct--expansion-syntax-p template)
             `(function
               (lambda ()
@@ -251,7 +251,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
 (defun doct--additional-properties (plist)
   "Convert PLIST's additional properties to Org capture syntax.
 Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
-  (let ((keywords (delete-dups (seq-filter 'keywordp plist)))
+  (let ((keywords (delete-dups (seq-filter #'keywordp plist)))
         additional-options
         custom-properties)
     (dolist (keyword keywords)
@@ -391,7 +391,7 @@ returns:
   (let (flattend)
     (letrec ((flatten (lambda (list)
                         (dolist (element list)
-                          (if (seq-every-p 'listp element)
+                          (if (seq-every-p #'listp element)
                               (funcall flatten element)
                             (push element flattend))))))
       (funcall flatten list-of-lists)
@@ -400,13 +400,14 @@ returns:
 (defun doct--maybe-convert-form (form)
   "Attempt to convert FORM to Org capture template syntax."
   (condition-case err
-      (apply 'doct--convert form)
+      (apply #'doct--convert form)
     (doct-error (user-error "DOCT %s" (error-message-string err)))))
 
 ;;@INCOMPLETE needs overview docstring
+;;;###autoload
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms."
-  (let* ((entries (mapcar 'doct--maybe-convert-form declarations)))
+  (let* ((entries (mapcar #'doct--maybe-convert-form declarations)))
     (unwind-protect
         (progn
           (run-hook-with-args 'doct-after-conversion-hook entries)
@@ -476,7 +477,7 @@ From the `org-capture-mode-hook'."
                                                t))))
                           (list hooks))
                          ((and (pred listp) hooks
-                               (guard (seq-every-p 'symbolp hooks)))
+                               (guard (seq-every-p #'symbolp hooks)))
                           hooks)
                          (_ (user-error "Unrecognized HOOKS value %s" hooks))))
          (hooks (if (memq t hook-symbols)
