@@ -272,7 +272,7 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
 The only exceptions to this are the :keys and :children properties.
-PARENT's :keys are concated with CHILD's.
+CHILD's keys are prefixed with PARENT's.
 The :children property is ignored."
   (dolist (keyword (seq-filter (lambda (el)
                                  (and (keywordp el)
