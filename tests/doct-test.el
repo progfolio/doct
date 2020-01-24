@@ -127,8 +127,7 @@ three"))))
         (dolist (garbage (seq-remove 'listp types))
           (expect (doct `(("test" :keys "t" :children ,garbage)))
                   :to-throw 'user-error)))
-      (it "errors if :file is not a string, a function returning a file path \
-or variable evaluating to a file path."
+      (it "errors if :file is not a string, function -> string, variable -> string"
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
           (expect (doct `(("test" :keys "t" :file ,garbage)))
                   :to-throw 'user-error)))))
