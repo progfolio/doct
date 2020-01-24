@@ -114,7 +114,7 @@ Its value is not stored betewen invocations to doct.")
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
-(defvaralias 'doct-org-capture-list 'org-capture-plist
+(defvaralias 'doct-org-capture-plist 'org-capture-plist
   "Alias to silence package-lint warning.
 `doct-get' is only used after org-capture is loaded.")
 
@@ -122,7 +122,7 @@ Its value is not stored betewen invocations to doct.")
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-options in `org-capture-plist'.
 Intended to be used at capture template time."
-  (plist-get (plist-get org-capture-plist :doct-options) keyword))
+  (plist-get (plist-get doct-org-capture-plist :doct-options) keyword))
 
 (defun doct--replace-template-strings (string)
   "Replace each occurrence of %doct(KEYWORD) in STRING with it's corresponding doct-options value."
