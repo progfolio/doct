@@ -125,7 +125,7 @@ Intended to be used at capture template time."
   (plist-get (plist-get doct-org-capture-plist :doct-options) keyword))
 
 (defun doct--replace-template-strings (string)
-  "Replace each occurrence of %doct(KEYWORD) in STRING with it's corresponding doct-options value."
+  "Replace STRING's %doct(KEYWORD) occurrences with their doct-options values."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
@@ -136,7 +136,7 @@ Intended to be used at capture template time."
     (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
-  "Return t if STRING containing %doct(keyword) syntax, else nil."
+  "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
 
 (defmacro doct--maybe-expand-template-string (template)
