@@ -95,7 +95,6 @@ Its value is not stored betewen invocations to doct.")
   "Keywords that define the template string.")
 
 (defvar doct-recognized-keywords `(:children
-                                   :doct--parent
                                    :keys
                                    :type
                                    ,@(append
