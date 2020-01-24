@@ -213,8 +213,8 @@ FILE-TARGET is the value for PLIST's :file keyword."
     (`(:clock ,_) '(clock))
     (`(:id ,id) (if (stringp id)
                     `(id ,id)
-                  (signal 'doct-wrong-type-argument '(stringp
-                                                      ,id ,doct--current))))
+                  (signal 'doct-wrong-type-argument
+                          '(stringp ,id ,doct--current))))
     (`(:function ,fn) (if (functionp fn)
                           (unless (plist-get plist :file)
                             `(function ,fn))
