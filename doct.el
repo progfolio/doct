@@ -57,7 +57,7 @@ The templates have not been flattened at this point and are of the form:
   "If non-nil, this is used as the return value of doct.
 Use this variable to return an altered list from a function run during
 `doct-after-conversion-hook'
-Its value is not stored betewen invocations to doct.")
+Its value is not stored between invocations to doct.")
 
 (defvar doct--current nil
   "The current form being processed by doct. Used for error processing.")
@@ -150,13 +150,13 @@ Otherwise, return TEMPLATE."
     template))
 
 (defun doct--fill-deferred-template (string)
-  "Replace %doct(KEYOWRD) placeholders in STRING at capture time."
+  "Replace %doct(KEYWORD) placeholders in STRING at capture time."
   (if (doct--expansion-syntax-p string)
       (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string)))
     string))
 
 (defun doct--first-in (plist keywords)
-  "Find first occurence of one of KEYWORDS in PLIST.
+  "Find first occurrence of one of KEYWORDS in PLIST.
 If not found in PLIST, recursively search FORM's ancestors.
 Return (KEYWORD VAL)."
   (seq-some (lambda (keyword)
@@ -241,10 +241,10 @@ FILE-TARGET is the value for PLIST's :file keyword."
                                (doct--fill-deferred-template ,template)))
                          template))
        ((and (pred listp) (guard (seq-every-p #'stringp template)))
-        (if (seq-some 'doct--expansion-syntax-p template)
+        (if (seq-some #'doct--expansion-syntax-p template)
             `(function
               (lambda ()
-                (string-join (mapcar 'doct--fill-deferred-template
+                (string-join (mapcar #'doct--fill-deferred-template
                                      ,template) "\n")))
           (string-join template "\n")))
        (_ (signal 'doct-wrong-type-argument
@@ -452,7 +452,7 @@ Inherited Properties
 ====================
 
 A child inherits its ancestors' properties.
-It may optionally override an inherited property by specifying that poperty \
+It may optionally override an inherited property by specifying that property \
 directly.
 For example, considering:
 
@@ -550,14 +550,14 @@ The :file keyword is not necessary for these.
     This keyword is exclusive when used without the :file keyword.
     It is responsible for finding the proper file and location to insert the \
 capture item.
-    If :file defines a target file, then the funcion is only responsible for \
+    If :file defines a target file, then the function is only responsible for \
 moving point to the desired location within that file.
 
   (doct \\='((\"example\"
               :keys \"e\"
               :type entry
               :clock t
-              ;;ignored byecause :clock is first
+              ;;ignored because :clock is first
               :function (lambda () (ignore))
               ;;also ignored
               :id \"1\")))
@@ -577,7 +577,7 @@ The following keywords refine the target file location:
 
   - :olp (\"Level 1 heading\" \"Level 2 heading\"...)
     Define the full outline in the target file.
-    If :datetree has a non-nil value, creat a date tree for today's date.
+    If :datetree has a non-nil value, create a date tree for today's date.
     Use a non-nil :time-prompt property to prompt for a different date.
     Set the :tree-type property to the symbol 'week' to make a week tree \
 instead of the default month tree.
@@ -659,7 +659,7 @@ The syntax is similar to other, built-in \"%-escapes\":
 
   %doct(KEYWORD)
 
-will insert the value declared with :KEWYORD in the template.
+will insert the value declared with :KEYWORD in the template.
 For example, with:
 
   (doct \\='((\"Parent\" :keys \"p\"
