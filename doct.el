@@ -156,12 +156,13 @@ Otherwise, return TEMPLATE."
     string))
 
 (defun doct--first-in (plist keywords)
-  "Find first occurrence of one of KEYWORDS in PLIST.
+  "Find first non-nil occurrence of one of KEYWORDS in PLIST.
 If not found in PLIST, recursively search FORM's ancestors.
 Return (KEYWORD VAL)."
   (seq-some (lambda (keyword)
-              (when (member keyword keywords)
-                `(,keyword ,(plist-get plist keyword))))
+              (let ((val (plist-get plist keyword)))
+                (when (and val (member keyword keywords))
+                  `(,keyword ,val))))
             (seq-filter #'keywordp plist)))
 
 (defun doct--validate-file (target)
@@ -189,12 +190,13 @@ FILE-TARGET is the value for PLIST's :file keyword."
          (push heading target)))
       ;;function headline regexp
       (`(,keyword ,extension)
-       (let ((predicate (if (eq keyword :function) #'functionp #'stringp)))
-         (unless (funcall predicate extension)
-           (signal 'doct-wrong-type-argument
-                   `(,predicate ,extension ,doct--current)))
-         (push extension target)
-         (push keyword type))))
+       (when extension
+         (let ((predicate (if (eq keyword :function) #'functionp #'stringp)))
+           (unless (funcall predicate extension)
+             (signal 'doct-wrong-type-argument
+                     `(,predicate ,extension ,doct--current)))
+           (push extension target)
+           (push keyword type)))))
     (push :file type)
     (push file-target target)
     `(,(intern (string-join
@@ -216,7 +218,8 @@ FILE-TARGET is the value for PLIST's :file keyword."
                   (signal 'doct-wrong-type-argument
                           '(stringp ,id ,doct--current))))
     (`(:function ,fn) (if (functionp fn)
-                          (unless (plist-get plist :file)
+                          (if-let ((file (plist-get plist :file)))
+                              (doct--target-file plist file)
                             `(function ,fn))
                         (signal 'doct-wrong-type-argument
                                 '(functionp ,fn ,doct--current))))
