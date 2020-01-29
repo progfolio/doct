@@ -237,7 +237,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
        ((or 'nil "") nil)
        ((pred functionp)
         `(function (lambda ()
-                     (doct--fill-deferred-template (funcall ,template)))))
+                     (doct--fill-deferred-template (funcall (function ,template))))))
        ((pred stringp) (if (doct--expansion-syntax-p template)
                            `(function
                              (lambda ()
