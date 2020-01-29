@@ -191,7 +191,10 @@ FILE-TARGET is the value for PLIST's :file keyword."
       ;;function headline regexp
       (`(,keyword ,extension)
        (when extension
-         (let ((predicate (if (eq keyword :function) #'functionp #'stringp)))
+         (let ((predicate (if (eq keyword :function) (lambda (val)
+                                                       (or (functionp val)
+                                                           (null val)))
+                            #'stringp)))
            (unless (funcall predicate extension)
              (signal 'doct-wrong-type-argument
                      `(,predicate ,extension ,doct--current)))
