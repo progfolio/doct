@@ -96,6 +96,7 @@ Its value is not stored between invocations to doct.")
 
 (defvar doct-recognized-keywords `(:children
                                    :keys
+                                   :doct-keys
                                    :type
                                    ,@(append
                                       ;;:function is in two categories
@@ -109,7 +110,7 @@ Its value is not stored between invocations to doct.")
   "List of the keywords doct recognizes.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
-(define-error 'doct-symbolic-keys "Symbolic parent has :keys value" 'doct-error)
+(define-error 'doct-group-keys "Group has :keys value" 'doct-error)
 (define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
@@ -277,19 +278,23 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
 
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
-The only exceptions to this are the :keys and :children properties.
+The only exceptions to this are the :keys and :children and :group properties.
 CHILD's keys are prefixed with PARENT's.
-The :children property is ignored."
+The :children and :group properties are ignored."
+  ;;remove :group description
+  (when (stringp (car child))
+    (pop child))
   (dolist (keyword (seq-filter (lambda (el)
                                  (and (keywordp el)
-                                      (not (eq el :children))))
+                                      (not (member el '(:children :group)))))
                                parent))
-    (let ((keysp (eq keyword :keys)))
+    (let ((keysp (member keyword '(:keys :doct-keys))))
       (unless (and (plist-member child keyword) (not keysp))
-        (plist-put child keyword (if keysp
-                                     (concat (plist-get parent keyword)
-                                             (plist-get child keyword))
-                                   (plist-get parent keyword))))))
+        (if keysp
+            (plist-put child :doct-keys (concat (or (plist-get parent :doct-keys)
+                                                (plist-get parent :keys))
+                                            (plist-get child :keys)))
+          (plist-put child keyword (plist-get parent keyword))))))
   child)
 
 (defun doct--add-hook (keys fn where &optional entry-name)
@@ -340,17 +345,18 @@ ENTRY-NAME is the name of the entry the hook should run for."
         (signal 'doct-wrong-type-argument
                 `(,doct-entry-types ,type ,doct--current)))))
 
-(defun doct--keys (plist &optional symbolic-parent)
+(defun doct--keys (plist &optional group)
   "Type check and return PLIST's :keys value.
-If SYMBOLIC-PARENT is non-nil, error when :keys are present."
-  (let ((keysp (plist-member plist :keys)))
-    (if symbolic-parent
-        (when keysp (signal 'doct-symbolic-keys `(,doct--current)))
-      (unless keysp (signal 'doct-no-keys `(,doct--current)))
-      (let ((keys (plist-get plist :keys)))
-        (unless (stringp keys)
-          (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
-        keys))))
+If GROUP is non-nil, make sure there is no :keys value."
+  (let ((keys (plist-member plist :keys))
+        (inherited (plist-member plist :doct-keys)))
+    (when (and group keys)
+      (signal 'doct-group-keys `(,doct--current)))
+    (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
+    (let ((keys (or (plist-get plist :doct-keys) (plist-get plist :keys))))
+      (unless (or (stringp keys) group)
+        (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
+      keys)))
 
 (defun doct--children (plist)
   "Type check and return PLIST's children property."
@@ -380,12 +386,16 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
   "Convert declarative form to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (setq doct--current `(,name ,@properties))
-  (let ((symbolic-parent (symbolp name)))
-    (unless (or (stringp name) symbolic-parent)
+  (let ((group (eq name :group)))
+    (unless (or (stringp name) group)
       (signal 'doct-wrong-type-argument
               `((stringp symbolp) ,name ,doct--current)))
+    (when group
+      ;;remove :group description
+      (if (stringp (car properties))
+          (setq properties (cdr properties))))
     (let* ((children (doct--children properties))
-           (keys (doct--keys properties symbolic-parent))
+           (keys (doct--keys properties group))
            entry)
       (when children
         (setq children (mapcar (lambda (child)
@@ -397,9 +407,10 @@ For a full description of the PROPERTIES plist see `doct'."
                                    children
                                  `(,children)))))
       (unless children (doct--add-hooks name properties keys))
-      (setq entry (doct--compose-entry keys name properties children))
+      (unless group
+        (setq entry (doct--compose-entry keys name properties children)))
       (if children
-          (if symbolic-parent
+          (if group
               `(,@children)
             `(,entry ,@children))
         entry))))

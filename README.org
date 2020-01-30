@@ -47,7 +47,7 @@ becomes:
                            :todo-state "MAYBE"))))))
 #+end_src
 
-** TODO Installation
+** Installation
 Until I submit this package to MELPA, the following are the easiest ways to install ~doct~.
 If you're using:
 - the [[https://github.com/raxod502/straight.el][straight package manager]]:
@@ -71,23 +71,15 @@ Then require it in your init file.
 (require 'doct)
 #+end_src
 
-** TODO Documentation
+** Documentation
 *** doct
 #+begin_src emacs-lisp
 (doct declarations)
 #+end_src
 
 ~doct~ expects a list of declarations.
-Each declaration is either a parent or child.
-
-A parent declaration must have:
-
-- a name string or symbol. If the name is a symbol, the form is not included in the list of templates. This is useful for storing properties inherited by groups of parents.
-- Unless name is a symbol, a ~:keys~ string
-- a child or list of ~:children~
-
-and may also have additional properties inherited by its children.
-
+Each declaration is either a child, parent, or group.
+**** Child
 A child declaration must have:
 
 - a name
@@ -100,6 +92,40 @@ and may also have:
 
 - hook functions defined with the hook keywords
 - additional arguments
+
+**** Parent
+A parent declaration must have:
+
+- a name
+- a ~:keys~ string
+- a list of ~:children~
+
+and may also have additional properties inherited by its children.
+
+**** Group
+A group is a special kind of parent declaration.
+Its children inherit its properties, but it is not added to the template selection menu.
+Its name must be the ~:group~ keyword.
+It may optionally have a descriptive string for the value of ~:group~.
+It must not have a ~:keys~ value.
+
+
+#+begin_src emacs-lisp :results scalar raw
+(doct '(("Work" :keys "w" :file "~/org/work.org" :children
+         ((:group "Clocked" :clock-in t :children
+                  (("Phone Call" :keys "p" :template "* Phone call with %?")
+                   ("Meeting" :keys "m" :template "* Meeting with %?")))
+          ("Browsing" :keys "b" :template "* Browsing %x")))))
+#+end_src
+
+Returns:
+
+#+begin_src emacs-lisp
+(("w" "Work")
+ ("wp" "Phone Call" entry (file "~/org/work.org") "* Phone call with %?" :clock-in t)
+ ("wm" "Meeting"    entry (file "~/org/work.org") "* Meeting with %?"    :clock-in t)
+ ("wb" "Browsing"   entry (file "~/org/work.org") "* Browsing %x"))
+#+end_src
 
 **** Inherited Properties
 A child inherits its ancestors' properties.
@@ -128,7 +154,7 @@ The "Parent" declaration could override this value:
 And the "Child" would have its ~:file~ property set to "overridden.org".
 
 **** Name & Keys
-Every declaration must define a name. Unless it is a symbolic parent, it must also define a ~:keys~ value.
+Every declaration must define a name. Unless it is a group , it must also define a ~:keys~ value.
 The name is the first value in the declaration. The ~:keys~ keyword defines the keys to access the template
 from the capture menu.
 
