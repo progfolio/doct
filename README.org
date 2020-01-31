@@ -364,7 +364,7 @@ see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][O
 **** Custom options
 ~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct--options plist.
 This makes a template's metadata accessible during capture.
-See [[#doct-string-expansion]] for details.
+See [[#doct-string-expansion][%doct String Expansion]] for details.
 
 **** %doct String Expansion
 :PROPERTIES:
