@@ -154,7 +154,7 @@ The "Parent" declaration could override this value:
 And the "Child" would have its ~:file~ property set to "overridden.org".
 
 **** Name & Keys
-Every declaration must define a name. Unless it is a group , it must also define a ~:keys~ value.
+Every declaration must define a name. Unless it is a group, it must also define a ~:keys~ value.
 The name is the first value in the declaration. The ~:keys~ keyword defines the keys to access the template
 from the capture menu.
 

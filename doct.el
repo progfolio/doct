@@ -440,17 +440,7 @@ returns:
 ;;;###autoload
 (defun doct (declarations)
   "DECLARATIONS is a list of declarative forms.
-Each declaration is either a parent or child.
-
-A parent declaration must have:
-
-- a name string or symbol.
-  If the name is a symbol, the form is not included in the list of templates.
-  This is useful for storing properties inherited by groups of parents.
-- Unless name is a symbol, a :keys string
-- a child or list of :children
-
-and may also have additional properties which are inherited by its children.
+Each declaration is either a child, parent, or group.
 
 A child declaration must have:
 
@@ -464,6 +454,36 @@ and may also have:
 
 - hook functions defined with the hook keywords
 - additional arguments
+
+A parent declaration must have:
+
+- a name
+- a :keys string
+- a list of :children
+
+and may also have additional properties inherited by its children.
+
+A group is a special kind of parent declaration.
+Its children inherit its properties.
+It is not added to the template selection menu.
+Its name must be the :group keyword.
+It may optionally have a descriptive string for the value of :group.
+It must not have a :keys value.
+
+  (doct '((\"Work\" :keys \"w\" :file \"~/org/work.org\" :children
+         ((:group \"Clocked\" :clock-in t :children
+                  ((\"Call\" :keys \"p\" :template \"* Phone call with %?\")
+                   (\"Meeting\" :keys \"m\" :template \"* Meeting with %?\")))
+          (\"Browsing\" :keys \"b\" :template \"* Browsing %x\")))))
+
+Returns:
+
+  ((\"w\" \"Work\")
+   (\"wp\" \"Call\" entry
+    (file \"~/org/work.org\") \"* Phone call with %?\" :clock-in t)
+   (\"wm\" \"Meeting\"    entry
+    (file \"~/org/work.org\") \"* Meeting with %?\"    :clock-in t)
+   (\"wb\" \"Browsing\"   entry (file \"~/org/work.org\") \"* Browsing %x\"))
 
 Inherited Properties
 ====================
@@ -494,7 +514,7 @@ Name & Keys
 ===========
 
 Every declaration must define a name.
-Unless it is a symbolic parent, it must also define a :keys value.
+Unless it is a group, it must also define a :keys value.
 The name is the first value in the declaration.
 The :keys keyword defines the keys to access the template from the capture menu.
 
