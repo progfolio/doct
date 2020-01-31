@@ -23,21 +23,21 @@
                       :to-equal
                       '(("p" "parent")
                         ("pc" "child" entry (file "") nil
-                         :doct-options (:foo t)))))
+                         :doct-custom (:foo t)))))
           (it "allows a child to override its inherited properties."
               (expect (doct '(("parent" :keys "p" :foo t :file ""
                                :children ("child" :keys "c" :foo nil))))
                       :to-equal
                       '(("p" "parent")
                         ("pc" "child" entry (file "") nil
-                         :doct-options (:foo nil)))))
+                         :doct-custom (:foo nil)))))
           (it "allows a child to cancel its inherited properties with nil."
               (expect (doct '(("parent" :keys "p" :foo t :regexp "test" :file "" :headline "test"
                                :children ("child" :keys "c" :foo nil :file nil :function (lambda () (ignore))))))
                       :to-equal
                       '(("p" "parent")
                         ("pc" "child" entry (function (lambda () (ignore))) nil
-                         :doct-options (:foo nil)))))
+                         :doct-custom (:foo nil)))))
           (it "allows a child to cancel exclusive inherited properties"
               (expect (doct '(("parent" :keys "p" :function (lambda () (ignore))
                                :children ("child" :keys "c" :file "" :function nil :template nil))))
@@ -52,7 +52,7 @@
                                                 ((:group "Inner" :inner t :children
                                                          ("Test" :keys "t" :file ""))))))
                                 :to-equal
-                                '(("t" "Test" entry (file "") nil :doct-options (:inner t :outter t)))))
+                                '(("t" "Test" entry (file "") nil :doct-custom (:inner t :outter t)))))
                     (it "allows a group to optionally leave off its description string"
                         (expect (doct '((:group :children
                                                 ((:group :children
@@ -68,7 +68,7 @@
                                                                       :template nil)))))
                                 :to-equal
                                 '(("p" "Parent") ("pc" "Child" entry (file "") nil
-                                                  :doct-options (:inherited t)))))))
+                                                  :doct-custom (:inherited t)))))))
 (describe "Target"
           (it "overrides other target keywords"
               (expect (doct '(("fft-test" :keys "f" :type entry
@@ -120,7 +120,17 @@ three"))))
                       :to-equal
                       '(("t" "test" entry (file "") nil
                          :immediate-finish t
-                         :doct-options (:custom-option t))))))
+                         :doct-custom (:custom-option t)))))
+          (it "adds :custom data to :doct-custom"
+              (expect (doct '((":custom test" :keys "c" :file "" :implicit t
+                               :custom (:keys "Moog"))))
+                      :to-equal
+                      '(("c" ":custom test" entry (file "") nil
+                         :doct-custom (:keys "Moog" :implicit t)))))
+          (it "errors if :custom's value is not a plist"
+              (expect (doct '((":custom test" :keys "c" :file "" :implicit t
+                               :custom ("oops"))))
+                      :to-throw 'user-error)))
 (describe "Type checking"
           (let ((types '(nil
                          t
@@ -155,7 +165,7 @@ three"))))
                   (expect (doct `(("test" :keys "t" :file ,garbage)))
                           :to-throw 'user-error)))))
 (describe "%doct(KEYWORD) syntax"
-          (before-each (setq org-capture-plist '(:doct-options (:test "passed"))))
+          (before-each (setq org-capture-plist '(:doct-custom (:test "passed"))))
           (it "should expand metadata at capture time"
               (expect (funcall (doct--maybe-expand-template-string "it %doct(test)"))
                       :to-equal "it passed"))
@@ -189,7 +199,7 @@ three"))))
                                                (string-match val
                                                              (symbol-name major-mode)))
                                              '("org-mode" "elisp-mode"))))))))
-          (it "should not be added to doct-options"
+          (it "should not be added to doct-custom"
               (expect (doct '(("Context test" :keys "c" :file ""
                                :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
                       :to-equal '(("c" "Context test" entry (file "") nil))))

@@ -106,8 +106,9 @@ Its value is not stored between invocations to doct.")
   "Keywords that define a templates contexts.")
 
 (defvar doct-recognized-keywords `(:children
-                                   :keys
+                                   :custom
                                    :doct-keys
+                                   :keys
                                    :type
                                    ,@(append
                                       ;;:function is in two categories
@@ -129,12 +130,12 @@ Its value is not stored between invocations to doct.")
 
 ;;;###autoload
 (defun doct-get (keyword)
-  "Return KEYWORD's value from doct-options in `org-capture-plist'.
+  "Return KEYWORD's value from doct-custom in `org-capture-plist'.
 Intended to be used at capture template time."
-  (plist-get (plist-get org-capture-plist :doct-options) keyword))
+  (plist-get (plist-get org-capture-plist :doct-custom) keyword))
 
 (defun doct--replace-template-strings (string)
-  "Replace STRING's %doct(KEYWORD) occurrences with their doct-options values."
+  "Replace STRING's %doct(KEYWORD) occurrences with their doct-custom values."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
@@ -266,6 +267,22 @@ FILE-TARGET is the value for PLIST's :file keyword."
                   `((stringp listp functionp) ,template ,doct--current)))))
     (_ nil)))
 
+(defun doct-plist-p (list)
+  "Non-null if and only if LIST is a plist with keyword keys."
+  (while (consp list)
+    (setq list (if (and (keywordp (car list))
+                        (consp (cdr list)))
+                   (cddr list)
+                 'not-plist)))
+  (null list))
+
+(defun doct--custom (plist)
+  "Type check and return PLIST's custom property."
+  (when-let ((custom (plist-get plist :custom)))
+    (unless (doct-plist-p custom)
+      (signal 'doct-wrong-type-argument `(plist ,custom ,doct--current)))
+    custom))
+
 (defun doct--additional-properties (plist)
   "Convert PLIST's additional properties to Org capture syntax.
 Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
@@ -282,7 +299,11 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
                  (member keyword doct-recognized-keywords)))
         (push keyword custom-properties)
         (push (plist-get plist keyword) custom-properties))))
-    `(,(nreverse additional-options) ,(nreverse custom-properties))))
+    `(,(nreverse additional-options)
+      ,(let ((custom (nreverse custom-properties)))
+             (if-let ((explicit (doct--custom plist)))
+                 `(,@explicit ,@custom)
+               custom)))))
 
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
@@ -388,7 +409,7 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                         (doct--additional-properties properties)))
               `(,@(car additional-properties)
                 ,@(when-let ((custom-opts (cadr additional-properties)))
-                    `(:doct-options ,custom-opts))))))))
+                    `(:doct-custom ,custom-opts))))))))
 
 (defun doct--convert-constraint-keyword (keyword)
   "Convert KEYWORD to `org-capture-templates-contexts' equivalent symbol."
@@ -723,13 +744,24 @@ Key-value pairs define additional options.
 
 see `org-capture-templates' for a full list of additional options.
 
-Custom options
-==============
+Custom data
+===========
 
 doct stores unrecognized keywords on the template's `org-capture-plist' \
-as members of the doct--options plist.
+as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
-See \"Doct String Expansion\" below for more detail.
+See \"Doct String Expansion\" below for detail on using that data.
+
+The :custom keyword accepts a plist.
+The doct-custom plist stores its elements.
+This is only necessary if you wish to use a keyword which doct already uses.
+For example:
+  (doct \\='((\"Music Gear\" :keys \"m\" :file ""
+              :custom (:keys \"Moog\")))
+
+returns:
+
+  (\"m\" \"Music Gear\" entry (file \"\") nil :doct-custom (:keys \"Moog\"))
 
 Children
 ========

@@ -66,7 +66,7 @@ becomes:
       -  [[#target][Target]]
       -  [[#template][Template]]
       -  [[#additional-options][Additional options]]
-      -  [[#custom-options][Custom options]]
+      -  [[#custom-options][Custom data]]
       -  [[#doct-string-expansion][%doct String Expansion]]
       -  [[#hooks][Hooks]]
       -  [[#contexts][Contexts]]
@@ -361,10 +361,26 @@ returns:
 
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
-**** Custom options
-~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct--options plist.
+**** Custom data
+~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
-See [[#doct-string-expansion][%doct String Expansion]] for details.
+See [[#doct-string-expansion][%doct String Expansion]] for details on using that data.
+
+The ~:custom~ keyword accepts a plist.
+doct copies the plist's values to the doct-custom plist.
+This is only necessary if you wish to use a keyword which doct already uses.
+
+For example:
+#+begin_src emacs-lisp
+(doct '(("Music Gear" :keys "m" :file ""
+         :custom (:keys "Moog"))
+#+end_src
+
+returns:
+
+#+begin_src emacs-lisp
+("m" "Music Gear" entry (file "") nil :doct-custom (:keys "Moog"))
+#+end_src
 
 **** %doct String Expansion
 :PROPERTIES:
