@@ -454,13 +454,13 @@ The following keywords are available to create contextual rules:
 - :in-buffer regexp ::
   Show template when REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Only in *scratch*" :keys "n" :file "" :contexts ((:in-buffer "^*scratch*$")))))
+(doct '(("Only in *scratch*" :keys "n" :file "" :contexts ((:in-buffer "^\\*scratch\\*$")))))
 #+end_src
 
 - :unless-buffer regexp ::
   Show template unless REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Except in *scratch*" :keys "n" :file "" :contexts ((:unless-buffer "^*scratch*$")))))
+(doct '(("Except in *scratch*" :keys "n" :file "" :contexts ((:unless-buffer "^\\*scratch\\*$")))))
 #+end_src
 
 - :in-file regexp ::
