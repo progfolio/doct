@@ -11,13 +11,12 @@
 (describe "DOCT")
 (describe "Inheritance"
   (it "prefixes children keys with ancestor keys"
-    (expect
-     (doct '(("parent" :keys "p"
-              :children
-              (("one" :keys "o" :file "") ("two" :keys "t" :file "")))))
-     :to-equal
-     '(("p" "parent") ("po" "one" entry (file "") nil)
-       ("pt" "two" entry (file "") nil))))
+    (expect (doct '(("parent" :keys "p"
+                     :children
+                     (("one" :keys "o" :file "") ("two" :keys "t" :file "")))))
+            :to-equal
+            '(("p" "parent") ("po" "one" entry (file "") nil)
+              ("pt" "two" entry (file "") nil))))
   (it "puts ancestors properties on descendants."
     (expect (doct '(("parent" :keys "p" :foo t :file ""
                      :children ("child" :keys "c"))))
@@ -43,8 +42,7 @@
     (expect (doct '(("parent" :keys "p" :function (lambda () (ignore))
                      :children ("child" :keys "c" :file "" :function nil :template nil))))
             :to-equal
-            '(("p" "parent")
-              ("pc" "child" entry (file "") nil))))
+            '(("p" "parent") ("pc" "child" entry (file "") nil))))
   (describe "Group"
     (it "errors if group has a :keys property"
       (expect (doct '((:group "Test Group" :keys "a")))
@@ -164,6 +162,32 @@ three"))))
   (it "should be able to be inlined in another string"
     (expect (funcall (doct--maybe-expand-template-string "it-%doct(test)!"))
             :to-equal "it-passed!")))
+(describe "Contexts"
+  (before-each (setq org-capture-templates-contexts nil))
+  (it "should add single context for a template"
+    (doct '(("Context test" :keys "c" :file ""
+             :contexts ((:in-buffer "test.org")))))
+    (expect org-capture-templates-contexts
+            :to-equal '(("c" ((in-buffer . "test.org"))))))
+  (it "should add a single inherited context for a template"
+    (doct '(("Parent" :keys "p" :contexts ((:in-buffer "test.org"))
+             :children ("Child" :keys "c" :file ""))))
+    (expect org-capture-templates-contexts
+            :to-equal '(("pc" ((in-buffer . "test.org"))))))
+  (it "should accept a list of modes per context rule"
+    (doct '(("Context test" :keys "c" :file "" :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
+    (expect org-capture-templates-contexts
+            :to-equal '(("c" (#'(lambda nil
+                                  (seq-some
+                                   (lambda
+                                     (val)
+                                     (string-match val
+                                                   (symbol-name major-mode)))
+                                   '("org-mode" "elisp-mode"))))))))
+  (it "should not be added to doct-options"
+    (expect (doct '(("Context test" :keys "c" :file ""
+                     :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
+            :to-equal '(("c" "Context test" entry (file "") nil)))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here

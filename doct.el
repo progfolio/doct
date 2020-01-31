@@ -31,6 +31,7 @@
 ;;; Code:
 (require 'subr-x)
 (require 'seq)
+(require 'org-capture)
 
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
@@ -94,6 +95,16 @@ Its value is not stored between invocations to doct.")
 (defvar doct-template-keywords '(:template :template-file)
   "Keywords that define the template string.")
 
+(defvar doct-context-keywords '(:contexts
+                                :in-buffer
+                                :in-file
+                                :in-mode
+                                :unless-buffer
+                                :unless-file
+                                :unless-mode
+                                :function)
+  "Keywords that define a templates contexts.")
+
 (defvar doct-recognized-keywords `(:children
                                    :keys
                                    :doct-keys
@@ -106,7 +117,8 @@ Its value is not stored between invocations to doct.")
                                       doct-exclusive-location-keywords
                                       doct-hook-keywords
                                       doct-template-keywords
-                                      doct-option-keywords))
+                                      doct-option-keywords
+                                      doct-context-keywords))
   "List of the keywords doct recognizes.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
@@ -115,15 +127,11 @@ Its value is not stored between invocations to doct.")
 (define-error 'doct-no-target "Form has no target" 'doct-error)
 (define-error 'doct-no-template "Form has no template" 'doct-error)
 
-(defvaralias 'doct-org-capture-plist 'org-capture-plist
-  "Alias to silence package-lint warning.
-`doct-get' is only used after org-capture is loaded.")
-
 ;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-options in `org-capture-plist'.
 Intended to be used at capture template time."
-  (plist-get (plist-get doct-org-capture-plist :doct-options) keyword))
+  (plist-get (plist-get org-capture-plist :doct-options) keyword))
 
 (defun doct--replace-template-strings (string)
   "Replace STRING's %doct(KEYWORD) occurrences with their doct-options values."
@@ -382,6 +390,49 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                 ,@(when-let ((custom-opts (cadr additional-properties)))
                     `(:doct-options ,custom-opts))))))))
 
+(defun doct--convert-constraint-keyword (keyword)
+  "Convert KEYWORD to `org-capture-templates-contexts' equivalent symbol."
+  (let ((name (symbol-name keyword)))
+    (intern (if (string-prefix-p ":unless" name)
+                (replace-regexp-in-string "^:unless" "not-in" name)
+              (replace-regexp-in-string "^:" "" name)))))
+
+(defmacro doct--constraint-function (constraint value)
+  "CONSTRAINT is a context keyword. VALUE is its value in the current rule."
+  (let* ((name (symbol-name constraint))
+         (test `(string-match val ,(cond
+                                    ((string-suffix-p "buffer" name) '(buffer-name))
+                                    ((string-suffix-p "file" name) '(or (buffer-file-name) ""))
+                                    ((string-suffix-p "mode" name) '(symbol-name major-mode)))))
+         (fn `(seq-some (lambda (val) ,test) ',value)))
+    (if (string-prefix-p ":unless" name)
+        `(lambda ()
+           (not ,fn))
+      `(lambda () ,fn))))
+
+(defun doct--add-contexts (properties)
+  "Set up `org-capture-template-contexts' for PROPERTIES."
+  (let ((contexts (plist-get properties :contexts))
+        (template-keys (doct--keys properties))
+        rules)
+    (dolist (context contexts)
+      (let* ((first-keyword (doct--first-in context doct-context-keywords))
+             (constraint (car first-keyword))
+             (constraint-value (cadr first-keyword))
+             (context-keys (plist-get context :keys))
+             (rule-list
+              `(,(cond
+                  ((eq constraint :function) constraint-value)
+                  ((stringp constraint-value)
+                   `(,(doct--convert-constraint-keyword constraint)
+                     . ,constraint-value))
+                  ((listp constraint-value)
+                   (macroexpand `(doct--constraint-function ,constraint ,constraint-value))))))
+             (rule (delq nil `(,template-keys ,context-keys ,rule-list))))
+        (push rule rules)))
+    (dolist (rule (nreverse rules))
+      (add-to-list 'org-capture-templates-contexts rule))))
+
 (defun doct--convert (name &rest properties)
   "Convert declarative form to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
@@ -406,7 +457,9 @@ For a full description of the PROPERTIES plist see `doct'."
                                (if (seq-every-p #'listp children)
                                    children
                                  `(,children)))))
-      (unless children (doct--add-hooks name properties keys))
+      (unless children
+        (doct--add-hooks name properties keys)
+        (doct--add-contexts properties))
       (unless group
         (setq entry (doct--compose-entry keys name properties children)))
       (if children

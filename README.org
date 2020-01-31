@@ -127,6 +127,42 @@ Returns:
  ("wb" "Browsing"   entry (file "~/org/work.org") "* Browsing %x"))
 #+end_src
 
+**** Name & Keys
+Every declaration must define a name. Unless it is a group , it must also define a ~:keys~ value.
+The name is the first value in the declaration. The ~:keys~ keyword defines the keys to access the template
+from the capture menu.
+
+#+begin_src emacs-lisp
+(doct '(("example" :keys "e" ...)))
+#+end_src
+
+returns:
+
+#+begin_src emacs-lisp
+(("e" "example" ...))
+#+end_src
+
+**** Children
+A parent declaration may contain a single or list of ~:children~ declarations.
+The parent's ~:keys~ prefix each child's ~:keys~.
+
+#+begin_src emacs-lisp
+(doct '(("parent" :keys "p"
+         :children
+         (("child" :keys "c"
+           :children
+           (("grandchild" :keys "g"
+             :file ""
+             :type plain
+             :template "test")))))))
+#+end_src
+
+returns:
+
+#+begin_src emacs-lisp
+(("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
+#+end_src
+
 **** Inherited Properties
 A child inherits its ancestors' properties.
 It may optionally override an inherited property by specifying that property directly.
@@ -152,21 +188,6 @@ The "Parent" declaration could override this value:
 #+end_src
 
 And the "Child" would have its ~:file~ property set to "overridden.org".
-
-**** Name & Keys
-Every declaration must define a name. Unless it is a group, it must also define a ~:keys~ value.
-The name is the first value in the declaration. The ~:keys~ keyword defines the keys to access the template
-from the capture menu.
-
-#+begin_src emacs-lisp
-(doct '(("example" :keys "e" ...)))
-#+end_src
-
-returns:
-
-#+begin_src emacs-lisp
-(("e" "example" ...))
-#+end_src
 
 **** Type
 
@@ -319,27 +340,6 @@ see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][O
 This makes a template's metadata accessible during capture.
 See [[#doct-string-expansion]] for details.
 
-**** Children
-A parent declaration may contain a single or list of ~:children~ declarations.
-The parent's ~:keys~ prefix each child's ~:keys~.
-
-#+begin_src emacs-lisp
-(doct '(("parent" :keys "p"
-         :children
-         (("child" :keys "c"
-           :children
-           (("grandchild" :keys "g"
-             :file ""
-             :type plain
-             :template "test")))))))
-#+end_src
-
-returns:
-
-#+begin_src emacs-lisp
-(("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))
-#+end_src
-
 **** %doct String Expansion
 :PROPERTIES:
 :CUSTOM_ID: doct-string-expansion
@@ -421,6 +421,67 @@ It can be removed using `doct-remove-hooks' like so:
 
 and adds it to the org-capture-mode-hook.
 See =doct-remove-hooks= to remove and unintern generated functions.
+
+**** Contexts
+The ~:contexts~ keyword defines a list of contextual rules for a template.
+The following keywords are available to create contextual rules:
+
+- :in-buffer ::
+  Only show the template when the ~:in-buffer~ regexp matches the current buffer's name.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Only in *scratch*" :keys "n" :file "" :contexts ((:in-buffer "^*scratch*$")))))
+#+end_src
+
+- :unless-buffer ::
+  Only show the template when the ~:unless-buffer~ regexp does not match the current buffer's name.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Except in *scratch*" :keys "n" :file "" :contexts ((:unless-buffer "^*scratch*$")))))
+#+end_src
+
+- :in-file ::
+  Only show the template when the ~:in-file~ regexp matches the current buffer's file name.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Only in work.org" :keys "n" :file "" :contexts ((:in-file "work\\.org$")))))
+#+end_src
+
+- :unless-file ::
+  Only show the template when the ~:unless-file~ regexp does not match the current buffer's file name.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Except in work.org" :keys "n" :file "" :contexts ((:unless-file "work\\.org$")))))
+#+end_src
+
+- :in-mode ::
+  Only show the template when the ~:in-mode~ regexp matches the current buffer's major mode.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Only in org-mode" :keys "n" :file "" :contexts ((:in-mode "org-mode")))))
+#+end_src
+
+- :unless-mode ::
+  Only show the template when the ~:unless-mode~ regexp does not match the current buffer's major mode.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Except in org-mode" :keys "n" :file "" :contexts ((:unless-mode "org-mode")))))
+#+end_src
+
+- :function ::
+  Only show the template when function returns non-nil. The function is not passed any arguments.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Between 9AM and 5PM" :keys "n" :file ""
+         :contexts ((:function (lambda () (<= 9 (string-to-number (format-time-string "%H")) 17))))))))
+#+end_src
+
+Adding ~:keys~ to a rule does the same as above, but remaps the template's keys to the template with keys matching the ~:keys~ string.
+For example:
+#+begin_src emacs-lisp :results scalar
+(doct '(("In *scratch* remapped to t, else use original template"
+         :keys "n" :file "" :contexts ((:unless-buffer "^\\*scratch\\*$" :keys "n")
+                                       (:in-buffer     "^\\*scratch\\*$" :keys "t")))))
+#+end_src
+
+The above rule keywords, spare ~:function~, may also take a list of strings for their values.
+#+begin_src emacs-lisp
+(doct '(("Only in org-mode or emacs-lisp-mode" :keys "n" :file ""
+         :contexts ((:in-mode ("org-mode" "emacs-lisp-mode"))))))
+#+end_src
 
 *** Custom Variables
 ~doct~ supports the following variables for customization:
