@@ -82,29 +82,30 @@
                       :to-equal
                       '(("f" "ffte-test"
                          entry (file+olp "" "one" "two" "three") nil))))
-          (it "should not return a dotted list when its target is a string."
+          (it "is not a dotted list when its target is a string."
               (expect (doct '(("test" :keys "t" :type entry :file "")))
                       :to-equal
                       '(("t" "test" entry (file "") nil))))
-          (it "should not have a cdr when :clock is the target."
-              (should (equal (doct '(("clock-test" :keys "c"
-                                      :clock t
-                                      :template "test")))
-                             '(("c" "clock-test" entry (clock) "test"))))))
+          (it "has no cdr when :clock is the target."
+              (expect (doct '(("clock-test" :keys "c"
+                               :clock t
+                               :template "test")))
+                      :to-equal
+                      '(("c" "clock-test" entry (clock) "test")))))
 (describe "Template"
           (it "overrides other template target keywords"
               (expect (doct '(("ftt-test" :keys "tt" :type entry :id "1"
                                :template-file "./template.txt" :template "ignored")))
                       :to-equal
                       '(("tt" "ftt-test" entry (id "1") (file "./template.txt")))))
-          (it "should join multiple strings with a newline"
+          (it "joins multiple strings with a newline"
               (expect (doct '(("template join test" :keys "t" :file ""
                                :template ("one" "two" "three"))))
                       :to-equal
                       '(("t" "template join test" entry (file "") "one
 two
 three"))))
-          (it "should be returned verbatim when it is a string"
+          (it "is returned verbatim when it is a string"
               (expect (doct '(("template join test" :keys "t" :file ""
                                :template "test")))
                       :to-equal
@@ -166,30 +167,30 @@ three"))))
                           :to-throw 'user-error)))))
 (describe "%doct(KEYWORD) syntax"
           (before-each (setq org-capture-plist '(:doct-custom (:test "passed"))))
-          (it "should expand metadata at capture time"
+          (it "expands metadata at capture time"
               (expect (funcall (doct--maybe-expand-template-string "it %doct(test)"))
                       :to-equal "it passed"))
-          (it "should be able to be inlined in another string"
+          (it "expands when inlined in another string"
               (expect (funcall (doct--maybe-expand-template-string "it-%doct(test)!"))
                       :to-equal "it-passed!")))
 (describe "Contexts"
           (before-each (setq org-capture-templates-contexts nil))
-          (it "should allow a single context rule"
+          (it "allows a single context rule"
               (doct '(("Context test" :keys "c" :file ""
                        :contexts (:in-buffer "test.org"))))
               (expect org-capture-templates-contexts
                       :to-equal '(("c" ((in-buffer . "test.org"))))))
-          (it "should add single context for a template"
+          (it "adds single context for a template"
               (doct '(("Context test" :keys "c" :file ""
                        :contexts ((:in-buffer "test.org")))))
               (expect org-capture-templates-contexts
                       :to-equal '(("c" ((in-buffer . "test.org"))))))
-          (it "should add a single inherited context for a template"
+          (it "adds a single inherited context for a template"
               (doct '(("Parent" :keys "p" :contexts ((:in-buffer "test.org"))
                        :children ("Child" :keys "c" :file ""))))
               (expect org-capture-templates-contexts
                       :to-equal '(("pc" ((in-buffer . "test.org"))))))
-          (it "should accept a list of modes per context rule"
+          (it "accepts a list of values per context rule"
               (doct '(("Context test" :keys "c" :file "" :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
               (expect org-capture-templates-contexts
                       :to-equal '(("c" (#'(lambda nil
@@ -199,19 +200,19 @@ three"))))
                                                (string-match val
                                                              (symbol-name major-mode)))
                                              '("org-mode" "elisp-mode"))))))))
-          (it "should not be added to doct-custom"
+          (it "is not be added to doct-custom"
               (expect (doct '(("Context test" :keys "c" :file ""
                                :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
                       :to-equal '(("c" "Context test" entry (file "") nil))))
-          (it "should error if no context rule keyword is found"
+          (it "errors if no context rule keyword is found"
               (expect (doct '(("Context test" :keys "c" :file ""
                                :contexts (:foo t :keys "oops"))))
                       :to-throw 'user-error))
-          (it "should error if context rule's :function value is not a function"
+          (it "errors if context rule's :function value is not a function"
               (expect (doct '(("Context :function test" :keys "cf" :file ""
                                :contexts (:function t))))
                       :to-throw 'user-error))
-          (it "should error if context rule's value is not a string or list of strings"
+          (it "errors if context rule's value is not a string or list of strings"
               (expect (doct '(("Context :function test" :keys "cf" :file ""
                                :contexts (:in-buffer (2)))))
                       :to-throw 'user-error)))
