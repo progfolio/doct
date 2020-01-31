@@ -144,7 +144,7 @@ It must not have a ~:keys~ value.
           ("Browsing" :keys "b" :template "* Browsing %x")))))
 #+end_src
 
-Returns:
+returns:
 
 #+begin_src emacs-lisp
 (("w" "Work")
