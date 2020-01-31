@@ -201,8 +201,7 @@ The ~:type~ keyword defines the template's entry type and accepts the following 
   A plain list item, placed in the first plain list at the target location.
 
 - checkitem ::
-  A checkbox item. This differs from the plain list item only in so far as it
-  uses a different default template.
+  A checkbox item. Same as plain list item only it uses a different default template.
 
 - table-line ::
   A new line in the first table at target location.
@@ -426,44 +425,45 @@ See =doct-remove-hooks= to remove and unintern generated functions.
 The ~:contexts~ keyword defines a list of contextual rules for a template.
 The following keywords are available to create contextual rules:
 
-- :in-buffer ::
-  Only show the template when the ~:in-buffer~ regexp matches the current buffer's name.
+- :in-buffer regexp ::
+  Show template when REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Only in *scratch*" :keys "n" :file "" :contexts ((:in-buffer "^*scratch*$")))))
 #+end_src
 
-- :unless-buffer ::
-  Only show the template when the ~:unless-buffer~ regexp does not match the current buffer's name.
+- :unless-buffer regexp ::
+  Show template unless REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Except in *scratch*" :keys "n" :file "" :contexts ((:unless-buffer "^*scratch*$")))))
 #+end_src
 
-- :in-file ::
-  Only show the template when the ~:in-file~ regexp matches the current buffer's file name.
+- :in-file regexp ::
+  Show template when REGEXP matches the current buffer's file name.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Only in work.org" :keys "n" :file "" :contexts ((:in-file "work\\.org$")))))
 #+end_src
 
-- :unless-file ::
-  Only show the template when the ~:unless-file~ regexp does not match the current buffer's file name.
+- :unless-file regexp ::
+  Show template unless REGEXP matches the current buffer's file name.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Except in work.org" :keys "n" :file "" :contexts ((:unless-file "work\\.org$")))))
 #+end_src
 
-- :in-mode ::
-  Only show the template when the ~:in-mode~ regexp matches the current buffer's major mode.
+- :in-mode regexp ::
+  Show template when REGEXP matches the current buffer's major mode.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Only in org-mode" :keys "n" :file "" :contexts ((:in-mode "org-mode")))))
 #+end_src
 
-- :unless-mode ::
-  Only show the template when the ~:unless-mode~ regexp does not match the current buffer's major mode.
+- :unless-mode regexp ::
+  Show template unless REGEXP matches the current buffer's major mode.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Except in org-mode" :keys "n" :file "" :contexts ((:unless-mode "org-mode")))))
 #+end_src
 
 - :function ::
-  Only show the template when function returns non-nil. The function is not passed any arguments.
+  Show template when function returns non-nil.
+  The function is not passed any arguments.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Between 9AM and 5PM" :keys "n" :file ""
          :contexts ((:function (lambda () (<= 9 (string-to-number (format-time-string "%H")) 17))))))))
