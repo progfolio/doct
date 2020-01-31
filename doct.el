@@ -301,9 +301,9 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
         (push (plist-get plist keyword) custom-properties))))
     `(,(nreverse additional-options)
       ,(let ((custom (nreverse custom-properties)))
-             (if-let ((explicit (doct--custom plist)))
-                 `(,@explicit ,@custom)
-               custom)))))
+         (if-let ((explicit (doct--custom plist)))
+             `(,@explicit ,@custom)
+           custom)))))
 
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
@@ -755,7 +755,7 @@ The :custom keyword accepts a plist.
 The doct-custom plist stores its elements.
 This is only necessary if you wish to use a keyword which doct already uses.
 For example:
-  (doct \\='((\"Music Gear\" :keys \"m\" :file ""
+  (doct \\='((\"Music Gear\" :keys \"m\" :file""
               :custom (:keys \"Moog\")))
 
 returns:
