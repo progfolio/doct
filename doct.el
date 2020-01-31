@@ -410,28 +410,40 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
            (not ,fn))
       `(lambda () ,fn))))
 
+(defun doct--constraint-rule-list (constraint value)
+  "Create a rule list for CONSTRAINT with VALUE."
+  `(,(cond
+      ((eq constraint :function) (if (functionp value)
+                                     `(function ,value)
+                                   (signal 'doct-wrong-type-argument
+                                           `(functionp ,value ,doct--current))))
+      ((stringp value)
+       `(,(doct--convert-constraint-keyword constraint)
+         . ,value))
+      ((and (listp value) (seq-every-p #'stringp value))
+       (macroexpand
+        `(doct--constraint-function ,constraint ,value)))
+      (t (signal 'doct-wrong-type-argument
+                 `(stringp listp ,value ,doct--current))))))
+
 (defun doct--add-contexts (properties)
   "Set up `org-capture-template-contexts' for PROPERTIES."
-  (let ((contexts (plist-get properties :contexts))
-        (template-keys (doct--keys properties))
-        rules)
-    (dolist (context contexts)
-      (let* ((first-keyword (doct--first-in context doct-context-keywords))
-             (constraint (car first-keyword))
-             (constraint-value (cadr first-keyword))
-             (context-keys (plist-get context :keys))
-             (rule-list
-              `(,(cond
-                  ((eq constraint :function) constraint-value)
-                  ((stringp constraint-value)
-                   `(,(doct--convert-constraint-keyword constraint)
-                     . ,constraint-value))
-                  ((listp constraint-value)
-                   (macroexpand `(doct--constraint-function ,constraint ,constraint-value))))))
-             (rule (delq nil `(,template-keys ,context-keys ,rule-list))))
-        (push rule rules)))
-    (dolist (rule (nreverse rules))
-      (add-to-list 'org-capture-templates-contexts rule))))
+  (when-let ((contexts (plist-get properties :contexts))
+             (context-keywords (remq :contexts doct-context-keywords)))
+    (let ((template-keys (doct--keys properties))
+          rules)
+      ;;allow a single context rule or a list of context rules
+      (dolist (context (if (seq-every-p #'listp contexts) contexts `(,contexts)))
+        (if-let ((first-keyword (doct--first-in context context-keywords)))
+            (let* ((constraint (car first-keyword))
+                   (value (cadr first-keyword))
+                   (context-keys (plist-get context :keys))
+                   (rule-list (doct--constraint-rule-list constraint value))
+                   (rule (delq nil `(,template-keys ,context-keys ,rule-list))))
+              (push rule rules))
+          (signal 'doct-wrong-type-argument `(,@context-keywords nil ,doct--current))))
+      (dolist (rule (nreverse rules))
+        (add-to-list 'org-capture-templates-contexts rule)))))
 
 (defun doct--convert (name &rest properties)
   "Convert declarative form to a template named NAME with PROPERTIES.
