@@ -95,8 +95,7 @@ Its value is not stored between invocations to doct.")
 (defvar doct-template-keywords '(:template :template-file)
   "Keywords that define the template string.")
 
-(defvar doct-context-keywords '(:contexts
-                                :in-buffer
+(defvar doct-context-keywords '(:in-buffer
                                 :in-file
                                 :in-mode
                                 :unless-buffer
@@ -106,6 +105,7 @@ Its value is not stored between invocations to doct.")
   "Keywords that define a templates contexts.")
 
 (defvar doct-recognized-keywords `(:children
+                                   :contexts
                                    :custom
                                    :doct-keys
                                    :keys
@@ -449,20 +449,19 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
 
 (defun doct--add-contexts (properties)
   "Set up `org-capture-template-contexts' for PROPERTIES."
-  (when-let ((contexts (plist-get properties :contexts))
-             (context-keywords (remq :contexts doct-context-keywords)))
+  (when-let ((contexts (plist-get properties :contexts)))
     (let ((template-keys (doct--keys properties))
           rules)
       ;;allow a single context rule or a list of context rules
       (dolist (context (if (seq-every-p #'listp contexts) contexts `(,contexts)))
-        (if-let ((first-keyword (doct--first-in context context-keywords)))
+        (if-let ((first-keyword (doct--first-in context doct-context-keywords)))
             (let* ((constraint (car first-keyword))
                    (value (cadr first-keyword))
                    (context-keys (plist-get context :keys))
                    (rule-list (doct--constraint-rule-list constraint value))
                    (rule (delq nil `(,template-keys ,context-keys ,rule-list))))
               (push rule rules))
-          (signal 'doct-wrong-type-argument `(,@context-keywords nil ,doct--current))))
+          (signal 'doct-wrong-type-argument `(,@doct-context-keywords nil ,doct--current))))
       (dolist (rule (nreverse rules))
         (add-to-list 'org-capture-templates-contexts rule)))))
 
