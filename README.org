@@ -47,6 +47,32 @@ becomes:
                            :todo-state "MAYBE"))))))
 #+end_src
 
+** Contents
+:PROPERTIES:
+:TOC:      this
+:END:
+-  [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
+  -  [[#tldr][tl;dr]]
+  -  [[#installation][Installation]]
+  -  [[#documentation][Documentation]]
+    -  [[#doct][doct]]
+      -  [[#child][Child]]
+      -  [[#parent][Parent]]
+      -  [[#group][Group]]
+      -  [[#name--keys][Name & Keys]]
+      -  [[#children][Children]]
+      -  [[#inherited-properties][Inherited Properties]]
+      -  [[#type][Type]]
+      -  [[#target][Target]]
+      -  [[#template][Template]]
+      -  [[#additional-options][Additional options]]
+      -  [[#custom-options][Custom options]]
+      -  [[#doct-string-expansion][%doct String Expansion]]
+      -  [[#hooks][Hooks]]
+      -  [[#contexts][Contexts]]
+    -  [[#custom-variables][Custom Variables]]
+    -  [[#contributing][Contributing]]
+
 ** Installation
 Until I submit this package to MELPA, the following are the easiest ways to install ~doct~.
 If you're using:
