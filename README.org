@@ -169,7 +169,8 @@ returns:
 #+end_src
 
 **** Children
-A parent declaration may contain a single or list of ~:children~ declarations.
+The ~:children~ keyword defines a parent's children.
+Its value may be a single declaration or a list of declarations.
 The parent's ~:keys~ prefix each child's ~:keys~.
 
 #+begin_src emacs-lisp
@@ -209,7 +210,7 @@ The "Parent" declaration could override this value:
 (doct '(("Grandparent" :keys "g"
          :file "example.org"
          :children ("Parent" :keys "p"
-                    :file "overriden.org"
+                    :file "overridden.org"
                     :children ("Child" :keys "c")))))
 #+end_src
 
@@ -448,7 +449,8 @@ and adds it to the org-capture-mode-hook.
 See =doct-remove-hooks= to remove and unintern generated functions.
 
 **** Contexts
-The ~:contexts~ keyword defines a list of contextual rules for a template.
+The ~:contexts~ keyword defines contextual rules for a template.
+Its value may be a single contextual rule or a list of rules.
 The following keywords are available to create contextual rules:
 
 - :in-buffer regexp ::

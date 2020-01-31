@@ -734,7 +734,8 @@ See \"Doct String Expansion\" below for more detail.
 Children
 ========
 
-A parent declaration may contain a single or list of :children declarations.
+The :children keyword defines a parent's children.
+Its value may be a single declaration or a list of declarations.
 The parent's :keys prefix each child's :keys.
 
   (doct \\='((\"parent\" :keys \"p\"
@@ -820,7 +821,8 @@ See `doct-remove-hooks' to remove and unintern generated functions.
 Contexts
 ========
 
-The :contexts keyword defines a list of contextual rules for a template.
+The :contexts keyword defines contextual rules for a template.
+Its value may be a single contextual rule or a list of rules.
 The following keywords are available to create contextual rules:
 
   - :in-buffer regexp ::
