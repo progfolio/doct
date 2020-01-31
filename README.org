@@ -66,7 +66,7 @@ becomes:
       -  [[#target][Target]]
       -  [[#template][Template]]
       -  [[#additional-options][Additional options]]
-      -  [[#custom-options][Custom data]]
+      -  [[#custom-data][Custom data]]
       -  [[#doct-string-expansion][%doct String Expansion]]
       -  [[#hooks][Hooks]]
       -  [[#contexts][Contexts]]
@@ -362,6 +362,9 @@ returns:
 see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][Org Mode Manual]] for a full list of additional options.
 
 **** Custom data
+:PROPERTIES:
+:CUSTOM_ID: custom-data
+:END:
 ~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
 See [[#doct-string-expansion][%doct String Expansion]] for details on using that data.
