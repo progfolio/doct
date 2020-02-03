@@ -17,7 +17,6 @@
       (org-capture 0 keys)
       (substring-no-properties (buffer-string)))))
 
-
 (describe "DOCT"
   (before-each
     (setq doct-default-entry-type    'entry
@@ -183,14 +182,6 @@ three"))))
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
           (expect (doct `(("test" :keys "t" :file ,garbage)))
                   :to-throw 'user-error)))))
-  (describe "%doct(KEYWORD) syntax"
-    (before-each (setq org-capture-plist '(:doct-custom (:test "passed"))))
-    (it "expands metadata at capture time"
-      (expect (funcall (doct--maybe-expand-template-string "it %doct(test)"))
-              :to-equal "it passed"))
-    (it "expands when inlined in another string"
-      (expect (funcall (doct--maybe-expand-template-string "it-%doct(test)!"))
-              :to-equal "it-passed!")))
   (describe "Contexts"
     (before-each (setq org-capture-templates-contexts nil))
     (it "allows a single context rule"
@@ -233,62 +224,7 @@ three"))))
     (it "errors if context rule's value is not a string or list of strings"
       (expect (doct '(("Context :function test" :keys "cf" :file ""
                        :contexts (:in-buffer (2)))))
-              :to-throw 'user-error))))
-(describe "Options"
-  (it "overrides additional options for the same keyword"
-    (expect (doct '(("test" :keys "t"
-                     :file ""
-                     :immediate-finish t
-                     :custom-option t
-                     :immediate-finish nil
-                     :custom-option nil)))
-            :to-equal
-            '(("t" "test" entry (file "") nil
-               :immediate-finish t
-               :doct-custom (:custom-option t)))))
-  (it "adds :custom data to :doct-custom"
-    (expect (doct '((":custom test" :keys "c" :file "" :implicit t
-                     :custom (:keys "Moog"))))
-            :to-equal
-            '(("c" ":custom test" entry (file "") nil
-               :doct-custom (:keys "Moog" :implicit t)))))
-  (it "errors if :custom's value is not a plist"
-    (expect (doct '((":custom test" :keys "c" :file "" :implicit t
-                     :custom ("oops"))))
-            :to-throw 'user-error)))
-(describe "Type checking"
-  (let ((types '(nil
-                 t
-                 'doct-unbound-symbol
-                 #'function
-                 :keyword 1 1.0
-                 "string"
-                 ?c
-                 '("list"))))
-    (it "errors if name is not a string."
-      ;;Removing symbol because we have :keys.
-      ;;That case is covered in group keys test.
-      (dolist (garbage (seq-remove 'symbolp
-                                   (seq-remove 'stringp types)))
-        (expect (doct `((,garbage :keys "t" :children ())))
-                :to-throw 'user-error)))
-    (it "errors if :keys is not a string."
-      (dolist (garbage (seq-remove 'stringp types))
-        (expect (doct `(("test" :keys ,garbage)))
-                :to-throw 'user-error)))
-    (it "errors if :type is not a valid type symbol."
-      ;;consider nil valid, type will be determined by `doct-default-entry-type'.
-      (dolist (garbage (remq nil types))
-        (expect (doct `(("test" :keys "t" :type ,garbage :file "")))
-                :to-throw 'user-error)))
-    (it "errors if :children is not a list."
-      (dolist (garbage (seq-remove 'listp types))
-        (expect (doct `(("test" :keys "t" :children ,garbage)))
-                :to-throw 'user-error)))
-    (it "errors if :file is not a string, function -> string, variable -> string"
-      (dolist (garbage (delq nil (seq-remove 'stringp types)))
-        (expect (doct `(("test" :keys "t" :file ,garbage)))
-                :to-throw 'user-error)))))
+              :to-throw 'user-error)))
 (describe "%doct(KEYWORD) syntax"
   (it "expands metadata at capture time"
     (expect (let ((org-capture-templates
@@ -313,50 +249,7 @@ three"))))
                             :immediate-finish t
                             :empty-lines 0)))))
               (doct-test--template-string "i"))
-            :to-equal "* TODO-still-works\n")))
-(describe "Contexts"
-  (before-each (setq org-capture-templates-contexts nil))
-  (it "allows a single context rule"
-    (doct '(("Context test" :keys "c" :file ""
-             :contexts (:in-buffer "test.org"))))
-    (expect org-capture-templates-contexts
-            :to-equal '(("c" ((in-buffer . "test.org"))))))
-  (it "adds single context for a template"
-    (doct '(("Context test" :keys "c" :file ""
-             :contexts ((:in-buffer "test.org")))))
-    (expect org-capture-templates-contexts
-            :to-equal '(("c" ((in-buffer . "test.org"))))))
-  (it "adds a single inherited context for a template"
-    (doct '(("Parent" :keys "p" :contexts ((:in-buffer "test.org"))
-             :children ("Child" :keys "c" :file ""))))
-    (expect org-capture-templates-contexts
-            :to-equal '(("pc" ((in-buffer . "test.org"))))))
-  (it "accepts a list of values per context rule"
-    (doct '(("Context test" :keys "c" :file "" :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
-    (expect org-capture-templates-contexts
-            :to-equal '(("c" (#'(lambda nil
-                                  (seq-some
-                                   (lambda
-                                     (val)
-                                     (string-match val
-                                                   (symbol-name major-mode)))
-                                   '("org-mode" "elisp-mode"))))))))
-  (it "is not added to doct-custom"
-    (expect (doct '(("Context test" :keys "c" :file ""
-                     :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
-            :to-equal '(("c" "Context test" entry (file "") nil))))
-  (it "errors if no context rule keyword is found"
-    (expect (doct '(("Context test" :keys "c" :file ""
-                     :contexts (:foo t :keys "oops"))))
-            :to-throw 'user-error))
-  (it "errors if context rule's :function value is not a function"
-    (expect (doct '(("Context :function test" :keys "cf" :file ""
-                     :contexts (:function t))))
-            :to-throw 'user-error))
-  (it "errors if context rule's value is not a string or list of strings"
-    (expect (doct '(("Context :function test" :keys "cf" :file ""
-                     :contexts (:in-buffer (2)))))
-            :to-throw 'user-error)))
+            :to-equal "* TODO-still-works\n"))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here
