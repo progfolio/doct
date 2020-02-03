@@ -149,21 +149,25 @@ Intended to be used at capture template time."
   "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
 
-(defmacro doct--maybe-expand-template-string (template)
-  "If TEMPLATE follows %doct(keyword) syntax, return a lambda.
-Otherwise, return TEMPLATE."
-  (declare (debug template)
-           (indent defun))
-  (if (doct--expansion-syntax-p template)
-      `(lambda ()
-         (doct--replace-template-strings ,template))
-    template))
 
-(defun doct--fill-deferred-template (string)
-  "Replace %doct(KEYWORD) placeholders in STRING at capture time."
-  (if (doct--expansion-syntax-p string)
-      (funcall (macroexpand-1 `(doct--maybe-expand-template-string ,string)))
-    string))
+
+(defun doct--fill-template (val)
+  "Fill VAL."
+  (cond
+   ((stringp val)
+    (if (doct--expansion-syntax-p val)
+        (doct--replace-template-strings val)
+      val))
+   ((functionp val)
+    (doct--fill-template (funcall val)))
+   ((listp val)
+    (unless (seq-every-p #'stringp val)
+      (signal 'doct-wrong-type-argument `((stringp) ,val ,doct--current)))
+    (string-join
+     (if (seq-some #'doct--expansion-syntax-p val)
+         (mapcar #'doct--fill-template val)
+       val) "\n"))
+   (t (signal 'doct-wrong-type-argument `((stringp listp functionp) ,val ,doct--current)))))
 
 (defun doct--first-in (plist keywords)
   "Find first non-nil occurrence of one of KEYWORDS in PLIST.
@@ -238,6 +242,27 @@ FILE-TARGET is the value for PLIST's :file keyword."
                                 '(functionp ,fn ,doct--current))))
     (`(:file ,file) (doct--target-file plist file))))
 
+(defun doct--template-filler (symbol val)
+  "Generate function named SYMBOL to fill current :template VAL at capture time."
+  (eval `(defun ,symbol ()
+           ,(concat "Fill template \""
+                    (car (last (split-string (symbol-name symbol) "/")))
+                    "\" at capture time.")
+           (doct--fill-template ',val))))
+
+(defun doct--defer (plist val)
+  "Return deferred filler function for PLIST with VAL partially applied."
+  (let* ((keys (doct--keys plist))
+         (fill-fn-symbol (intern (concat "doct--fill/" keys)))
+         (fn (doct--template-filler fill-fn-symbol val)))
+    (pcase val
+      ((or (pred functionp) (pred stringp) (pred listp))
+       `(function ,fn))
+      (_ ;;clean up generated function
+       (fmakunbound fill-fn-symbol)
+       (signal 'doct-wrong-type-argument
+               `((stringp listp functionp) ,val ,doct--current))))))
+
 (defun doct--template (plist)
   "Convert PLIST's template target to Org capture template syntax."
   (pcase (doct--first-in plist doct-template-keywords)
@@ -246,26 +271,18 @@ FILE-TARGET is the value for PLIST's :file keyword."
                                (signal 'doct-wrong-type-argument
                                        '(stringp ,file ,doct--current))))
     (`(:template ,template)
+     ;;simple values: nil string, list of strings with no expansion syntax
      (pcase template
        ((or 'nil "") nil)
-       ((pred functionp)
-        `(function (lambda ()
-                     (doct--fill-deferred-template (funcall (function ,template))))))
-       ((pred stringp) (if (doct--expansion-syntax-p template)
-                           `(function
-                             (lambda ()
-                               (doct--fill-deferred-template ,template)))
-                         template))
-       ((and (pred listp) (guard (seq-every-p #'stringp template)))
-        (if (seq-some #'doct--expansion-syntax-p template)
-            `(function
-              (lambda ()
-                (string-join (mapcar #'doct--fill-deferred-template
-                                     ,template) "\n")))
-          (string-join template "\n")))
-       (_ (signal 'doct-wrong-type-argument
-                  `((stringp listp functionp) ,template ,doct--current)))))
-    (_ nil)))
+       ((and (pred stringp)
+             (guard (not (doct--expansion-syntax-p template))))
+        template)
+       ((and (pred listp)
+             (guard (seq-every-p #'stringp template))
+             (guard (not (seq-some #'doct--expansion-syntax-p template))))
+        (string-join template "\n"))
+       ;;other values require filling at template time
+       (deferred (doct--defer plist deferred))))))
 
 (defun doct-plist-p (list)
   "Non-null if and only if LIST is a plist with keyword keys."

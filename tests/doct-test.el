@@ -118,15 +118,40 @@
       (expect (doct '(("template join test" :keys "t" :file ""
                        :template ("one" "two" "three"))))
               :to-equal
-              '(("t" "template join test" entry (file "") "one
-two
-three"))))
+              '(("t" "template join test" entry (file "") "one\ntwo\nthree"))))
 
     (it "is returned verbatim when it is a string"
       (expect (doct '(("template join test" :keys "t" :file ""
                        :template "test")))
               :to-equal
-              '(("t" "template join test" entry (file "") "test")))))
+              '(("t" "template join test" entry (file "") "test"))))
+    (it "allows lambdas"
+      (expect (let ((org-capture-templates
+                     (doct '(("template lambda test" :keys "t"
+                              :type plain
+                              :file ""
+                              :immediate-finish t
+                              :no-save t
+                              :test "OK"
+                              :empty-lines nil
+                              :template (lambda () (doct-get :test)))))))
+                (doct-test--template-string "t"))
+              :to-equal "OK\n"))
+    (it "allows named functions"
+      (defun doct-test-template ()
+        (doct-get :test))
+      (expect (let ((org-capture-templates
+                     (doct '(("template function test" :keys "t"
+                              :type plain
+                              :file ""
+                              :immediate-finish t
+                              :no-save t
+                              :test "OK"
+                              :empty-lines nil
+                              :template doct-test-template)))))
+                (doct-test--template-string "t"))
+              :to-equal "OK\n")
+      (fmakunbound 'doct-test-template)))
   (describe "Options"
     (it "overrides additional options for the same keyword"
       (expect (doct '(("test" :keys "t"
@@ -225,31 +250,31 @@ three"))))
       (expect (doct '(("Context :function test" :keys "cf" :file ""
                        :contexts (:in-buffer (2)))))
               :to-throw 'user-error)))
-(describe "%doct(KEYWORD) syntax"
-  (it "expands metadata at capture time"
-    (expect (let ((org-capture-templates
-                   (doct '(("fill test" :keys "f"
-                            :template "* %doct(todo-state) %doct(result)"
-                            :file ""
-                            :no-save t
-                            :todo-state "TODO"
-                            :result "WORK"
-                            :immediate-finish t
-                            :empty-lines 0)))))
-              (doct-test--template-string "f"))
-            :to-equal "* TODO WORK\n"))
-  (it "expands when inlined in another string"
-    (expect (let ((org-capture-templates
-                   (doct '(("inline fill test" :keys "i"
-                            :template "* %doct(todo-state)-still-%doct(result)s"
-                            :file ""
-                            :no-save t
-                            :todo-state "TODO"
-                            :result "work"
-                            :immediate-finish t
-                            :empty-lines 0)))))
-              (doct-test--template-string "i"))
-            :to-equal "* TODO-still-works\n"))))
+  (describe "%doct(KEYWORD) syntax"
+    (it "expands metadata at capture time"
+      (expect (let ((org-capture-templates
+                     (doct '(("fill test" :keys "f"
+                              :template "* %doct(todo-state) %doct(result)"
+                              :file ""
+                              :no-save t
+                              :todo-state "TODO"
+                              :result "WORK"
+                              :immediate-finish t
+                              :empty-lines 0)))))
+                (doct-test--template-string "f"))
+              :to-equal "* TODO WORK\n"))
+    (it "expands when inlined in another string"
+      (expect (let ((org-capture-templates
+                     (doct '(("inline fill test" :keys "i"
+                              :template "* %doct(todo-state)-still-%doct(result)s"
+                              :file ""
+                              :no-save t
+                              :todo-state "TODO"
+                              :result "work"
+                              :immediate-finish t
+                              :empty-lines 0)))))
+                (doct-test--template-string "i"))
+              :to-equal "* TODO-still-works\n"))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here
