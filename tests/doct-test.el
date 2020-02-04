@@ -14,7 +14,8 @@
   (let (org-capture-bookmark)
     (with-temp-buffer
       (org-mode)
-      (org-capture 0 keys)
+      (let ((inhibit-message t))
+        (org-capture 0 keys))
       (substring-no-properties (buffer-string)))))
 
 (describe "DOCT"
