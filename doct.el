@@ -452,7 +452,7 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
   "Create a rule list for CONSTRAINT with VALUE."
   `(,(cond
       ((eq constraint :function) (if (functionp value)
-                                     `(function ,value)
+                                     value
                                    (signal 'doct-wrong-type-argument
                                            `(functionp ,value ,doct--current))))
       ((stringp value)
