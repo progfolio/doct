@@ -70,6 +70,7 @@ becomes:
       -  [[#doct-string-expansion][%doct String Expansion]]
       -  [[#hooks][Hooks]]
       -  [[#contexts][Contexts]]
+      -  [[#disabling-templates][Disabling Templates]]
     -  [[#custom-variables][Custom Variables]]
     -  [[#contributing][Contributing]]
 
@@ -529,6 +530,36 @@ The above rule keywords, spare ~:function~, may also take a list of strings for 
 (doct '(("Only in org-mode or emacs-lisp-mode" :keys "n" :file ""
          :contexts ((:in-mode ("org-mode" "emacs-lisp-mode"))))))
 #+end_src
+
+**** Disabling Templates
+:PROPERTIES:
+:CUSTOM_ID: disabling-templates
+:END:
+Setting the ~:disabled~ keyword to t disables a template.
+The template's declaration is not error checked.
+This can be useful if you don't have the time to deal with an error right away.
+For example:
+#+begin_src emacs-lisp :results raw scalar
+(doct '((:group "All" :file "" :children
+                ((:group "Enabled" :children
+                         (("One"   :keys "1")
+                          ("Two"   :keys "2")
+                          ("Three" :keys "3")))
+                 (:group "Disabled" :disabled t :children
+                         (("Four" :keys 4)
+                          ("Five" :keys 5)
+                          ("Six"  :kyes 6)))))))
+#+end_src
+
+returns:
+
+#+begin_src emacs-lisp
+(("1" "One"   entry (file "") nil)
+ ("2" "Two"   entry (file "") nil)
+ ("3" "Three" entry (file "") nil))
+#+end_src
+
+Normally template "Four" would throw an error because its ~:keys~ are not a string.
 
 *** Custom Variables
 ~doct~ supports the following variables for customization:

@@ -275,7 +275,22 @@
                               :immediate-finish t
                               :empty-lines 0)))))
                 (doct-test--template-string "i"))
-              :to-equal "* TODO-still-works\n"))))
+              :to-equal "* TODO-still-works\n")))
+  (describe ":disabled"
+    (it "does not include templates with a :disabled value of t"
+      (expect (doct '(("Enabled"  :keys "e" :file "")
+                      ("Disabled" :keys "d" :file "" :disabled t)))
+              :to-equal '(("e" "Enabled" entry (file "") nil))))
+    (it "does not disable template when :disabled value is not t"
+      (expect (doct '(("Enabled"  :keys "e" :file "")
+                      ("Disabled" :keys "d" :file "" :disabled nil)))
+              :to-equal '(("e" "Enabled"  entry (file "") nil)
+                          ("d" "Disabled" entry (file "") nil))))
+    (it "does not error check a disabled template"
+      (expect (doct '(("Enabled"  :keys "e" :file "")
+                      ;;has no :keys
+                      ("Disabled" :file "" :disabled t)))
+              :not :to-throw 'user-error))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here

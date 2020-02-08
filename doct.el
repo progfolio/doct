@@ -107,6 +107,7 @@ Its value is not stored between invocations to doct.")
 (defvar doct-recognized-keywords `(:children
                                    :contexts
                                    :custom
+                                   :disabled
                                    :doct-keys
                                    :keys
                                    :type
@@ -485,37 +486,38 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
 (defun doct--convert (name &rest properties)
   "Convert declarative form to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
-  (setq doct--current `(,name ,@properties))
-  (let ((group (eq name :group)))
-    (unless (or (stringp name) group)
-      (signal 'doct-wrong-type-argument
-              `((stringp symbolp) ,name ,doct--current)))
-    (when group
-      ;;remove :group description
-      (if (stringp (car properties))
-          (setq properties (cdr properties))))
-    (let* ((children (doct--children properties))
-           (keys (doct--keys properties group))
-           entry)
-      (when children
-        (setq children (mapcar (lambda (child)
-                                 (apply #'doct--convert
-                                        `(,(car child)
-                                          ,@(doct--inherit properties
-                                                           (cdr child)))))
-                               (if (seq-every-p #'listp children)
-                                   children
-                                 `(,children)))))
-      (unless children
-        (doct--add-hooks name properties keys)
-        (doct--add-contexts properties))
-      (unless group
-        (setq entry (doct--compose-entry keys name properties children)))
-      (if children
-          (if group
-              `(,@children)
-            `(,entry ,@children))
-        entry))))
+  (unless (eq (plist-get properties :disabled) t)
+    (setq doct--current `(,name ,@properties))
+    (let ((group (eq name :group)))
+      (unless (or (stringp name) group)
+        (signal 'doct-wrong-type-argument
+                `((stringp symbolp) ,name ,doct--current)))
+      (when group
+        ;;remove :group description
+        (if (stringp (car properties))
+            (setq properties (cdr properties))))
+      (let* ((children (doct--children properties))
+             (keys (doct--keys properties group))
+             entry)
+        (when children
+          (setq children (mapcar (lambda (child)
+                                   (apply #'doct--convert
+                                          `(,(car child)
+                                            ,@(doct--inherit properties
+                                                             (cdr child)))))
+                                 (if (seq-every-p #'listp children)
+                                     children
+                                   `(,children)))))
+        (unless children
+          (doct--add-hooks name properties keys)
+          (doct--add-contexts properties))
+        (unless group
+          (setq entry (doct--compose-entry keys name properties children)))
+        (if children
+            (if group
+                `(,@children)
+              `(,entry ,@children))
+          entry)))))
 
 ;;;###autoload
 (defun doct-flatten-lists-in (list-of-lists)
@@ -772,8 +774,8 @@ The :custom keyword accepts a plist.
 The doct-custom plist stores its elements.
 This is only necessary if you wish to use a keyword which doct already uses.
 For example:
-  (doct \\='((\"Music Gear\" :keys \"m\" :file""
-              :custom (:keys \"Moog\")))
+  (doct \\='((\"Music Gear\" :keys \"m\" :file \"\"
+           :custom (:keys \"Moog\")))
 
 returns:
 
@@ -933,7 +935,33 @@ The  rule keywords, spare :function, may also take a list of strings for their \
 values.
 
   (doct \\='((\"Only in org-mode or emacs-lisp-mode\" :keys \"n\" :file \"\"
-           :contexts ((:in-mode (\"org-mode\" \"emacs-lisp-mode\"))))))"
+           :contexts ((:in-mode (\"org-mode\" \"emacs-lisp-mode\"))))))
+
+Disabling Templates
+===================
+
+Setting the :disabled keyword to t disables a template.
+The template's declaration is not error checked.
+This can be useful if you don't have the time to deal with an error right away.
+For example:
+
+  (doct \\='((:group \"All\" :file \"\" :children
+                  ((:group \"Enabled\" :children
+                           ((\"One\"   :keys \"1\")
+                            (\"Two\"   :keys \"2\")
+                            (\"Three\" :keys \"3\")))
+                   (:group \"Disabled\" :disabled t :children
+                           ((\"Four\" :keys 4)
+                            (\"Five\" :keys 5)
+                            (\"Six\"  :kyes 6)))))))
+
+returns:
+
+  ((\"1\" \"One\"   entry (file \"\") nil)
+   (\"2\" \"Two\"   entry (file \"\") nil)
+   (\"3\" \"Three\" entry (file \"\") nil))
+
+Normally template \"Four\" would throw an error because its :keys are not a string."
 
   (let* ((entries (mapcar #'doct--maybe-convert-form declarations)))
     (unwind-protect
