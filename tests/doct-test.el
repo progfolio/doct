@@ -5,8 +5,13 @@
 ;; tests for doct.el
 
 ;;; Code:
-(require 'doct)
 (require 'buttercup)
+(require 'cl-lib)
+(require 'doct)
+
+(defun doct-test-always-p ()
+  "Predicate which always returns t."
+  t)
 
 (defun doct-test--template-string (keys)
   "Return filled template string for template starting with KEYS."
@@ -18,14 +23,42 @@
         (org-capture 0 keys))
       (substring-no-properties (buffer-string)))))
 
+(defun doct-test--template-selections ()
+  "Get a list of pairs from the *Org Select* menu.
+Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
+  (let ((inhibit-message t)
+        (unread-command-events (listify-key-sequence (kbd ""))) (menu-item-regexp "\\[\\(.\\)\\]\\(\\.\\{,3\\}\\)[[:space:]]*\\(.*\\)\\1?")
+        (selection-menu
+         (catch 'menu
+           (cl-letf (((symbol-function 'org-switch-to-buffer-other-window)
+                      (lambda (buffer)
+                        (set-buffer (get-buffer-create buffer))))
+                     ((symbol-function 'org--mks-read-key)
+                      (lambda (&rest _)
+                        (throw 'menu (save-excursion
+                                       (set-buffer "*Org Select*")
+                                       (buffer-string))))))
+             (org-mks (org-contextualize-keys
+                       org-capture-templates
+                       org-capture-templates-contexts) "Selection Test"))))
+        menu-items)
+    (with-temp-buffer
+      (insert selection-menu)
+      (goto-char (point-min))
+      (save-match-data
+        (while (re-search-forward menu-item-regexp nil t)
+          (push `(,(match-string 1) ,(match-string 3)) menu-items))))
+    (nreverse menu-items)))
+
 (describe "DOCT"
   (before-each
-    (setq doct-default-entry-type    'entry
-          doct-after-conversion-hook nil
-          org-capture-mode-hook      nil
-          org-before-finalize-hook   nil
-          org-prepare-finalize-hook  nil
-          org-after-finalize-hook    nil))
+    (setq doct-default-entry-type        'entry
+          doct-after-conversion-hook     nil
+          org-capture-mode-hook          nil
+          org-before-finalize-hook       nil
+          org-prepare-finalize-hook      nil
+          org-after-finalize-hook        nil
+          org-capture-templates-contexts nil))
   (describe "Inheritance"
     (it "prefixes children keys with ancestor keys"
       (expect (doct '(("parent" :keys "p"
@@ -226,7 +259,8 @@
       (expect org-capture-templates-contexts
               :to-equal '(("pc" ((in-buffer . "test.org"))))))
     (it "accepts a list of values per context rule"
-      (doct '(("Context test" :keys "c" :file "" :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
+      (doct '(("Context test" :keys "c" :file ""
+               :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
       (expect org-capture-templates-contexts
               :to-equal '(("c" (#'(lambda nil
                                     (seq-some
@@ -235,7 +269,7 @@
                                        (string-match val
                                                      (symbol-name major-mode)))
                                      '("org-mode" "elisp-mode"))))))))
-    (it "is not be added to doct-custom"
+    (it "is not added to doct-custom"
       (expect (doct '(("Context test" :keys "c" :file ""
                        :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
               :to-equal '(("c" "Context test" entry (file "") nil))))
@@ -243,14 +277,48 @@
       (expect (doct '(("Context test" :keys "c" :file ""
                        :contexts (:foo t :keys "oops"))))
               :to-throw 'user-error))
-    (it "errors if context rule's :function value is not a function"
-      (expect (doct '(("Context :function test" :keys "cf" :file ""
-                       :contexts (:function t))))
-              :to-throw 'user-error))
     (it "errors if context rule's value is not a string or list of strings"
       (expect (doct '(("Context :function test" :keys "cf" :file ""
                        :contexts (:in-buffer (2)))))
-              :to-throw 'user-error)))
+              :to-throw 'user-error))
+    (describe "Rule Keywords"
+      (describe ":function"
+        (it "errors if value is not a function"
+          (expect (doct '(("Context :function test" :keys "cf" :file ""
+                           :contexts (:function t))))
+                  :to-throw 'user-error))
+        (it "only includes templates which pass predicate"
+          (setq org-capture-templates-contexts nil)
+          (expect (let ((org-capture-templates
+                         (doct '((:group
+                                  :file ""
+                                  :children (("One"   :keys "1" :contexts (:function (lambda () t)))
+                                             ("Two"   :keys "2" :contexts (:function (lambda () nil)))
+                                             ("Three" :keys "3")))))))
+                    (doct-test--template-selections))
+                  :to-equal '(("1" "One") ("3" "Three")))))
+      (describe ":when"
+        (it "accepts a function as its value"
+          (expect (let ((org-capture-templates
+                         (doct '((":when test" :keys "w" :file "" :contexts (:when doct-test-always-p))))))
+                    (doct-test--template-selections))
+                  :to-equal '(("w" ":when test"))))
+        (it "accepts a single form as its value"
+          (expect (let ((org-capture-templates
+                         (doct '((":when test" :keys "w" :file "" :contexts (:when (or nil t)))))))
+                    (doct-test--template-selections))
+                  :to-equal '(("w" ":when test")))))
+      (describe ":unless"
+        (it "accepts a function as its value"
+          (expect (let ((org-capture-templates
+                         (doct '((":unless test" :keys "u" :file "" :contexts (:unless doct-test-always-p))))))
+                    (doct-test--template-selections))
+                  :to-equal nil))
+        (it "accepts a single form as its value"
+          (expect (let ((org-capture-templates
+                         (doct '((":unless test" :keys "u" :file "" :contexts (:unless (or nil t)))))))
+                    (doct-test--template-selections))
+                  :to-equal nil)))))
   (describe "%doct(KEYWORD) syntax"
     (it "expands metadata at capture time"
       (expect (let ((org-capture-templates

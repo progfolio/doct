@@ -101,7 +101,9 @@ Its value is not stored between invocations to doct.")
                                 :unless-buffer
                                 :unless-file
                                 :unless-mode
-                                :function)
+                                :function
+                                :when
+                                :unless)
   "Keywords that define a templates contexts.")
 
 (defvar doct-recognized-keywords `(:children
@@ -119,8 +121,7 @@ Its value is not stored between invocations to doct.")
                                       doct-exclusive-location-keywords
                                       doct-hook-keywords
                                       doct-template-keywords
-                                      doct-option-keywords
-                                      doct-context-keywords))
+                                      doct-option-keywords))
   "List of the keywords doct recognizes.")
 
 (define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
@@ -449,6 +450,14 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
            (not ,fn))
       `(lambda () ,fn))))
 
+(defmacro doct--conditional-constraint (condition value)
+  "Return a lambda which wraps VALUE in the appropraite CONDITION form.
+CONDITION is either when or unless."
+  (let ((condition-form (if (functionp value)
+                       `(,value)
+                     value)))
+    `(lambda () (,condition ,condition-form t))))
+
 (defun doct--constraint-rule-list (constraint value)
   "Create a rule list for CONSTRAINT with VALUE."
   `(,(cond
@@ -456,6 +465,8 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                                      value
                                    (signal 'doct-wrong-type-argument
                                            `(functionp ,value ,doct--current))))
+      ((eq constraint :when)   (doct--conditional-constraint when   value))
+      ((eq constraint :unless) (doct--conditional-constraint unless value))
       ((stringp value)
        `(,(doct--convert-constraint-keyword constraint)
          . ,value))
@@ -875,43 +886,63 @@ The :contexts keyword defines contextual rules for a template.
 Its value may be a single contextual rule or a list of rules.
 The following keywords are available to create contextual rules:
 
-  - :in-buffer regexp ::
+  - :in-buffer regexp
     Show template when REGEXP matches the current buffer's name.
 
     (doct \\='((\"Only in *scratch*\" :keys \"n\" :file \"\"
              :contexts ((:in-buffer \"^*scratch*$\")))))
 
-  - :unless-buffer regexp ::
+  - :unless-buffer regexp
     Show template unless REGEXP matches the current buffer's name.
 
     (doct \\='((\"Except in *scratch*\" :keys \"n\" :file \"\"
              :contexts ((:unless-buffer \"^*scratch*$\")))))
 
-  - :in-file regexp ::
+  - :in-file regexp
     Show template when REGEXP matches the current buffer's file name.
 
     (doct \\='((\"Only in work.org\" :keys \"n\" :file \"\"
              :contexts ((:in-file \"work\\.org$\")))))
 
-  - :unless-file regexp ::
+  - :unless-file regexp
     Show template unless REGEXP matches the current buffer's file name.
 
     (doct \\='((\"Except in work.org\" :keys \"n\" :file \"\"
              :contexts ((:unless-file \"work\\.org$\")))))
 
-  - :in-mode regexp ::
+  - :in-mode regexp
     Show template when REGEXP matches the current buffer's major mode.
 
     (doct \\='((\"Only in org-mode\" :keys \"n\" :file \"\"
              :contexts ((:in-mode \"org-mode\")))))
 
-  - :unless-mode regexp ::
+  - :unless-mode regexp
     Show template unless REGEXP matches the current buffer's major mode.
 
     (doct \\='((\"Except in org-mode\" :keys \"n\" :file \"\"
              :contexts ((:unless-mode \"org-mode\")))))
 
-  - :function ::
+  - :when condition
+    Show template when condition evaluates to a non-nil value.
+    Condition may be a function or a single lisp form.
+
+    (doct \\='((\"Show when my/predicate-p is t\" :keys \"n\" :file \"\"
+             :contexts ((:when my/predicate-p)))))
+
+    (doct \\='((\"1/3 chance of showing\" :keys \"n\" :file \"\"
+             :contexts ((:when (= 2 (random 3)))))))
+
+  - :unless condition
+    Show template when condition evaluates to a nil value.
+    Condition may be a function or a single lisp form.
+
+    (doct \\='((\"Show when my/predicate-p is nil\" :keys \"n\" :file \"\"
+             :contexts ((:unless my/predicate-p)))))
+
+    (doct \\='((\"2/3 chance of showing\" :keys \"n\" :file \"\"
+             :contexts ((:unless (= 2 (random 3)))))))
+
+  - :function
     Show template when function returns non-nil.
     The function is not passed any arguments.
 
@@ -953,7 +984,7 @@ For example:
                    (:group \"Disabled\" :disabled t :children
                            ((\"Four\" :keys 4)
                             (\"Five\" :keys 5)
-                            (\"Six\"  :kyes 6)))))))
+                            (\"Six\"  :keys 6)))))))
 
 returns:
 

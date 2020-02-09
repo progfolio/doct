@@ -509,6 +509,26 @@ The following keywords are available to create contextual rules:
 (doct '(("Except in org-mode" :keys "n" :file "" :contexts ((:unless-mode "org-mode")))))
 #+end_src
 
+- :when condition ::
+  Show template when condition evaluates to a non-nil value. Condition may be a function or a single lisp form.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Show when my/predicate-p is t" :keys "n" :file "" :contexts ((:when my/predicate-p)))))
+#+end_src
+
+#+begin_src emacs-lisp :results scalar
+(doct '(("1/3 chance of showing" :keys "n" :file "" :contexts ((:when (= 2 (random 3)))))))
+#+end_src
+
+- :unless condition ::
+  Show template when condition evaluates to a nil value. Condition may be a function or a single lisp form.
+#+begin_src emacs-lisp :results scalar
+(doct '(("Show when my/predicate-p is nil" :keys "n" :file "" :contexts ((:unless my/predicate-p)))))
+#+end_src
+
+#+begin_src emacs-lisp :results scalar
+(doct '(("2/3 chance of showing" :keys "n" :file "" :contexts ((:unless (= 2 (random 3)))))))
+#+end_src
+
 - :function ::
   Show template when function returns non-nil.
   The function is not passed any arguments.
@@ -548,7 +568,7 @@ For example:
                  (:group "Disabled" :disabled t :children
                          (("Four" :keys 4)
                           ("Five" :keys 5)
-                          ("Six"  :kyes 6)))))))
+                          ("Six"  :keys 6)))))))
 #+end_src
 
 returns:
