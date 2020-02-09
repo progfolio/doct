@@ -510,9 +510,9 @@ The following keywords are available to create contextual rules:
 #+end_src
 
 - :when condition ::
-  Show template when condition evaluates to a non-nil value. Condition may be a function or a single lisp form.
+  Show template when condition evaluates to a non-nil value. Condition may be a function or a single form.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Show when my/predicate-p is t" :keys "n" :file "" :contexts ((:when my/predicate-p)))))
+(doct '(("Show when my/predicate-p returns t" :keys "n" :file "" :contexts ((:when my/predicate-p)))))
 #+end_src
 
 #+begin_src emacs-lisp :results scalar
@@ -520,9 +520,9 @@ The following keywords are available to create contextual rules:
 #+end_src
 
 - :unless condition ::
-  Show template when condition evaluates to a nil value. Condition may be a function or a single lisp form.
+  Show template when condition evaluates to a nil value. Condition may be a function or a single form.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Show when my/predicate-p is nil" :keys "n" :file "" :contexts ((:unless my/predicate-p)))))
+(doct '(("Show when my/predicate-p returns nil" :keys "n" :file "" :contexts ((:unless my/predicate-p)))))
 #+end_src
 
 #+begin_src emacs-lisp :results scalar

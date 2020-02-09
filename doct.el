@@ -924,9 +924,9 @@ The following keywords are available to create contextual rules:
 
   - :when condition
     Show template when condition evaluates to a non-nil value.
-    Condition may be a function or a single lisp form.
+    Condition may be a function or a single form.
 
-    (doct \\='((\"Show when my/predicate-p is t\" :keys \"n\" :file \"\"
+    (doct \\='((\"Show when my/predicate-p returns t\" :keys \"n\" :file \"\"
              :contexts ((:when my/predicate-p)))))
 
     (doct \\='((\"1/3 chance of showing\" :keys \"n\" :file \"\"
@@ -934,9 +934,9 @@ The following keywords are available to create contextual rules:
 
   - :unless condition
     Show template when condition evaluates to a nil value.
-    Condition may be a function or a single lisp form.
+    Condition may be a function or a single form.
 
-    (doct \\='((\"Show when my/predicate-p is nil\" :keys \"n\" :file \"\"
+    (doct \\='((\"Show when my/predicate-p returns nil\" :keys \"n\" :file \"\"
              :contexts ((:unless my/predicate-p)))))
 
     (doct \\='((\"2/3 chance of showing\" :keys \"n\" :file \"\"
