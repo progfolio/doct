@@ -125,11 +125,14 @@ Its value is not stored between invocations to doct.")
                                       doct-option-keywords))
   "List of the keywords doct recognizes.")
 
-(define-error 'doct-no-keys "Form has no :keys value" 'doct-error)
-(define-error 'doct-group-keys "Group has :keys value" 'doct-error)
-(define-error 'doct-wrong-type-argument "Wrong type argument" 'doct-error)
-(define-error 'doct-no-target "Form has no target" 'doct-error)
-(define-error 'doct-no-template "Form has no template" 'doct-error)
+;;doct-error is just parent error symbol.
+;;Not intended to be directly signaled.
+(define-error 'doct-error               "DOCT peculiar error!")
+(define-error 'doct-no-keys             "Form has no :keys value" 'doct-error)
+(define-error 'doct-group-keys          "Group has :keys value"   'doct-error)
+(define-error 'doct-no-target           "Form has no target"      'doct-error)
+(define-error 'doct-no-template         "Form has no template"    'doct-error)
+(define-error 'doct-wrong-type-argument "Wrong type argument"     'doct-error)
 
 ;;;###autoload
 (defun doct-get (keyword)
@@ -547,7 +550,7 @@ returns:
 
 (defun doct--maybe-convert-form (form)
   "Attempt to convert FORM to Org capture template syntax."
-  (condition-case err
+  (condition-case-unless-debug err
       (apply #'doct--convert form)
     (doct-error (user-error "DOCT %s" (error-message-string err)))))
 

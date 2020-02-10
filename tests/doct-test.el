@@ -9,6 +9,17 @@
 (require 'cl-lib)
 (require 'doct)
 
+(defmacro doct-test-signal-to-symbol (&rest body)
+  "Work around `debug-on-error' limitation of buttercup.
+Buttercup internally sets `debug-on-error' to t.
+This conflicts with doct's use of `condition-case-unless-debug'.
+Without this, tests that throw will hit the debugger."
+  (declare (indent defun))
+  `(let ((debug-on-error nil))
+     (condition-case err
+         ,@body
+       (t (car err)))))
+
 (defun doct-test-always-p ()
   "Predicate which always returns t."
   t)
@@ -95,8 +106,9 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               '(("p" "parent") ("pc" "child" entry (file "") nil))))
     (describe "Group"
       (it "errors if group has a :keys property"
-        (expect (doct '((:group "Test Group" :keys "a")))
-                :to-throw 'user-error))
+        (expect (doct-test-signal-to-symbol
+                  (doct '((:group "Test Group" :keys "a"))))
+                :to-equal 'user-error))
       (it "allows nested groups"
         (expect (doct '((:group "Outter" :outter t :children
                                 ((:group "Inner" :inner t :children
@@ -205,9 +217,10 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               '(("c" ":custom test" entry (file "") nil
                  :doct-custom (:keys "Moog" :implicit t)))))
     (it "errors if :custom's value is not a plist"
-      (expect (doct '((":custom test" :keys "c" :file "" :implicit t
-                       :custom ("oops"))))
-              :to-throw 'user-error)))
+      (expect (doct-test-signal-to-symbol
+                (doct '((":custom test" :keys "c" :file "" :implicit t
+                       :custom ("oops")))))
+              :to-equal 'user-error)))
   (describe "Type checking"
     (let ((types '(nil
                    t
@@ -222,25 +235,30 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
         ;;That case is covered in group keys test.
         (dolist (garbage (seq-remove 'symbolp
                                      (seq-remove 'stringp types)))
-          (expect (doct `((,garbage :keys "t" :children ())))
-                  :to-throw 'user-error)))
+          (expect (doct-test-signal-to-symbol
+                    (doct `((,garbage :keys "t" :children ()))))
+                  :to-equal 'user-error)))
       (it "errors if :keys is not a string."
         (dolist (garbage (seq-remove 'stringp types))
-          (expect (doct `(("test" :keys ,garbage)))
-                  :to-throw 'user-error)))
+          (expect (doct-test-signal-to-symbol
+                    (doct `(("test" :keys ,garbage))))
+                  :to-equal 'user-error)))
       (it "errors if :type is not a valid type symbol."
         ;;consider nil valid, type will be determined by `doct-default-entry-type'.
         (dolist (garbage (remq nil types))
-          (expect (doct `(("test" :keys "t" :type ,garbage :file "")))
-                  :to-throw 'user-error)))
+          (expect (doct-test-signal-to-symbol
+                   (doct `(("test" :keys "t" :type ,garbage :file ""))))
+                  :to-equal 'user-error)))
       (it "errors if :children is not a list."
         (dolist (garbage (seq-remove 'listp types))
-          (expect (doct `(("test" :keys "t" :children ,garbage)))
-                  :to-throw 'user-error)))
+          (expect (doct-test-signal-to-symbol
+                    (doct `(("test" :keys "t" :children ,garbage))))
+                  :to-equal 'user-error)))
       (it "errors if :file is not a string, function -> string, variable -> string"
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
-          (expect (doct `(("test" :keys "t" :file ,garbage)))
-                  :to-throw 'user-error)))))
+          (expect (doct-test-signal-to-symbol
+                    (doct `(("test" :keys "t" :file ,garbage))))
+                  :to-equal 'user-error)))))
   (describe "Contexts"
     (before-each (setq org-capture-templates-contexts nil))
     (it "allows a single context rule"
@@ -274,19 +292,24 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
               :to-equal '(("c" "Context test" entry (file "") nil))))
     (it "errors if no context rule keyword is found"
-      (expect (doct '(("Context test" :keys "c" :file ""
-                       :contexts (:foo t :keys "oops"))))
-              :to-throw 'user-error))
+      (expect (doct-test-signal-to-symbol
+                (doct '(("Context rule keyword test" :keys "c" :file ""
+                       :contexts (:foo t :keys "oops")))))
+              :to-equal 'user-error))
     (it "errors if context rule's value is not a string or list of strings"
-      (expect (doct '(("Context :function test" :keys "cf" :file ""
-                       :contexts (:in-buffer (2)))))
-              :to-throw 'user-error))
+      (expect (doct-test-signal-to-symbol
+                (doct '(("Context value test" :keys "cf" :file ""
+                       :contexts (:in-buffer (2))))))
+              :to-equal 'user-error))
     (describe "Rule Keywords"
       (describe ":function"
         (it "errors if value is not a function"
-          (expect (doct '(("Context :function test" :keys "cf" :file ""
-                           :contexts (:function t))))
-                  :to-throw 'user-error))
+          (expect (let ((debug-on-error nil))
+                    (condition-case err
+                        (doct '(("Context :function test" :keys "cf" :file ""
+                                 :contexts (:function t))))
+                      (t t)))
+                    :to-equal t))
         (it "only includes templates which pass predicate"
           (setq org-capture-templates-contexts nil)
           (expect (let ((org-capture-templates
@@ -355,10 +378,11 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal '(("e" "Enabled"  entry (file "") nil)
                           ("d" "Disabled" entry (file "") nil))))
     (it "does not error check a disabled template"
-      (expect (doct '(("Enabled"  :keys "e" :file "")
+      (expect (doct-test-signal-to-symbol
+                (doct '(("Enabled"  :keys "e" :file "")
                       ;;has no :keys
-                      ("Disabled" :file "" :disabled t)))
-              :not :to-throw 'user-error))))
+                      ("Disabled" :file "" :disabled t))))
+              :not :to-equal 'user-error))))
 (provide 'doct-test)
 
 ;;; doct-test.el ends here
