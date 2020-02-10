@@ -33,13 +33,14 @@
 (require 'seq)
 (require 'org-capture)
 
+
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
   :group 'org)
 
 (defcustom doct-default-entry-type 'entry
   "The default template entry type.
-Can be overridden by using the :type keyword in a declarative form."
+It can be overridden by using the :type keyword in a declarative form."
   :type '(choice (const :tag "Regular entry" entry)
                  (const :tag "plain list item" item)
                  (const :tag "checklist item" checkitem)
@@ -150,8 +151,6 @@ Intended to be used at capture template time."
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
-
-
 
 (defun doct--fill-template (val)
   "Fill VAL."
@@ -454,8 +453,8 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
   "Return a lambda which wraps VALUE in the appropraite CONDITION form.
 CONDITION is either when or unless."
   (let ((condition-form (if (functionp value)
-                       `(,value)
-                     value)))
+                            `(,value)
+                          value)))
     `(lambda () (,condition ,condition-form t))))
 
 (defun doct--constraint-rule-list (constraint value)
