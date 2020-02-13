@@ -344,6 +344,13 @@ returns:
 #+end_src
 
 The ~:template-file~ keyword defines a file containing the text of the template.
+For exmaple:
+
+#+begin_src emacs-lisp
+(doct '((... :template-file "~/org/templates/template.txt")))
+#+end_src
+
+will use the text of template.txt as the template string.
 
 The first keyword declared overrides any additional template declarations.
 
@@ -545,7 +552,7 @@ For example:
                                        (:in-buffer     "^\\*scratch\\*$" :keys "t")))))
 #+end_src
 
-The above rule keywords, spare ~:function~, may also take a list of strings for their values.
+The above rule keywords, spare ~:function~, ~:when~, and ~:unless~ may also take a list of strings for their values.
 #+begin_src emacs-lisp
 (doct '(("Only in org-mode or emacs-lisp-mode" :keys "n" :file ""
          :contexts ((:in-mode ("org-mode" "emacs-lisp-mode"))))))

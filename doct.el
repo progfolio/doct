@@ -285,7 +285,6 @@ FILE-TARGET is the value for PLIST's :file keyword."
              (guard (seq-every-p #'stringp template))
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
         (string-join template "\n"))
-       ;;other values require filling at template time
        (deferred (doct--defer plist deferred))))))
 
 (defun doct-plist-p (list)
@@ -964,8 +963,8 @@ For example:
            :contexts ((:unless-buffer \"^\\*scratch\\*$\" :keys \"n\")
                       (:in-buffer     \"^\\*scratch\\*$\" :keys \"t\")))))
 
-The  rule keywords, spare :function, may also take a list of strings for their \
-values.
+Rule keywords, spare :function, :when, and :unless may also take a list of \
+strings for their values.
 
   (doct \\='((\"Only in org-mode or emacs-lisp-mode\" :keys \"n\" :file \"\"
            :contexts ((:in-mode (\"org-mode\" \"emacs-lisp-mode\"))))))
