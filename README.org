@@ -34,16 +34,15 @@ becomes:
                           ":Created: %U"
                           ":END:"
                           "%?")
-               :children (("First Child" :keys "1"
-                           :headline "One"
+               :children (("First Child"  :keys "1"
+                           :headline   "One"
                            :todo-state "TODO"
-                           :hook (lambda ()
-                                   (message "\"First Child\" selected.")))
+                           :hook (lambda () (message "\"First Child\" selected.")))
                           ("Second Child" :keys "2"
-                           :headline "Two"
+                           :headline   "Two"
                            :todo-state "NEXT")
-                          ("Third Child" :keys "3"
-                           :headline "Three"
+                          ("Third Child"  :keys "3"
+                           :headline   "Three"
                            :todo-state "MAYBE"))))))
 #+end_src
 
@@ -141,7 +140,7 @@ It must not have a ~:keys~ value.
 (doct '(("Work" :keys "w" :file "~/org/work.org" :children
          ((:group "Clocked" :clock-in t :children
                   (("Phone Call" :keys "p" :template "* Phone call with %?")
-                   ("Meeting" :keys "m" :template "* Meeting with %?")))
+                   ("Meeting"    :keys "m" :template "* Meeting with %?")))
           ("Browsing" :keys "b" :template "* Browsing %x")))))
 #+end_src
 
@@ -344,7 +343,7 @@ returns:
 #+end_src
 
 The ~:template-file~ keyword defines a file containing the text of the template.
-For exmaple:
+For example:
 
 #+begin_src emacs-lisp
 (doct '((... :template-file "~/org/templates/template.txt")))
@@ -398,11 +397,8 @@ returns:
 :CUSTOM_ID: doct-string-expansion
 :END:
 A declaration may include custom metadata which is accessible during capture.
-The syntax is similar to other, built-in "%-escapes":
-
-~%doct(KEYWORD)~
-
-will insert the value declared with ~:KEYWORD~ in the template.
+The syntax is similar to other, built-in "%-escapes".
+~%doct(KEYWORD)~ will insert the value declared with ~:KEYWORD~ in the template.
 
 For example, with:
 
@@ -483,65 +479,65 @@ The following keywords are available to create contextual rules:
 - :in-buffer regexp ::
   Show template when REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Only in *scratch*" :keys "n" :file "" :contexts ((:in-buffer "^\\*scratch\\*$")))))
+(doct '(("Only in *scratch*" :keys "n" :file "" :contexts (:in-buffer "^\\*scratch\\*$"))))
 #+end_src
 
 - :unless-buffer regexp ::
   Show template unless REGEXP matches the current buffer's name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Except in *scratch*" :keys "n" :file "" :contexts ((:unless-buffer "^\\*scratch\\*$")))))
+(doct '(("Except in *scratch*" :keys "n" :file "" :contexts (:unless-buffer "^\\*scratch\\*$"))))
 #+end_src
 
 - :in-file regexp ::
   Show template when REGEXP matches the current buffer's file name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Only in work.org" :keys "n" :file "" :contexts ((:in-file "work\\.org$")))))
+(doct '(("Only in work.org" :keys "n" :file "" :contexts (:in-file "work\\.org$"))))
 #+end_src
 
 - :unless-file regexp ::
   Show template unless REGEXP matches the current buffer's file name.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Except in work.org" :keys "n" :file "" :contexts ((:unless-file "work\\.org$")))))
+(doct '(("Except in work.org" :keys "n" :file "" :contexts (:unless-file "work\\.org$"))))
 #+end_src
 
 - :in-mode regexp ::
   Show template when REGEXP matches the current buffer's major mode.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Only in org-mode" :keys "n" :file "" :contexts ((:in-mode "org-mode")))))
+(doct '(("Only in org-mode" :keys "n" :file "" :contexts (:in-mode "org-mode"))))
 #+end_src
 
 - :unless-mode regexp ::
   Show template unless REGEXP matches the current buffer's major mode.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Except in org-mode" :keys "n" :file "" :contexts ((:unless-mode "org-mode")))))
+(doct '(("Except in org-mode" :keys "n" :file "" :contexts (:unless-mode "org-mode"))))
 #+end_src
 
 - :when condition ::
-  Show template when condition evaluates to a non-nil value. Condition may be a function or a single form.
+  Show template when CONDITION evaluates to a non-nil value. Condition may be a function or a single form.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Show when my/predicate-p returns t" :keys "n" :file "" :contexts ((:when my/predicate-p)))))
+(doct '(("Show when my/predicate-p returns t" :keys "n" :file "" :contexts (:when my/predicate-p))))
 #+end_src
 
 #+begin_src emacs-lisp :results scalar
-(doct '(("1/3 chance of showing" :keys "n" :file "" :contexts ((:when (= 2 (random 3)))))))
+(doct '(("1/3 chance of showing" :keys "n" :file "" :contexts (:when (= 2 (random 3))))))
 #+end_src
 
 - :unless condition ::
-  Show template when condition evaluates to a nil value. Condition may be a function or a single form.
+  Show template when CONDITION evaluates to a nil value. Condition may be a function or a single form.
 #+begin_src emacs-lisp :results scalar
-(doct '(("Show when my/predicate-p returns nil" :keys "n" :file "" :contexts ((:unless my/predicate-p)))))
+(doct '(("Show when my/predicate-p returns nil" :keys "n" :file "" :contexts (:unless my/predicate-p))))
 #+end_src
 
 #+begin_src emacs-lisp :results scalar
-(doct '(("2/3 chance of showing" :keys "n" :file "" :contexts ((:unless (= 2 (random 3)))))))
+(doct '(("2/3 chance of showing" :keys "n" :file "" :contexts (:unless (= 2 (random 3))))))
 #+end_src
 
-- :function ::
-  Show template when function returns non-nil.
+- :function function ::
+  Show template when FUNCTION returns non-nil.
   The function is not passed any arguments.
 #+begin_src emacs-lisp :results scalar
 (doct '(("Between 9AM and 5PM" :keys "n" :file ""
-         :contexts ((:function (lambda () (<= 9 (string-to-number (format-time-string "%H")) 17))))))))
+         :contexts (:function (lambda () (<= 9 (string-to-number (format-time-string "%H")) 17)))))))
 #+end_src
 
 Adding ~:keys~ to a rule does the same as above, but remaps the template's keys to the template with keys matching the ~:keys~ string.
@@ -555,7 +551,7 @@ For example:
 The above rule keywords, spare ~:function~, ~:when~, and ~:unless~ may also take a list of strings for their values.
 #+begin_src emacs-lisp
 (doct '(("Only in org-mode or emacs-lisp-mode" :keys "n" :file ""
-         :contexts ((:in-mode ("org-mode" "emacs-lisp-mode"))))))
+         :contexts (:in-mode ("org-mode" "emacs-lisp-mode")))))
 #+end_src
 
 **** Disabling Templates
@@ -611,3 +607,5 @@ Please add a test to the test suite if you introduce any changes.
 
 Thanks,
 nv
+
+#  LocalWords:  DOCT MELPA init doct txt plist unintern nv tl dr
