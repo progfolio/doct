@@ -256,16 +256,14 @@ FILE-TARGET is the value for PLIST's :file keyword."
 
 (defun doct--defer (plist val)
   "Return deferred filler function for PLIST with VAL partially applied."
-  (let* ((keys (doct--keys plist))
-         (fill-fn-symbol (intern (concat "doct--fill/" keys)))
-         (fn (doct--template-filler fill-fn-symbol val)))
-    (pcase val
-      ((or (pred functionp) (pred stringp) (pred listp))
-       `(function ,fn))
-      (_ ;;clean up generated function
-       (fmakunbound fill-fn-symbol)
-       (signal 'doct-wrong-type-argument
-               `((stringp listp functionp) ,val ,doct--current))))))
+  (pcase val
+    ((or (pred functionp) (pred stringp) (pred listp))
+     (let* ((keys (doct--keys plist))
+            (fill-fn-symbol (intern (concat "doct--fill/" keys)))
+            (fn (doct--template-filler fill-fn-symbol val)))
+       `(function ,fn)))
+    (_ (signal 'doct-wrong-type-argument
+               `((stringp listp functionp) ,val ,doct--current)))))
 
 (defun doct--template (plist)
   "Convert PLIST's template target to Org capture template syntax."
