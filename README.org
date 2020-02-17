@@ -1,5 +1,6 @@
 * DOCT: Declarative Org Capture Templates
 [[https://melpa.org/#/doct][file:https://melpa.org/packages/doct-badge.svg]]
+
 ~doct~ is a function that provides an alternative, declarative syntax for describing Org capture templates.
 
 ** tl;dr
