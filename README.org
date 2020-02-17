@@ -87,6 +87,7 @@ Try it with the [[https://github.com/raxod502/straight.el][straight package mana
 or [[https://github.com/jwiegley/use-package][use-package]]:
 #+begin_src emacs-lisp
 (use-package doct
+  :ensure t
   ;;recommended: defer until calling doct
   :commands (doct))
 #+end_src
