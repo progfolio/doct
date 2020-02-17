@@ -1,4 +1,5 @@
 * DOCT: Declarative Org Capture Templates
+[[https://melpa.org/#/doct][file:https://melpa.org/packages/doct-badge.svg]]
 ~doct~ is a function that provides an alternative, declarative syntax for describing Org capture templates.
 
 ** tl;dr
@@ -53,6 +54,8 @@ becomes:
 -  [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
   -  [[#tldr][tl;dr]]
   -  [[#installation][Installation]]
+    -  [[#melpa][MELPA]]
+    -  [[#manual][Manual]]
   -  [[#documentation][Documentation]]
     -  [[#doct][doct]]
       -  [[#child][Child]]
@@ -74,25 +77,21 @@ becomes:
     -  [[#contributing][Contributing]]
 
 ** Installation
-Until I submit this package to MELPA, the following are the easiest ways to install ~doct~.
-If you're using:
-- the [[https://github.com/raxod502/straight.el][straight package manager]]:
+*** MELPA
+Try it with the [[https://github.com/raxod502/straight.el][straight package manager]]:
 #+begin_src emacs-lisp
-(straight-use-package
- '(doct :host github :repo "progfolio/doct" :branch "master"))
+(straight-use-package 'doct)
 #+end_src
-- [[https://github.com/jwiegley/use-package][use-package]]:
-First clone ~doct~ into your load-path.
-Then declare it in your init file.
+
+or [[https://github.com/jwiegley/use-package][use-package]]:
 #+begin_src emacs-lisp
 (use-package doct
-  :ensure nil
-  :load-path "path/to/doct")
+  ;;recommended: defer until calling doct
+  :commands (doct))
 #+end_src
-- Neither:
-Clone ~doct~ into your load-path
+*** Manual
+Install ~doct~ and make sure it is in your load-path.
 Then require it in your init file.
-
 #+begin_src emacs-lisp
 (require 'doct)
 #+end_src
