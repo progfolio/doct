@@ -33,7 +33,7 @@
 (require 'seq)
 (require 'org-capture)
 
-
+;;; Custom Options
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
   :group 'org)
@@ -55,6 +55,7 @@ The templates have not been flattened at this point and are of the form:
   :group 'doct
   :type 'hook)
 
+;;; Variables
 (defvar doct-templates nil
   "If non-nil, this is used as the return value of doct.
 Use this variable to return an altered list from a function run during
@@ -105,7 +106,7 @@ Its value is not stored between invocations to doct.")
                                 :function
                                 :when
                                 :unless)
-  "Keywords that define a templates contexts.")
+  "Keywords that define a template's contexts.")
 
 (defvar doct-recognized-keywords `(:children
                                    :contexts
@@ -124,7 +125,7 @@ Its value is not stored between invocations to doct.")
                                       doct-template-keywords
                                       doct-option-keywords))
   "List of the keywords doct recognizes.")
-
+;;; Errors
 ;;doct-error is just parent error symbol.
 ;;Not intended to be directly signaled.
 (define-error 'doct-error               "DOCT peculiar error!")
@@ -134,12 +135,143 @@ Its value is not stored between invocations to doct.")
 (define-error 'doct-no-template         "Form has no template"    'doct-error)
 (define-error 'doct-wrong-type-argument "Wrong type argument"     'doct-error)
 
+;;; Utility Functions
+(defun doct--first-in (plist keywords)
+  "Find first non-nil occurrence of one of KEYWORDS in PLIST.
+If not found in PLIST, recursively search FORM's ancestors.
+Return (KEYWORD VAL)."
+  (seq-some (lambda (keyword)
+              (let ((val (plist-get plist keyword)))
+                (when (and val (member keyword keywords))
+                  `(,keyword ,val))))
+            (seq-filter #'keywordp plist)))
+
+(defun doct-plist-p (list)
+  "Non-null if and only if LIST is a plist."
+  (while (consp list)
+    (setq list (if (and (keywordp (car list))
+                        (consp (cdr list)))
+                   (cddr list)
+                 'not-plist)))
+  (null list))
+
 ;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from doct-custom in `org-capture-plist'.
 Intended to be used at capture template time."
   (plist-get (plist-get org-capture-plist :doct-custom) keyword))
 
+;;;###autoload
+(defun doct-flatten-lists-in (list-of-lists)
+  "Flatten each list in LIST-OF-LISTS.
+For example:
+  '((1) ((2 3) (4)) (((5))))
+returns:
+  '((1) (2) (3) (4) (5))"
+  (let (flattend)
+    (letrec ((flatten (lambda (list)
+                        (dolist (element list)
+                          (if (seq-every-p #'listp element)
+                              (funcall flatten element)
+                            (push element flattend))))))
+      (funcall flatten list-of-lists)
+      (nreverse flattend))))
+
+;;; Acessors
+;;;; Children
+(defun doct--children (plist)
+  "Type check and return PLIST's children property."
+  (let ((children (plist-get plist :children)))
+    (if (and (listp children) (not (functionp children)))
+        children
+      (signal 'doct-wrong-type-argument `(listp ,children ,doct--current)))))
+
+;;;; Keys
+(defun doct--keys (plist &optional group)
+  "Type check and return PLIST's :keys value.
+If GROUP is non-nil, make sure there is no :keys value."
+  (let ((keys (plist-member plist :keys))
+        (inherited (plist-member plist :doct-keys)))
+    (when (and group keys)
+      (signal 'doct-group-keys `(,doct--current)))
+    (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
+    (let ((keys (or (plist-get plist :doct-keys) (plist-get plist :keys))))
+      (unless (or (stringp keys) group)
+        (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
+      keys)))
+
+;;;; Entry Type
+(defun doct--entry-type (plist)
+  "Return PLIST's :type value or `doct-default-entry-type'."
+  (let ((type (or (plist-get plist :type) doct-default-entry-type)))
+    (or (car (member type doct-entry-types))
+        (signal 'doct-wrong-type-argument
+                `(,doct-entry-types ,type ,doct--current)))))
+
+;;;; Target
+(defun doct--validate-file (target)
+  "Type check :file TARGET."
+  (unless (or (stringp target)
+              (functionp target)
+              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
+    (signal 'doct-wrong-type-argument
+            `(stringp functionp symbolp ,target ,doct--current))))
+
+(defun doct--target-file (plist file-target)
+  "Convert PLIST's :file and file-extensions to Org capture template syntax.
+FILE-TARGET is the value for PLIST's :file keyword."
+  (doct--validate-file file-target)
+  (let (type target)
+    ;;datetree is only used when :olp is specified
+    (pcase (doct--first-in plist (remq :datetree doct-file-extension-keywords))
+      (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
+                       (signal 'doct-wrong-type-argument
+                               `((listp stringp) :olp ,path ,doct--current)))
+       (when (plist-get plist :datetree)
+         (push :datetree type))
+       (push :olp type)
+       (dolist (heading (nreverse (seq-copy path)))
+         (push heading target)))
+      ;;function headline regexp
+      (`(,keyword ,extension)
+       (when extension
+         (let ((predicate (if (eq keyword :function)
+                              (lambda (val)
+                                (or (functionp val) (null val)))
+                            #'stringp)))
+           (unless (funcall predicate extension)
+             (signal 'doct-wrong-type-argument
+                     `(,predicate ,extension ,doct--current)))
+           (push extension target)
+           (push keyword type)))))
+    (push :file type)
+    (push file-target target)
+    `(,(intern (mapconcat (lambda (keyword)
+                            (substring (symbol-name keyword) 1))
+                          (delq nil type) "+"))
+      ,@(delq nil target))))
+
+(defun doct--target (plist)
+  "Convert PLIST's target to Org capture template target."
+  (pcase (doct--first-in plist doct-exclusive-location-keywords)
+    ((and (or 'nil `(,key nil)) nil-target)
+     (signal 'doct-no-target `(,doct-exclusive-location-keywords
+                               ,nil-target
+                               ,doct--current)))
+    (`(:clock ,_) '(clock))
+    (`(:id ,id) (if (stringp id)
+                    `(id ,id)
+                  (signal 'doct-wrong-type-argument
+                          '(stringp ,id ,doct--current))))
+    (`(:function ,fn) (if (functionp fn)
+                          (if-let ((file (plist-get plist :file)))
+                              (doct--target-file plist file)
+                            `(function ,fn))
+                        (signal 'doct-wrong-type-argument
+                                '(functionp ,fn ,doct--current))))
+    (`(:file ,file) (doct--target-file plist file))))
+
+;;;; Template
 (defun doct--replace-template-strings (string)
   "Replace STRING's %doct(KEYWORD) occurrences with their doct-custom values."
   (with-temp-buffer
@@ -172,79 +304,6 @@ Intended to be used at capture template time."
          (mapcar #'doct--fill-template val)
        val) "\n"))
    (t (signal 'doct-wrong-type-argument `((stringp listp functionp) ,val ,doct--current)))))
-
-(defun doct--first-in (plist keywords)
-  "Find first non-nil occurrence of one of KEYWORDS in PLIST.
-If not found in PLIST, recursively search FORM's ancestors.
-Return (KEYWORD VAL)."
-  (seq-some (lambda (keyword)
-              (let ((val (plist-get plist keyword)))
-                (when (and val (member keyword keywords))
-                  `(,keyword ,val))))
-            (seq-filter #'keywordp plist)))
-
-(defun doct--validate-file (target)
-  "Type check :file TARGET."
-  (unless (or (stringp target)
-              (functionp target)
-              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
-    (signal 'doct-wrong-type-argument
-            `(stringp functionp symbolp ,target ,doct--current))))
-
-(defun doct--target-file (plist file-target)
-  "Convert PLIST's :file and file-extensions to Org capture template syntax.
-FILE-TARGET is the value for PLIST's :file keyword."
-  (doct--validate-file file-target)
-  (let (type target)
-    ;;datetree is only used when :olp is specified
-    (pcase (doct--first-in plist (remq :datetree doct-file-extension-keywords))
-      (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
-                       (signal 'doct-wrong-type-argument
-                               `((listp stringp) ,path ,doct--current)))
-       (when (plist-get plist :datetree)
-         (push :datetree type))
-       (push :olp type)
-       (dolist (heading (nreverse (seq-copy path)))
-         (push heading target)))
-      ;;function headline regexp
-      (`(,keyword ,extension)
-       (when extension
-         (let ((predicate (if (eq keyword :function) (lambda (val)
-                                                       (or (functionp val)
-                                                           (null val)))
-                            #'stringp)))
-           (unless (funcall predicate extension)
-             (signal 'doct-wrong-type-argument
-                     `(,predicate ,extension ,doct--current)))
-           (push extension target)
-           (push keyword type)))))
-    (push :file type)
-    (push file-target target)
-    `(,(intern (string-join
-                (mapcar (lambda (keyword)
-                          (substring (symbol-name keyword) 1))
-                        (delq nil type)) "+"))
-      ,@(delq nil target))))
-
-(defun doct--target (plist)
-  "Convert PLIST's target to Org capture template target."
-  (pcase (doct--first-in plist doct-exclusive-location-keywords)
-    ((and (or 'nil `(,key nil)) nil-target)
-     (signal 'doct-no-target `(,doct-exclusive-location-keywords
-                               ,nil-target
-                               ,doct--current)))
-    (`(:clock ,_) '(clock))
-    (`(:id ,id) (if (stringp id)
-                    `(id ,id)
-                  (signal 'doct-wrong-type-argument
-                          '(stringp ,id ,doct--current))))
-    (`(:function ,fn) (if (functionp fn)
-                          (if-let ((file (plist-get plist :file)))
-                              (doct--target-file plist file)
-                            `(function ,fn))
-                        (signal 'doct-wrong-type-argument
-                                '(functionp ,fn ,doct--current))))
-    (`(:file ,file) (doct--target-file plist file))))
 
 (defun doct--template-filler (symbol val)
   "Generate function named SYMBOL to fill current :template VAL at capture time."
@@ -285,15 +344,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
         (string-join template "\n"))
        (deferred (doct--defer plist deferred))))))
 
-(defun doct-plist-p (list)
-  "Non-null if and only if LIST is a plist with keyword keys."
-  (while (consp list)
-    (setq list (if (and (keywordp (car list))
-                        (consp (cdr list)))
-                   (cddr list)
-                 'not-plist)))
-  (null list))
-
+;;;; Custom Metadata
 (defun doct--custom (plist)
   "Type check and return PLIST's custom property."
   (when-let ((custom (plist-get plist :custom)))
@@ -301,6 +352,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
       (signal 'doct-wrong-type-argument `(plist ,custom ,doct--current)))
     custom))
 
+;;;; Additional Options
 (defun doct--additional-properties (plist)
   "Convert PLIST's additional properties to Org capture syntax.
 Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
@@ -323,112 +375,8 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
              `(,@explicit ,@custom)
            custom)))))
 
-(defun doct--inherit (parent child)
-  "Inherit PARENT's plist members unless CHILD has already declared them.
-The only exceptions to this are the :keys and :children and :group properties.
-CHILD's keys are prefixed with PARENT's.
-The :children and :group properties are ignored."
-  ;;remove :group description
-  (when (stringp (car child))
-    (pop child))
-  (dolist (keyword (seq-filter (lambda (el)
-                                 (and (keywordp el)
-                                      (not (member el '(:children :group)))))
-                               parent))
-    (let ((keysp (member keyword '(:keys :doct-keys))))
-      (unless (and (plist-member child keyword) (not keysp))
-        (if keysp
-            (plist-put child :doct-keys (concat (or (plist-get parent :doct-keys)
-                                                    (plist-get parent :keys))
-                                                (plist-get child :keys)))
-          (plist-put child keyword (plist-get parent keyword))))))
-  child)
-
-(defun doct--add-hook (keys fn where &optional entry-name)
-  "Generate hook function and add to appropriate hook variable.
-The generated hook function takes the form \"doct--hook/WHERE/KEYS\".
-FN is called when an org-capture-template's keys match KEYS.
-WHERE is one of the following strings:
-\"mode\"
-\"after-finalize\"
-\"before-finalize\"
-\"prepare-finalize\"
-ENTRY-NAME is the name of the entry the hook should run for."
-  (if-let ((wrapper (intern (string-join `("doct--hook" ,where ,keys) "/")))
-           (hook (intern-soft (concat "org-capture-" where "-hook"))))
-      (progn
-        (eval `(defun ,wrapper ()
-                 ,(string-join
-                   `("Auto generated by `doct--add-hook'."
-                     ,(concat "It runs as part of `" (symbol-name hook) "'"
-                              (if entry-name
-                                  (concat " when selecting the \"" entry-name
-                                          "\" template.")
-                                "'."))
-                     "It can be removed using `doct-remove-hooks' like so:"
-                     ,(concat "(doct-remove-hooks \""
-                              keys "\" \\='" where " t)"))
-                   "\n")
-                 (when (string= ,keys (plist-get org-capture-plist :key))
-                   (funcall (quote ,fn)))))
-        (add-hook hook wrapper))
-    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
-
-(defun doct--add-hooks (name plist keys)
-  "Add hooks declared in PLIST for template NAME with KEYS."
-  (dolist (keyword doct-hook-keywords)
-    (when-let ((hook-fn (plist-get plist keyword))
-               (hook (if (eq keyword :hook) "mode"
-                       ;;remove preceding ':' from keyword
-                       (substring (symbol-name keyword) 1))))
-      (unless (functionp hook-fn)
-        (signal 'doct-wrong-type-argument `(functionp ,hook-fn ,doct--current)))
-      (doct--add-hook keys hook-fn hook name))))
-
-(defun doct--entry-type (plist)
-  "Return PLIST's :type value or `doct-default-entry-type'."
-  (let ((type (or (plist-get plist :type) doct-default-entry-type)))
-    (or (car (member type doct-entry-types))
-        (signal 'doct-wrong-type-argument
-                `(,doct-entry-types ,type ,doct--current)))))
-
-(defun doct--keys (plist &optional group)
-  "Type check and return PLIST's :keys value.
-If GROUP is non-nil, make sure there is no :keys value."
-  (let ((keys (plist-member plist :keys))
-        (inherited (plist-member plist :doct-keys)))
-    (when (and group keys)
-      (signal 'doct-group-keys `(,doct--current)))
-    (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
-    (let ((keys (or (plist-get plist :doct-keys) (plist-get plist :keys))))
-      (unless (or (stringp keys) group)
-        (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
-      keys)))
-
-(defun doct--children (plist)
-  "Type check and return PLIST's children property."
-  (let ((children (plist-get plist :children)))
-    (if (and (listp children) (not (functionp children)))
-        children
-      (signal 'doct-wrong-type-argument `(listp ,children ,doct--current)))))
-
-(defun doct--compose-entry (keys name properties parent)
-  "Return a template suitable for `org-capture-templates'.
-The list is of the form: (KEYS NAME type target template additional-options...).
-PROPERTIES provides the type, target template and additional options.
-If PARENT is non-nil, list is of the form (KEYS NAME)."
-  `(,keys
-    ,name
-    ,@(unless parent
-        `(,(doct--entry-type properties)
-          ,(doct--target properties)
-          ,(doct--template properties)
-          ,@(when-let ((additional-properties
-                        (doct--additional-properties properties)))
-              `(,@(car additional-properties)
-                ,@(when-let ((custom-opts (cadr additional-properties)))
-                    `(:doct-custom ,custom-opts))))))))
-
+;;; External Variables
+;;;; Contexts
 (defun doct--convert-constraint-keyword (keyword)
   "Convert KEYWORD to `org-capture-templates-contexts' equivalent symbol."
   (let ((name (symbol-name keyword)))
@@ -493,6 +441,168 @@ CONDITION is either when or unless."
       (dolist (rule (nreverse rules))
         (add-to-list 'org-capture-templates-contexts rule)))))
 
+;;;; Hooks
+(defun doct--add-hook (keys fn where &optional entry-name)
+  "Generate hook function and add to appropriate hook variable.
+The generated hook function takes the form \"doct--hook/WHERE/KEYS\".
+FN is called when an org-capture-template's keys match KEYS.
+WHERE is one of the following strings:
+\"mode\"
+\"after-finalize\"
+\"before-finalize\"
+\"prepare-finalize\"
+ENTRY-NAME is the name of the entry the hook should run for."
+  (if-let ((wrapper (intern (string-join `("doct--hook" ,where ,keys) "/")))
+           (hook (intern-soft (concat "org-capture-" where "-hook"))))
+      (progn
+        (eval `(defun ,wrapper ()
+                 ,(string-join
+                   `("Auto generated by `doct--add-hook'."
+                     ,(concat "It runs as part of `" (symbol-name hook) "'"
+                              (if entry-name
+                                  (concat " when selecting the \"" entry-name
+                                          "\" template.")
+                                "'."))
+                     "It can be removed using `doct-remove-hooks' like so:"
+                     ,(concat "(doct-remove-hooks \""
+                              keys "\" \\='" where " t)"))
+                   "\n")
+                 (when (string= ,keys (plist-get org-capture-plist :key))
+                   (funcall (quote ,fn)))))
+        (add-hook hook wrapper))
+    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
+
+(defun doct--add-hooks (name plist keys)
+  "Add hooks declared in PLIST for template NAME with KEYS."
+  (dolist (keyword doct-hook-keywords)
+    (when-let ((hook-fn (plist-get plist keyword))
+               (hook (if (eq keyword :hook) "mode"
+                       ;;remove preceding ':' from keyword
+                       (substring (symbol-name keyword) 1))))
+      (unless (functionp hook-fn)
+        (signal 'doct-wrong-type-argument `(functionp ,hook-fn ,doct--current)))
+      (doct--add-hook keys hook-fn hook name))))
+
+;;;###autoload
+(defun doct-remove-hooks (&optional keys hooks unintern-functions)
+  "Remove hooks matching KEYS from HOOKS.
+doct hook functions follow the form:
+
+  doct--hook/<org-capture-hook-variable-name>/KEYS.
+
+KEYS is a regular expression which matches KEYS in the above form.
+
+HOOKS is one of five symbols:
+  after-finalize
+    removes matching functions from `org-capture-after-finalize-hook'
+  before-finalize
+    removes matching functions from `org-capture-before-finalize-hook'
+  prepare-finalize
+    removes matching functions from `org-capture-prepare-finalize-hook'
+  mode
+    removes matching functions from `org-capture-mode-hook'
+  t
+    removes matching functions from all of the above hooks.
+
+Or a list including any combination of the first four symbols. e.g.
+
+  \\='(after-finalize before-finalize mode prepare-finalize)
+
+is equivalent to passing t as HOOKS.
+
+If UNINTERN-FUNCTIONS is non-nil, the matching functions are uninterned.
+
+For Example:
+
+  (doct-remove-hooks \"^t\" \\='mode t)
+
+Removes and uninterns:
+
+  doct--hook/mode/t
+  doct--hook/mode/tt
+
+But not:
+
+  doct--hook/mode/p
+
+From the `org-capture-mode-hook'."
+  (interactive)
+  (let* ((keys (or keys (read-string "Remove hooks with keys matching: ")))
+         (hook-symbols (pcase hooks
+                         ('nil (mapcar #'intern-soft
+                                       (completing-read-multiple
+                                        "Hooks: " '("after-finalize"
+                                                    "before-finalize"
+                                                    "mode"
+                                                    "prepare-finalize"
+                                                    "t"))))
+                         ((pred (lambda (hook)
+                                  (memq hook '(after-finalize
+                                               before-finalize
+                                               mode
+                                               prepare-finalize
+                                               t))))
+                          (list hooks))
+                         ((and (pred listp) hooks
+                               (guard (seq-every-p #'symbolp hooks)))
+                          hooks)
+                         (_ (user-error "Unrecognized HOOKS value %s" hooks))))
+         (hooks (if (memq t hook-symbols)
+                    '(org-capture-after-finalize-hook
+                      org-capture-before-finalize-hook
+                      org-capture-mode-hook
+                      org-capture-prepare-finalize-hook)
+                  (mapcar (lambda (symbol)
+                            (intern-soft (concat "org-capture-"
+                                                 (symbol-name symbol)
+                                                 "-hook")))
+                          hook-symbols))))
+    (dolist (hook hooks)
+      (dolist (hook-fn (symbol-value hook))
+        (when (string-match
+               keys (car (last (split-string (symbol-name hook-fn) "/"))))
+          (remove-hook hook hook-fn)
+          (when unintern-functions (unintern hook-fn nil)))))))
+
+;;; Conversion
+(defun doct--inherit (parent child)
+  "Inherit PARENT's plist members unless CHILD has already declared them.
+The only exceptions to this are the :keys, :children and :group properties.
+CHILD's keys are prefixed with PARENT's.
+The :children and :group properties are ignored."
+  ;;remove :group description
+  (when (stringp (car child))
+    (pop child))
+  (dolist (keyword (seq-filter (lambda (el)
+                                 (and (keywordp el)
+                                      (not (member el '(:children :group)))))
+                               parent))
+    (let ((keysp (member keyword '(:keys :doct-keys))))
+      (unless (and (plist-member child keyword) (not keysp))
+        (if keysp
+            (plist-put child :doct-keys (concat (or (plist-get parent :doct-keys)
+                                                    (plist-get parent :keys))
+                                                (plist-get child :keys)))
+          (plist-put child keyword (plist-get parent keyword))))))
+  child)
+
+(defun doct--compose-entry (keys name properties parent)
+  "Return a template suitable for `org-capture-templates'.
+The list is of the form: (KEYS NAME type target template additional-options...).
+PROPERTIES provides the type, target template and additional options.
+If PARENT is non-nil, list is of the form (KEYS NAME)."
+  `(,keys
+    ,name
+    ,@(unless parent
+        `(,(doct--entry-type properties)
+          ,(doct--target properties)
+          ,(doct--template properties)
+          ,@(when-let ((additional-properties
+                        (doct--additional-properties properties)))
+              `(,@(car additional-properties)
+                ,@(when-let ((custom-opts (cadr additional-properties)))
+                    `(:doct-custom ,custom-opts))))))))
+
 (defun doct--convert (name &rest properties)
   "Convert declarative form to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
@@ -506,9 +616,9 @@ For a full description of the PROPERTIES plist see `doct'."
         ;;remove :group description
         (if (stringp (car properties))
             (setq properties (cdr properties))))
-      (let* ((children (doct--children properties))
-             (keys (doct--keys properties group))
-             entry)
+      (let ((children (doct--children properties))
+            (keys (doct--keys properties group))
+            entry)
         (when children
           (setq children (mapcar (lambda (child)
                                    (apply #'doct--convert
@@ -528,22 +638,6 @@ For a full description of the PROPERTIES plist see `doct'."
                 `(,@children)
               `(,entry ,@children))
           entry)))))
-
-;;;###autoload
-(defun doct-flatten-lists-in (list-of-lists)
-  "Flatten each list in LIST-OF-LISTS.
-For example:
-  '((1) ((2 3) (4)) (((5))))
-returns:
-  '((1) (2) (3) (4) (5))"
-  (let (flattend)
-    (letrec ((flatten (lambda (list)
-                        (dolist (element list)
-                          (if (seq-every-p #'listp element)
-                              (funcall flatten element)
-                            (push element flattend))))))
-      (funcall flatten list-of-lists)
-      (nreverse flattend))))
 
 (defun doct--maybe-convert-form (form)
   "Attempt to convert FORM to Org capture template syntax."
@@ -1000,87 +1094,6 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
           ;;hook functions may set doct-templates to return manipulated list
           (or doct-templates (doct-flatten-lists-in entries)))
       (setq doct-templates nil))))
-
-;;;###autoload
-(defun doct-remove-hooks (&optional keys hooks unintern-functions)
-  "Remove hooks matching KEYS from HOOKS.
-doct hook functions follow the form:
-
-  doct--hook/<org-capture-hook-variable-name>/KEYS.
-
-KEYS is a regular expression which matches KEYS in the above form.
-
-HOOKS is one of five symbols:
-  after-finalize
-    removes matching functions from `org-capture-after-finalize-hook'
-  before-finalize
-    removes matching functions from `org-capture-before-finalize-hook'
-  prepare-finalize
-    removes matching functions from `org-capture-prepare-finalize-hook'
-  mode
-    removes matching functions from `org-capture-mode-hook'
-  t
-    removes matching functions from all of the above hooks.
-
-Or a list including any combination of the first four symbols. e.g.
-
-  \\='(after-finalize before-finalize mode prepare-finalize)
-
-is equivalent to passing t as HOOKS.
-
-If UNINTERN-FUNCTIONS is non-nil, the matching functions are uninterned.
-
-For Example:
-
-  (doct-remove-hooks \"^t\" \\='mode t)
-
-Removes and uninterns:
-
-  doct--hook/mode/t
-  doct--hook/mode/tt
-
-But not:
-
-  doct--hook/mode/p
-
-From the `org-capture-mode-hook'."
-  (interactive)
-  (let* ((keys (or keys (read-string "Remove hooks with keys matching: ")))
-         (hook-symbols (pcase hooks
-                         ('nil (mapcar #'intern-soft
-                                       (completing-read-multiple
-                                        "Hooks: " '("after-finalize"
-                                                    "before-finalize"
-                                                    "mode"
-                                                    "prepare-finalize"
-                                                    "t"))))
-                         ((pred (lambda (hook)
-                                  (memq hook '(after-finalize
-                                               before-finalize
-                                               mode
-                                               prepare-finalize
-                                               t))))
-                          (list hooks))
-                         ((and (pred listp) hooks
-                               (guard (seq-every-p #'symbolp hooks)))
-                          hooks)
-                         (_ (user-error "Unrecognized HOOKS value %s" hooks))))
-         (hooks (if (memq t hook-symbols)
-                    '(org-capture-after-finalize-hook
-                      org-capture-before-finalize-hook
-                      org-capture-mode-hook
-                      org-capture-prepare-finalize-hook)
-                  (mapcar (lambda (symbol)
-                            (intern-soft (concat "org-capture-"
-                                                 (symbol-name symbol)
-                                                 "-hook")))
-                          hook-symbols))))
-    (dolist (hook hooks)
-      (dolist (hook-fn (symbol-value hook))
-        (when (string-match
-               keys (car (last (split-string (symbol-name hook-fn) "/"))))
-          (remove-hook hook hook-fn)
-          (when unintern-functions (unintern hook-fn nil)))))))
 
 (provide 'doct)
 
