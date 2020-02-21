@@ -222,8 +222,7 @@ If GROUP is non-nil, make sure there is no :keys value."
 FILE-TARGET is the value for PLIST's :file keyword."
   (doct--validate-file file-target)
   (let (type target)
-    ;;datetree is only used when :olp is specified
-    (pcase (doct--first-in plist (remq :datetree doct-file-extension-keywords))
+    (pcase (doct--first-in plist doct-file-extension-keywords)
       (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
                        (signal 'doct-wrong-type-argument
                                `((listp stringp) :olp ,path ,doct--current)))
@@ -232,6 +231,13 @@ FILE-TARGET is the value for PLIST's :file keyword."
        (push :olp type)
        (dolist (heading (nreverse (seq-copy path)))
          (push heading target)))
+      (`(:datetree ,val)
+       (when val
+         (push :datetree type)
+         (push :olp type))
+       (when-let ((path (plist-get plist :olp)))
+         (dolist (heading (nreverse (seq-copy path)))
+           (push heading target))))
       ;;function headline regexp
       (`(,keyword ,extension)
        (when extension
@@ -821,6 +827,9 @@ The following keywords refine the target file location:
 
   - :olp (\"Level 1 heading\" \"Level 2 heading\"...)
     Define the full outline in the target file.
+
+  - :datetree nil|t
+    Requires use of the :file keyword.
     If :datetree has a non-nil value, create a date tree for today's date.
     Use a non-nil :time-prompt property to prompt for a different date.
     Set the :tree-type property to the symbol 'week' to make a week tree \

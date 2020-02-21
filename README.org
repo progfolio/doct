@@ -312,9 +312,12 @@ The following keywords refine the target file location:
 - :olp ("Level 1 heading" "Level 2 heading"...) ::
 
   Define the full outline in the target file.
+
+- :datetree nil|t ::
+  Requires use of the ~:file~  keyword.
   If ~:datetree~ has a non-nil value, create a date tree for today’s date.
   Use a non-nil ~:time-prompt~ property to prompt for a different date.
-  Use a non-nil ~:tree-type~ property to create a week-tree.
+  Set the ~:tree-type~ property to the symbol ~week~ create a week tree instead of the default month tree.
 
 - :regexp "regexp describing location" ::
 

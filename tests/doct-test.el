@@ -157,7 +157,13 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        :clock t
                        :template "test")))
               :to-equal
-              '(("c" "clock-test" entry (clock) "test")))))
+              '(("c" "clock-test" entry (clock) "test"))))
+    (it "Allows :file :datetree without :olp"
+        (expect (doct '((":file :datetree test" :keys "f" :type entry
+                         :file "" :datetree t
+                         :template "* test")))
+                :to-equal
+                '(("f" ":file :datetree test" entry (file+olp+datetree "") "* test")))))
   (describe "Template"
     (it "overrides other template target keywords"
       (expect (doct '(("ftt-test" :keys "tt" :type entry :id "1"
