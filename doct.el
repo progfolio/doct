@@ -236,7 +236,7 @@ If GROUP is non-nil, make sure there is no :keys value."
                       (not (plist-get plist :doct-warn)))
                  doct-warn-when-unbound))
         (lwarn 'doct :warning ":file %s unbound during conversion in form:\n %s"
-               'target doct--current)
+               target doct--current)
       t))
    (t (signal 'doct-wrong-type-argument
               `(stringp functionp symbolp ,target ,doct--current)))))
