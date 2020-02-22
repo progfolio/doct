@@ -603,6 +603,9 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
 (((parent) (child)...)...).
   #+end_src
 
+- doct-warn-when-unbound ::
+  When non-nil, unbound ~:function~ and ~:file~ values issue a warning.
+  This can be overridden on a per-declaration basis by setting ~:doct-warn~.
 *** Contributing
 
 Pull/feature requests, code review, angry comments are all welcome.

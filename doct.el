@@ -32,6 +32,7 @@
 (require 'subr-x)
 (require 'seq)
 (require 'org-capture)
+(require 'warnings)
 
 ;;; Custom Options
 (defgroup doct nil
@@ -54,6 +55,12 @@ The templates have not been flattened at this point and are of the form:
 \(((parent) (child)...)...)."
   :group 'doct
   :type 'hook)
+
+(defcustom doct-warn-when-unbound t
+  "When non-nil, unbound :function and :file values issue a warning.
+Can be overridden on a per-declaration basis by setting :doct-warn."
+  :group 'doct
+  :type 'boolean)
 
 ;;; Variables
 (defvar doct-templates nil
@@ -113,6 +120,7 @@ Its value is not stored between invocations to doct.")
                                    :custom
                                    :disabled
                                    :doct-keys
+                                   :doct-warn
                                    :keys
                                    :type
                                    ,@(append
@@ -125,6 +133,7 @@ Its value is not stored between invocations to doct.")
                                       doct-template-keywords
                                       doct-option-keywords))
   "List of the keywords doct recognizes.")
+
 ;;; Errors
 ;;doct-error is just parent error symbol.
 ;;Not intended to be directly signaled.
@@ -154,6 +163,12 @@ Return (KEYWORD VAL)."
                    (cddr list)
                  'not-plist)))
   (null list))
+
+(defun doct--warning-enabled-p (plist)
+  "Return t if `doct-warn-when-unbound' or PLIST's :doct-warn is non-nil."
+  (if (plist-member plist :doct-warn)
+      (plist-get plist :doct-warn)
+    doct-warn-when-unbound))
 
 ;;;###autoload
 (defun doct-get (keyword)
@@ -209,53 +224,79 @@ If GROUP is non-nil, make sure there is no :keys value."
                 `(,doct-entry-types ,type ,doct--current)))))
 
 ;;;; Target
-(defun doct--validate-file (target)
-  "Type check :file TARGET."
-  (unless (or (stringp target)
-              (functionp target)
-              (and (symbolp target) (not (or (eq t target) (keywordp target)))))
-    (signal 'doct-wrong-type-argument
-            `(stringp functionp symbolp ,target ,doct--current))))
+(defun doct--valid-file-p (plist target)
+  "Type check PLIST's :file TARGET."
+  (cond
+   ((or (stringp target) (functionp target))
+    t)
+   ((and (symbolp target)
+         (not (or (eq t target) (keywordp target))))
+    (if (and (not (boundp target))
+             (or (and (plist-member plist :doct-warn)
+                      (not (plist-get plist :doct-warn)))
+                 doct-warn-when-unbound))
+        (lwarn 'doct :warning ":file %s unbound during conversion in form:\n %s"
+               'target doct--current)
+      t))
+   (t (signal 'doct-wrong-type-argument
+              `(stringp functionp symbolp ,target ,doct--current)))))
+
+(defun doct--valid-function-p (plist function)
+  "Type check PLIST's :function FUNCTION.
+Returns t if FUNCTION is a vald :function value, nil otherwise.
+Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
+  (cond
+   ((or (functionp function) (null function))
+    t)
+   ((and (symbolp function)
+         (not (or (eq t function) (keywordp function))))
+    (if (and (not (boundp function))
+             (doct--warning-enabled-p plist))
+        (lwarn 'doct :warning ":function %s unbound during conversion in form:\n %s"
+               function doct--current)
+      t))
+   (t (signal 'doct-wrong-type-argument
+              `(functionp symbolp null :function ,function ,doct--current)))))
 
 (defun doct--target-file (plist file-target)
   "Convert PLIST's :file and file-extensions to Org capture template syntax.
 FILE-TARGET is the value for PLIST's :file keyword."
-  (doct--validate-file file-target)
-  (let (type target)
-    (pcase (doct--first-in plist doct-file-extension-keywords)
-      (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
-                       (signal 'doct-wrong-type-argument
-                               `((listp stringp) :olp ,path ,doct--current)))
-       (when (plist-get plist :datetree)
-         (push :datetree type))
-       (push :olp type)
-       (dolist (heading (nreverse (seq-copy path)))
-         (push heading target)))
-      (`(:datetree ,val)
-       (when val
-         (push :datetree type)
-         (push :olp type))
-       (when-let ((path (plist-get plist :olp)))
+  (when (doct--valid-file-p plist file-target)
+    (let (type target)
+      (pcase (doct--first-in plist doct-file-extension-keywords)
+        (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
+                         (signal 'doct-wrong-type-argument
+                                 `((listp stringp) :olp ,path ,doct--current)))
+         (when (plist-get plist :datetree)
+           (push :datetree type))
+         (push :olp type)
          (dolist (heading (nreverse (seq-copy path)))
-           (push heading target))))
-      ;;function headline regexp
-      (`(,keyword ,extension)
-       (when extension
-         (let ((predicate (if (eq keyword :function)
-                              (lambda (val)
-                                (or (functionp val) (null val)))
-                            #'stringp)))
-           (unless (funcall predicate extension)
+           (push heading target)))
+        (`(:datetree ,val)
+         (when val
+           (push :datetree type)
+           (push :olp type))
+         (when-let ((path (plist-get plist :olp)))
+           (dolist (heading (nreverse (seq-copy path)))
+             (push heading target))))
+        (`(:function ,fn)
+         (when (doct--valid-function-p plist fn)
+           (push fn target)
+           (push :function type)))
+        ;;:headline, :regexp
+        (`(,keyword ,extension)
+         (when extension
+           (unless (stringp extension)
              (signal 'doct-wrong-type-argument
-                     `(,predicate ,extension ,doct--current)))
+                     `(stringp ,extension ,doct--current)))
            (push extension target)
-           (push keyword type)))))
-    (push :file type)
-    (push file-target target)
-    `(,(intern (mapconcat (lambda (keyword)
-                            (substring (symbol-name keyword) 1))
-                          (delq nil type) "+"))
-      ,@(delq nil target))))
+           (push keyword type))))
+      (push :file type)
+      (push file-target target)
+      `(,(intern (mapconcat (lambda (keyword)
+                              (substring (symbol-name keyword) 1))
+                            (delq nil type) "+"))
+        ,@(delq nil target)))))
 
 (defun doct--target (plist)
   "Convert PLIST's target to Org capture template target."
@@ -269,12 +310,10 @@ FILE-TARGET is the value for PLIST's :file keyword."
                     `(id ,id)
                   (signal 'doct-wrong-type-argument
                           '(stringp ,id ,doct--current))))
-    (`(:function ,fn) (if (functionp fn)
-                          (if-let ((file (plist-get plist :file)))
-                              (doct--target-file plist file)
-                            `(function ,fn))
-                        (signal 'doct-wrong-type-argument
-                                '(functionp ,fn ,doct--current))))
+    (`(:function ,fn) (when (doct--valid-function-p plist fn)
+                        (if-let ((file (plist-get plist :file)))
+                            (doct--target-file plist file)
+                          `(function ,fn))))
     (`(:file ,file) (doct--target-file plist file))))
 
 ;;;; Template

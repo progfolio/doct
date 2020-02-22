@@ -20,6 +20,16 @@ Without this, tests that throw will hit the debugger."
          ,@body
        (error (car err)))))
 
+(defmacro doct-test-warning-message (&rest body)
+  "Execute BODY in context of fresh *Warnings* buffer.
+Returns *Warnings* buffer-string."
+  (declare (indent defun))
+  `(prog1
+       (with-current-buffer (get-buffer-create "*Warnings*")
+         ,@body
+         (buffer-string))
+     (kill-buffer "*Warnings*")))
+
 (defun doct-test-always-p ()
   "Predicate which always returns t."
   t)
@@ -39,24 +49,24 @@ Without this, tests that throw will hit the debugger."
 Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   ;;let* because we want messages inhibited in org-mks call
   (let* ((inhibit-message t)
-        (menu-item-regexp "\\[\\(.\\)\\]\\(\\.\\{,3\\}\\)[[:space:]]*\\(.*\\)\\1?")
-        (selection-menu
-         (catch 'menu
-           (cl-letf (((symbol-function 'org-switch-to-buffer-other-window)
-                      (lambda (buffer)
-                        (set-buffer (get-buffer-create buffer))))
-                     ;;Pre 9.2 versions of Org do not have `org--mks-read-key'.
-                     ((symbol-function (if (fboundp 'org--mks-read-key)
-                                           'org--mks-read-key
-                                           'read-char-exclusive))
-                      (lambda (&rest _)
-                        (throw 'menu (save-excursion
-                                       (set-buffer "*Org Select*")
-                                       (buffer-string))))))
-             (org-mks (org-contextualize-keys
-                       org-capture-templates
-                       org-capture-templates-contexts) "Selection Test"))))
-        menu-items)
+         (menu-item-regexp "\\[\\(.\\)\\]\\(\\.\\{,3\\}\\)[[:space:]]*\\(.*\\)\\1?")
+         (selection-menu
+          (catch 'menu
+            (cl-letf (((symbol-function 'org-switch-to-buffer-other-window)
+                       (lambda (buffer)
+                         (set-buffer (get-buffer-create buffer))))
+                      ;;Pre 9.2 versions of Org do not have `org--mks-read-key'.
+                      ((symbol-function (if (fboundp 'org--mks-read-key)
+                                            'org--mks-read-key
+                                          'read-char-exclusive))
+                       (lambda (&rest _)
+                         (throw 'menu (save-excursion
+                                        (set-buffer "*Org Select*")
+                                        (buffer-string))))))
+              (org-mks (org-contextualize-keys
+                        org-capture-templates
+                        org-capture-templates-contexts) "Selection Test"))))
+         menu-items)
     (with-temp-buffer
       (insert selection-menu)
       (goto-char (point-min))
@@ -111,7 +121,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (describe "Group"
       (it "errors if group has a :keys property"
         (expect (doct-test-signal-to-symbol
-                 (doct '((:group "Test Group" :keys "a"))))
+                  (doct '((:group "Test Group" :keys "a"))))
                 :to-equal 'user-error))
       (it "allows nested groups"
         (expect (doct '((:group "Outter" :outter t :children
@@ -158,12 +168,39 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        :template "test")))
               :to-equal
               '(("c" "clock-test" entry (clock) "test"))))
-    (it "Allows :file :datetree without :olp"
-        (expect (doct '((":file :datetree test" :keys "f" :type entry
-                         :file "" :datetree t
-                         :template "* test")))
-                :to-equal
-                '(("f" ":file :datetree test" entry (file+olp+datetree "") "* test")))))
+    (it "allows :file :datetree without :olp"
+      (expect (doct '((":file :datetree test" :keys "f" :type entry
+                       :file "" :datetree t
+                       :template "* test")))
+              :to-equal
+              '(("f" ":file :datetree test" entry (file+olp+datetree "") "* test"))))
+    (describe "Warnings"
+      (it "warns for unbound functions when converting"
+        (buttercup-suppress-warning-capture
+          (expect (doct-test-warning-message
+                    (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                             :function my/unbound-function))))
+                  :to-match "Warning (doct): :function .* unbound during conversion .*")))
+      (it "warns for unbound file symbols when converting"
+        (buttercup-suppress-warning-capture
+          (expect (doct-test-warning-message
+                    (doct '(("unbound fn warning test" :keys "u" :type entry :file my/file))))
+                  :to-match "Warning (doct): :file .* unbound during conversion .*")))
+      (it "supresses warning for unbound functions when :doct-warn is nil"
+        (buttercup-suppress-warning-capture
+          (expect (let (doct-warn-when-unbound)
+                    (doct-test-warning-message
+                      (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                               :function my/test-function
+                               :doct-warn nil)))))
+                  :not :to-match "Warning (doct): :function .* unbound during conversion .*")))
+      (it "warns for unbound functions when doct-warn-when-unbound is t and no :doct-warn is present"
+        (buttercup-suppress-warning-capture
+          (expect (let ((doct-warn-when-unbound t))
+                    (doct-test-warning-message
+                      (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                               :function my/test-function)))))
+                  :to-match "Warning (doct): :function .* unbound during conversion .*")))))
   (describe "Template"
     (it "overrides other template target keywords"
       (expect (doct '(("ftt-test" :keys "tt" :type entry :id "1"
@@ -228,8 +265,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                  :doct-custom (:keys "Moog" :implicit t)))))
     (it "errors if :custom's value is not a plist"
       (expect (doct-test-signal-to-symbol
-               (doct '((":custom test" :keys "c" :file "" :implicit t
-                        :custom ("oops")))))
+                (doct '((":custom test" :keys "c" :file "" :implicit t
+                         :custom ("oops")))))
               :to-equal 'user-error)))
   (describe "Type checking"
     (let ((types '(nil
@@ -246,28 +283,28 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
         (dolist (garbage (seq-remove 'symbolp
                                      (seq-remove 'stringp types)))
           (expect (doct-test-signal-to-symbol
-                   (doct `((,garbage :keys "t" :children ()))))
+                    (doct `((,garbage :keys "t" :children ()))))
                   :to-equal 'user-error)))
       (it "errors if :keys is not a string."
         (dolist (garbage (seq-remove 'stringp types))
           (expect (doct-test-signal-to-symbol
-                   (doct `(("test" :keys ,garbage))))
+                    (doct `(("test" :keys ,garbage))))
                   :to-equal 'user-error)))
       (it "errors if :type is not a valid type symbol."
         ;;consider nil valid, type will be determined by `doct-default-entry-type'.
         (dolist (garbage (remq nil types))
           (expect (doct-test-signal-to-symbol
-                   (doct `(("test" :keys "t" :type ,garbage :file ""))))
+                    (doct `(("test" :keys "t" :type ,garbage :file ""))))
                   :to-equal 'user-error)))
       (it "errors if :children is not a list."
         (dolist (garbage (seq-remove 'listp types))
           (expect (doct-test-signal-to-symbol
-                   (doct `(("test" :keys "t" :children ,garbage))))
+                    (doct `(("test" :keys "t" :children ,garbage))))
                   :to-equal 'user-error)))
       (it "errors if :file is not a string, function -> string, variable -> string"
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
           (expect (doct-test-signal-to-symbol
-                   (doct `(("test" :keys "t" :file ,garbage))))
+                    (doct `(("test" :keys "t" :file ,garbage))))
                   :to-equal 'user-error)))))
   (describe "Contexts"
     (before-each (setq org-capture-templates-contexts nil))
@@ -303,20 +340,20 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal '(("c" "Context test" entry (file "") nil))))
     (it "errors if no context rule keyword is found"
       (expect (doct-test-signal-to-symbol
-               (doct '(("Context rule keyword test" :keys "c" :file ""
-                        :contexts (:foo t :keys "oops")))))
+                (doct '(("Context rule keyword test" :keys "c" :file ""
+                         :contexts (:foo t :keys "oops")))))
               :to-equal 'user-error))
     (it "errors if context rule's value is not a string or list of strings"
       (expect (doct-test-signal-to-symbol
-               (doct '(("Context value test" :keys "cf" :file ""
-                        :contexts (:in-buffer (2))))))
+                (doct '(("Context value test" :keys "cf" :file ""
+                         :contexts (:in-buffer (2))))))
               :to-equal 'user-error))
     (describe "Rule Keywords"
       (describe ":function"
         (it "errors if value is not a function"
           (expect (doct-test-signal-to-symbol
-                       (doct '(("Context :function test" :keys "cf" :file ""
-                                :contexts (:function t)))))
+                    (doct '(("Context :function test" :keys "cf" :file ""
+                             :contexts (:function t)))))
                   :to-equal 'user-error))
         (it "only includes templates which pass predicate"
           (setq org-capture-templates-contexts nil)
@@ -387,9 +424,9 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                           ("d" "Disabled" entry (file "") nil))))
     (it "does not error check a disabled template"
       (expect (doct-test-signal-to-symbol
-               (doct '(("Enabled"  :keys "e" :file "")
-                       ;;has no :keys
-                       ("Disabled" :file "" :disabled t))))
+                (doct '(("Enabled"  :keys "e" :file "")
+                        ;;has no :keys
+                        ("Disabled" :file "" :disabled t))))
               :not :to-equal 'user-error))))
 (provide 'doct-test)
 
