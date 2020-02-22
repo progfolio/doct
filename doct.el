@@ -865,7 +865,7 @@ It may be:
 
   (doct ... :file \"/path/to/target.org\")
   ;;empty string defaults to `org-default-notes-file'
-  (doct ... :file"")
+  (doct ... :file \"\")
 
   - a function:
 
