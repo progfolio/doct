@@ -299,9 +299,29 @@ returns:
 #+end_src
 
 The ~:file~ keyword defines the target file for the capture template.
+It may be:
+
+- a string:
 
 #+begin_src emacs-lisp
 (doct ... :file "/path/to/target.org")
+;;empty string defaults to `org-default-notes-file'
+(doct ... :file "")
+#+end_src
+
+- a function:
+
+#+begin_src emacs-lisp
+;;lambda
+(doct ... :file (lambda () (concat (read-string "Org Capture Path: ") ".org")))
+;;or a function symbol
+(doct ... :file my/get-file-path)
+#+end_src
+
+- or a variable:
+
+#+begin_src emacs-lisp
+(doct ... :file my/file-path)
 #+end_src
 
 The following keywords refine the target file location:

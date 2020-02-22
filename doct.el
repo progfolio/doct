@@ -859,6 +859,25 @@ The :file keyword defines the target file for the capture template.
 
   (doct ... :file \"/path/to/target.org\")
 
+It may be:
+
+  - a string:
+
+  (doct ... :file \"/path/to/target.org\")
+  ;;empty string defaults to `org-default-notes-file'
+  (doct ... :file"")
+
+  - a function:
+
+  ;;lambda
+  (doct ... :file (lambda () (concat (read-string \"Org Capture Path: \") \".org\")))
+  ;;or a function symbol
+  (doct ... :file my/get-file-path)
+
+  - or a variable:
+
+  (doct ... :file my/file-path)
+
 The following keywords refine the target file location:
 
   - :headline \"node headline\"
