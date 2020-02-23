@@ -155,7 +155,7 @@ Return (KEYWORD VAL)."
                   `(,keyword ,val))))
             (seq-filter #'keywordp plist)))
 
-(defun doct-plist-p (list)
+(defun doct--plist-p (list)
   "Non-null if and only if LIST is a plist."
   (while (consp list)
     (setq list (if (and (keywordp (car list))
@@ -164,11 +164,24 @@ Return (KEYWORD VAL)."
                  'not-plist)))
   (null list))
 
+(defun doct--variable-p (object)
+  "Return t if OBJECT is a variable symbol."
+  (and (symbolp object)
+       (not (keywordp object))
+       (not (booleanp object))))
+
 (defun doct--warning-enabled-p (plist)
   "Return t if `doct-warn-when-unbound' or PLIST's :doct-warn is non-nil."
   (if (plist-member plist :doct-warn)
       (plist-get plist :doct-warn)
     doct-warn-when-unbound))
+
+(defun doct--should-warn-p (plist symbol)
+  "Return t if PLIST satisfies `doct--warning-enabled-p' and SYMBOL is unbound."
+  (and (symbolp symbol)
+       (not (boundp symbol))
+       (not (fboundp symbol))
+       (doct--warning-enabled-p plist)))
 
 ;;;###autoload
 (defun doct-get (keyword)
@@ -199,7 +212,8 @@ returns:
   (let ((children (plist-get plist :children)))
     (if (and (listp children) (not (functionp children)))
         children
-      (signal 'doct-wrong-type-argument `(listp ,children ,doct--current)))))
+      (signal 'doct-wrong-type-argument `(listp (:children ,children)
+                                                ,doct--current)))))
 
 ;;;; Keys
 (defun doct--keys (plist &optional group)
@@ -212,7 +226,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
     (let ((keys (or (plist-get plist :doct-keys) (plist-get plist :keys))))
       (unless (or (stringp keys) group)
-        (signal 'doct-wrong-type-argument `(stringp ,keys ,doct--current)))
+        (signal 'doct-wrong-type-argument `(stringp (:keys ,keys) ,doct--current)))
       keys)))
 
 ;;;; Entry Type
@@ -221,7 +235,7 @@ If GROUP is non-nil, make sure there is no :keys value."
   (let ((type (or (plist-get plist :type) doct-default-entry-type)))
     (or (car (member type doct-entry-types))
         (signal 'doct-wrong-type-argument
-                `(,doct-entry-types ,type ,doct--current)))))
+                `(,doct-entry-types (:type ,type) ,doct--current)))))
 
 ;;;; Target
 (defun doct--valid-file-p (plist target)
@@ -229,17 +243,14 @@ If GROUP is non-nil, make sure there is no :keys value."
   (cond
    ((or (stringp target) (functionp target))
     t)
-   ((and (symbolp target)
-         (not (or (eq t target) (keywordp target))))
-    (if (and (not (boundp target))
-             (or (and (plist-member plist :doct-warn)
-                      (not (plist-get plist :doct-warn)))
-                 doct-warn-when-unbound))
+   ((doct--variable-p target)
+    (if (doct--should-warn-p plist target)
         (lwarn 'doct :warning ":file %s unbound during conversion in form:\n %s"
                target doct--current)
       t))
    (t (signal 'doct-wrong-type-argument
-              `(stringp functionp symbolp ,target ,doct--current)))))
+              `((stringp functionp doct--variable-p)
+                (:file ,target) ,doct--current)))))
 
 (defun doct--valid-function-p (plist function)
   "Type check PLIST's :function FUNCTION.
@@ -248,15 +259,14 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
   (cond
    ((or (functionp function) (null function))
     t)
-   ((and (symbolp function)
-         (not (or (eq t function) (keywordp function))))
-    (if (and (not (boundp function))
-             (doct--warning-enabled-p plist))
+   ((doct--variable-p function)
+    (if (doct--should-warn-p plist function)
         (lwarn 'doct :warning ":function %s unbound during conversion in form:\n %s"
                function doct--current)
       t))
    (t (signal 'doct-wrong-type-argument
-              `(functionp symbolp null :function ,function ,doct--current)))))
+              `((functionp doct--variable-p null)
+                (:function ,function) ,doct--current)))))
 
 (defun doct--target-file (plist file-target)
   "Convert PLIST's :file and file-extensions to Org capture template syntax.
@@ -266,7 +276,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
       (pcase (doct--first-in plist doct-file-extension-keywords)
         (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
                          (signal 'doct-wrong-type-argument
-                                 `((listp stringp) :olp ,path ,doct--current)))
+                                 `((listp stringp) (:olp ,path) ,doct--current)))
          (when (plist-get plist :datetree)
            (push :datetree type))
          (push :olp type)
@@ -288,7 +298,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
          (when extension
            (unless (stringp extension)
              (signal 'doct-wrong-type-argument
-                     `(stringp ,extension ,doct--current)))
+                     `(stringp (,keyword ,extension) ,doct--current)))
            (push extension target)
            (push keyword type))))
       (push :file type)
@@ -332,23 +342,24 @@ FILE-TARGET is the value for PLIST's :file keyword."
   "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
 
-(defun doct--fill-template (val)
-  "Fill VAL."
+(defun doct--fill-template (val current)
+  "Fill CURRENT declaration's :template VAL at capture time."
   (cond
    ((stringp val)
     (if (doct--expansion-syntax-p val)
         (doct--replace-template-strings val)
       val))
    ((functionp val)
-    (doct--fill-template (funcall val)))
+    (doct--fill-template (funcall val) current))
    ((listp val)
     (unless (seq-every-p #'stringp val)
-      (signal 'doct-wrong-type-argument `((stringp) ,val ,doct--current)))
-    (string-join
-     (if (seq-some #'doct--expansion-syntax-p val)
-         (mapcar #'doct--fill-template val)
-       val) "\n"))
-   (t (signal 'doct-wrong-type-argument `((stringp listp functionp) ,val ,doct--current)))))
+      (signal 'doct-wrong-type-argument `(((stringp)) (:template ,val) ,current)))
+    (mapconcat (if (seq-some #'doct--expansion-syntax-p val)
+                   (lambda (element) (doct--fill-template element current))
+                 #'identity)
+               val "\n"))
+   (t (signal 'doct-wrong-type-argument `((stringp listp functionp)
+                                          (:template ,val) ,current)))))
 
 (defun doct--template-filler (symbol val)
   "Generate function named SYMBOL to fill current :template VAL at capture time."
@@ -356,12 +367,19 @@ FILE-TARGET is the value for PLIST's :file keyword."
            ,(concat "Fill template \""
                     (car (last (split-string (symbol-name symbol) "/")))
                     "\" at capture time.")
-           (doct--fill-template ',val))))
+           (doct--fill-template ',val ',doct--current))))
 
 (defun doct--defer (plist val)
   "Return deferred filler function for PLIST with VAL partially applied."
   (pcase val
-    ((or (pred functionp) (pred stringp) (pred listp))
+    ((or (pred functionp)
+         (pred stringp)
+         (pred listp)
+         (pred doct--variable-p))
+     (when (doct--should-warn-p plist val)
+       (lwarn 'doct :warning
+              ":template %s unbound during conversion in form:\n %s"
+              val doct--current))
      (let* ((keys (doct--keys plist))
             (fill-fn-symbol (intern (concat "doct--fill/" keys)))
             (fn (doct--template-filler fill-fn-symbol val)))
@@ -369,13 +387,19 @@ FILE-TARGET is the value for PLIST's :file keyword."
     (_ (signal 'doct-wrong-type-argument
                `((stringp listp functionp) ,val ,doct--current)))))
 
+;;TODO should accept symbols for template-file and template function/paths
 (defun doct--template (plist)
   "Convert PLIST's template target to Org capture template syntax."
   (pcase (doct--first-in plist doct-template-keywords)
-    (`(:template-file ,file) (if (stringp file)
-                                 `(file ,file)
-                               (signal 'doct-wrong-type-argument
-                                       '(stringp ,file ,doct--current))))
+    (`(:template-file ,file)
+     (if (not (or (stringp file) (doct--variable-p file)))
+         (signal 'doct-wrong-type-argument
+                 '((stringp doct--variable-p) (:template-file ,file) ,doct--current))
+       (when (doct--should-warn-p plist file)
+         (lwarn 'doct :warning
+                ":template-file %s unbound during conversion in form:\n %s"
+                file doct--current))
+       `(file ,file)))
     (`(:template ,template)
      ;;simple values: nil string, list of strings with no expansion syntax
      (pcase template
@@ -393,7 +417,7 @@ FILE-TARGET is the value for PLIST's :file keyword."
 (defun doct--custom (plist)
   "Type check and return PLIST's custom property."
   (when-let ((custom (plist-get plist :custom)))
-    (unless (doct-plist-p custom)
+    (unless (doct--plist-p custom)
       (signal 'doct-wrong-type-argument `(plist ,custom ,doct--current)))
     custom))
 
@@ -432,10 +456,11 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
 (defmacro doct--constraint-function (constraint value)
   "CONSTRAINT is a context keyword. VALUE is its value in the current rule."
   (let* ((name (symbol-name constraint))
-         (test `(string-match val ,(cond
-                                    ((string-suffix-p "buffer" name) '(buffer-name))
-                                    ((string-suffix-p "file" name) '(or (buffer-file-name) ""))
-                                    ((string-suffix-p "mode" name) '(symbol-name major-mode)))))
+         (test `(string-match val
+                              ,(cond
+                                ((string-suffix-p "buffer" name) '(buffer-name))
+                                ((string-suffix-p "file" name) '(or (buffer-file-name) ""))
+                                ((string-suffix-p "mode" name) '(symbol-name major-mode)))))
          (fn `(seq-some (lambda (val) ,test) ',value)))
     (if (string-prefix-p ":unless" name)
         `(lambda ()
@@ -450,15 +475,25 @@ CONDITION is either when or unless."
                           value)))
     `(lambda () (,condition ,condition-form t))))
 
-(defun doct--constraint-rule-list (constraint value)
-  "Create a rule list for CONSTRAINT with VALUE."
+(defun doct--constraint-rule-list (plist constraint value)
+  "Create a rule list for PLIST's CONSTRAINT with VALUE."
+  (when (and (doct--variable-p value)
+             (doct--should-warn-p plist value))
+    (lwarn 'doct :warning
+           ":contexts %s %s unbound during conversion in form:\n %s"
+           constraint value doct--current))
   `(,(cond
-      ((eq constraint :function) (if (functionp value)
-                                     value
-                                   (signal 'doct-wrong-type-argument
-                                           `(functionp ,value ,doct--current))))
-      ((eq constraint :when)   (doct--conditional-constraint when   value))
-      ((eq constraint :unless) (doct--conditional-constraint unless value))
+      ((eq constraint :function)
+       (if (or (functionp value) (doct--variable-p value))
+           value
+         (signal 'doct-wrong-type-argument
+                 `((functionp doct--variable-p)
+                   (:contexts (:function ,value)) ,doct--current))))
+      ((or (eq constraint :when) (eq constraint :unless))
+       (eval
+       (macroexpand `(doct--conditional-constraint
+                      ,(intern (substring (symbol-name constraint) 1))
+                      ,value))))
       ((stringp value)
        `(,(doct--convert-constraint-keyword constraint)
          . ,value))
@@ -466,20 +501,21 @@ CONDITION is either when or unless."
        (macroexpand
         `(doct--constraint-function ,constraint ,value)))
       (t (signal 'doct-wrong-type-argument
-                 `(stringp listp ,value ,doct--current))))))
+                 `((stringp listp) (:contexts (,constraint ,value))
+                   ,doct--current))))))
 
-(defun doct--add-contexts (properties)
-  "Set up `org-capture-template-contexts' for PROPERTIES."
-  (when-let ((contexts (plist-get properties :contexts)))
-    (let ((template-keys (doct--keys properties))
+(defun doct--add-contexts (plist)
+  "Set up `org-capture-template-contexts' for PLIST."
+  (when-let ((contexts (plist-get plist :contexts)))
+    (let ((template-keys (doct--keys plist))
           rules)
       ;;allow a single context rule or a list of context rules
       (dolist (context (if (seq-every-p #'listp contexts) contexts `(,contexts)))
-        (if-let ((first-keyword (doct--first-in context doct-context-keywords)))
-            (let* ((constraint (car first-keyword))
-                   (value (cadr first-keyword))
+        (if-let ((first-found (doct--first-in context doct-context-keywords)))
+            (let* ((constraint (car first-found))
+                   (value (cadr first-found))
                    (context-keys (plist-get context :keys))
-                   (rule-list (doct--constraint-rule-list constraint value))
+                   (rule-list (doct--constraint-rule-list plist constraint value))
                    (rule (delq nil `(,template-keys ,context-keys ,rule-list))))
               (push rule rules))
           (signal 'doct-wrong-type-argument `(,@doct-context-keywords nil ,doct--current))))
@@ -524,8 +560,12 @@ ENTRY-NAME is the name of the entry the hook should run for."
                (hook (if (eq keyword :hook) "mode"
                        ;;remove preceding ':' from keyword
                        (substring (symbol-name keyword) 1))))
-      (unless (functionp hook-fn)
-        (signal 'doct-wrong-type-argument `(functionp ,hook-fn ,doct--current)))
+      (unless (or (functionp hook-fn) (doct--variable-p hook-fn))
+        (signal 'doct-wrong-type-argument `(functionp doct--variable-p
+                                                      ,hook-fn ,doct--current)))
+      (when (doct--should-warn-p plist hook-fn)
+        (lwarn 'doct :warning "%s function %s unbound during conversion in form:\n %s"
+               keyword hook-fn doct--current))
       (doct--add-hook keys hook-fn hook name))))
 
 ;;;###autoload
@@ -656,7 +696,7 @@ For a full description of the PROPERTIES plist see `doct'."
     (let ((group (eq name :group)))
       (unless (or (stringp name) group)
         (signal 'doct-wrong-type-argument
-                `((stringp symbolp) ,name ,doct--current)))
+                `(stringp :group ,name ,doct--current)))
       (when group
         ;;remove :group description
         (if (stringp (car properties))
