@@ -1,4 +1,4 @@
-;;; doct-test.el --- doct test suite ;; -*- lexical-binding: t -*-
+;; doct-test.el --- doct test suite ;; -*- lexical-binding: t -*-
 ;; Package-Requires: ((buttercup))
 
 ;;; Commentary:
@@ -24,10 +24,14 @@ Without this, tests that throw will hit the debugger."
   "Execute BODY in context of fresh *Warnings* buffer.
 Returns *Warnings* buffer-string."
   (declare (indent defun))
+  ;;Buffer could exist if we've run these test interactively in Emacs.
+  (get-buffer-create "*Warnings*")
+  (kill-buffer "*Warnings*")
   `(prog1
        (with-current-buffer (get-buffer-create "*Warnings*")
-         ,@body
-         (buffer-string))
+         (buttercup-suppress-warning-capture
+           ,@body
+           (buffer-string)))
      (kill-buffer "*Warnings*")))
 
 (defun doct-test-always-p ()
@@ -78,6 +82,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
 (describe "DOCT"
   (before-each
     (setq doct-default-entry-type        'entry
+          doct-warn-when-unbound         t
           doct-after-conversion-hook     nil
           org-capture-mode-hook          nil
           org-before-finalize-hook       nil
@@ -175,32 +180,38 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("f" ":file :datetree test" entry (file+olp+datetree "") "* test"))))
     (describe "Warnings"
-      (it "warns for unbound functions when converting"
-        (buttercup-suppress-warning-capture
-          (expect (doct-test-warning-message
+      (it "warns for unbound :function symbols when converting"
+        (expect (doct-test-warning-message
+                  (doct '(("unbound :function warning" :keys "u" :type entry :file ""
+                           :function unbound-function))))
+                :to-match "Warning (doct): :function .* unbound during conversion .*"))
+      (it "warns for unbound :file symbols when converting"
+        (expect (doct-test-warning-message
+                  (doct '(("unbound :file warning" :keys "u" :type entry :file unbound-file))))
+                :to-match "Warning (doct): :file .* unbound during conversion .*"))
+      (it "warns for unbound :template symbols when converting"
+        (expect (doct-test-warning-message
+                  (doct '(("unbound :template warning" :keys "u" :type entry :file ""
+                           :template unbound-template))))
+                :to-match "Warning (doct): :template .* unbound during conversion .*"))
+      (it "warns for unbound :template-file symbols when converting"
+        (expect (doct-test-warning-message
+                  (doct '(("unbound :template-file warning" :keys "u" :type entry :file ""
+                           :template unbound-template-file)))
+                  :to-match "Warning (doct): :template .* unbound during conversion .*")))
+      (it "supresses warning for unbound symbols when :doct-warn is nil"
+        (expect (let (doct-warn-when-unbound)
+                  (doct-test-warning-message
                     (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                             :function my/unbound-function))))
-                  :to-match "Warning (doct): :function .* unbound during conversion .*")))
-      (it "warns for unbound file symbols when converting"
-        (buttercup-suppress-warning-capture
-          (expect (doct-test-warning-message
-                    (doct '(("unbound fn warning test" :keys "u" :type entry :file my/file))))
-                  :to-match "Warning (doct): :file .* unbound during conversion .*")))
-      (it "supresses warning for unbound functions when :doct-warn is nil"
-        (buttercup-suppress-warning-capture
-          (expect (let (doct-warn-when-unbound)
-                    (doct-test-warning-message
-                      (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                               :function my/test-function
-                               :doct-warn nil)))))
-                  :not :to-match "Warning (doct): :function .* unbound during conversion .*")))
-      (it "warns for unbound functions when doct-warn-when-unbound is t and no :doct-warn is present"
-        (buttercup-suppress-warning-capture
-          (expect (let ((doct-warn-when-unbound t))
-                    (doct-test-warning-message
-                      (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                               :function my/test-function)))))
-                  :to-match "Warning (doct): :function .* unbound during conversion .*")))))
+                             :function unbound-function
+                             :doct-warn nil)))))
+                :not :to-match "Warning (doct): :function .* unbound during conversion .*"))
+      (it "warns for unbound symbols when doct-warn-when-unbound is t and :doct-warn is nil"
+        (expect (let ((doct-warn-when-unbound t))
+                  (doct-test-warning-message
+                    (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                             :function unbound-function)))))
+                :to-match "Warning (doct): :function .* unbound during conversion .*"))))
   (describe "Template"
     (it "overrides other template target keywords"
       (expect (doct '(("ftt-test" :keys "tt" :type entry :id "1"
@@ -258,16 +269,28 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                  :immediate-finish t
                  :doct-custom (:custom-option t)))))
     (it "adds :custom data to :doct-custom"
-      (expect (doct '((":custom test" :keys "c" :file "" :implicit t
+      (expect (doct '((":custom data" :keys "c" :file "" :implicit t
                        :custom (:keys "Moog"))))
               :to-equal
-              '(("c" ":custom test" entry (file "") nil
+              '(("c" ":custom data" entry (file "") nil
                  :doct-custom (:keys "Moog" :implicit t)))))
     (it "errors if :custom's value is not a plist"
       (expect (doct-test-signal-to-symbol
-                (doct '((":custom test" :keys "c" :file "" :implicit t
+                (doct '((":custom type error" :keys "c" :file "" :implicit t
                          :custom ("oops")))))
-              :to-equal 'user-error)))
+              :to-equal 'user-error))
+    (it "errors if :empty-lines is not an interger or nil"
+      (expect (doct-test-signal-to-symbol
+                (doct '((":empty-lines type error" :keys "e" :file "" :empty-lines "one"))))
+              :to-equal 'user-error))
+    (it "errors if :table-line-pos is not a string or nil"
+      (expect (doct-test-signal-to-symbol
+                (doct '((":table-line-pos type error" :keys "t" :file "" :table-line-pos symbol))))
+              :to-equal 'user-error))
+    (it "warns if :tree-type is not week or month"
+      (expect (doct-test-warning-message
+                (doct '((":tree-type warning" :doct-warn t :keys "t" :file "" :tree-type weak))))
+              :to-match "Warning (doct): :tree-type weak in form:.*")))
   (describe "Type checking"
     (let ((types '(nil
                    t
@@ -301,7 +324,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
           (expect (doct-test-signal-to-symbol
                     (doct `(("test" :keys "t" :children ,garbage))))
                   :to-equal 'user-error)))
-      (it "errors if :file is not a string, function -> string, variable -> string"
+      (it "errors if :file is not a string, function, or symbol"
         (dolist (garbage (delq nil (seq-remove 'stringp types)))
           (expect (doct-test-signal-to-symbol
                     (doct `(("test" :keys "t" :file ,garbage))))
@@ -309,12 +332,12 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   (describe "Contexts"
     (before-each (setq org-capture-templates-contexts nil))
     (it "allows a single context rule"
-      (doct '(("Context test" :keys "c" :file ""
+      (doct '(("single context rule" :keys "c" :file ""
                :contexts (:in-buffer "test.org"))))
       (expect org-capture-templates-contexts
               :to-equal '(("c" ((in-buffer . "test.org"))))))
     (it "adds single context for a template"
-      (doct '(("Context test" :keys "c" :file ""
+      (doct '(("add single context" :keys "c" :file ""
                :contexts ((:in-buffer "test.org")))))
       (expect org-capture-templates-contexts
               :to-equal '(("c" ((in-buffer . "test.org"))))))
@@ -324,7 +347,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (expect org-capture-templates-contexts
               :to-equal '(("pc" ((in-buffer . "test.org"))))))
     (it "accepts a list of values per context rule"
-      (doct '(("Context test" :keys "c" :file ""
+      (doct '(("list per context rule" :keys "c" :file ""
                :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
       (expect org-capture-templates-contexts
               :to-equal '(("c" (#'(lambda nil
@@ -335,12 +358,12 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                                                      (symbol-name major-mode)))
                                      '("org-mode" "elisp-mode"))))))))
     (it "is not added to doct-custom"
-      (expect (doct '(("Context test" :keys "c" :file ""
+      (expect (doct '(("context not custom" :keys "c" :file ""
                        :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
-              :to-equal '(("c" "Context test" entry (file "") nil))))
+              :to-equal '(("c" "context not custom" entry (file "") nil))))
     (it "errors if no context rule keyword is found"
       (expect (doct-test-signal-to-symbol
-                (doct '(("Context rule keyword test" :keys "c" :file ""
+                (doct '(("Context rule keyword nil" :keys "c" :file ""
                          :contexts (:foo t :keys "oops")))))
               :to-equal 'user-error))
     (it "errors if context rule's value is not a string or list of strings"
@@ -428,6 +451,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                         ;;has no :keys
                         ("Disabled" :file "" :disabled t))))
               :not :to-equal 'user-error))))
+
 (provide 'doct-test)
 
 ;;; doct-test.el ends here

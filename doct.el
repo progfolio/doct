@@ -57,7 +57,7 @@ The templates have not been flattened at this point and are of the form:
   :type 'hook)
 
 (defcustom doct-warn-when-unbound t
-  "When non-nil, unbound :function and :file values issue a warning.
+  "When non-nil, unbound declaration symbols issue warnings.
 Can be overridden on a per-declaration basis by setting :doct-warn."
   :group 'doct
   :type 'boolean)
@@ -422,6 +422,29 @@ FILE-TARGET is the value for PLIST's :file keyword."
     custom))
 
 ;;;; Additional Options
+(defun doct--validate-option (plist option value)
+  "Type check PLIST OPTION's VALUE."
+  ;;nil values allowed for overrides. org-capture will just use defaults.
+  (when value
+    (cond
+     ((member option '(:empty-lines :empty-lines-after :empty-lines-before))
+      (unless (integerp value)
+        (signal 'doct-wrong-type-argument
+                `(intergerp ,option ,doct--current))))
+     ((eq option :table-line-pos)
+      (unless (stringp value)
+        (signal 'doct-wrong-type-argument
+                `(stringp ,option ,doct--current))))
+     ((eq option :tree-type)
+      ;;only a warning because `org-capture-set-target-location'
+      ;;has a default if any symbol other than week or month is set
+      (unless (member value '(week month))
+        (when (doct--warning-enabled-p plist)
+          (lwarn 'doct :warning ":tree-type %s in form:\n
+%s\n
+should be set to week or month, any other values use default datetree type."
+                 value doct--current)))))))
+
 (defun doct--additional-properties (plist)
   "Convert PLIST's additional properties to Org capture syntax.
 Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
@@ -429,20 +452,24 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
         additional-options
         custom-properties)
     (dolist (keyword keywords)
-      (cond
-       ((and (not (member keyword additional-options))
-             (member keyword doct-option-keywords))
-        (push keyword additional-options)
-        (push (plist-get plist keyword) additional-options))
-       ((not (or (member keyword custom-properties)
-                 (member keyword doct-recognized-keywords)))
-        (push keyword custom-properties)
-        (push (plist-get plist keyword) custom-properties))))
+      (let* ((optionp (member keyword doct-option-keywords))
+             (customp (not (or optionp
+                              (member keyword doct-recognized-keywords))))
+             (additionalp (or optionp customp)))
+        (when additionalp
+          (let ((value (plist-get plist keyword)))
+            (doct--validate-option plist keyword value)
+            (push keyword (if optionp
+                              additional-options
+                            custom-properties))
+            (push value (if optionp
+                            additional-options
+                          custom-properties))))))
+    (setq custom-properties (nreverse custom-properties))
     `(,(nreverse additional-options)
-      ,(let ((custom (nreverse custom-properties)))
-         (if-let ((explicit (doct--custom plist)))
-             `(,@explicit ,@custom)
-           custom)))))
+      ,(if-let ((explicit (doct--custom plist)))
+           (append explicit  custom-properties)
+         custom-properties))))
 
 ;;; External Variables
 ;;;; Contexts
@@ -491,9 +518,9 @@ CONDITION is either when or unless."
                    (:contexts (:function ,value)) ,doct--current))))
       ((or (eq constraint :when) (eq constraint :unless))
        (eval
-       (macroexpand `(doct--conditional-constraint
-                      ,(intern (substring (symbol-name constraint) 1))
-                      ,value))))
+        (macroexpand `(doct--conditional-constraint
+                       ,(intern (substring (symbol-name constraint) 1))
+                       ,value))))
       ((stringp value)
        `(,(doct--convert-constraint-keyword constraint)
          . ,value))
