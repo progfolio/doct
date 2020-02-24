@@ -184,12 +184,18 @@ Return (KEYWORD VAL)."
       (doct--get :doct-warn)
     doct-warn-when-unbound))
 
-(defun doct--should-warn-p (symbol)
-  "Return t if `doct--current-plist' satisfies `doct--warning-enabled-p' and SYMBOL is unbound."
-  (and (symbolp symbol)
-       (not (boundp symbol))
-       (not (fboundp symbol))
+(defun doct--should-warn-p (object)
+  "Return t if `doct--current-plist' satisfies `doct--warning-enabled-p' and OBJECT is unbound."
+  (and (doct--variable-p object)
+       (not (boundp object))
+       (not (fboundp object))
        (doct--warning-enabled-p)))
+
+(defun doct--maybe-warn (keyword value &optional prefix)
+  "Warn for KEYWORD VALUE. If non-nil, PREFIX prefixes message."
+  (when (doct--should-warn-p value)
+    (lwarn 'doct :warning (concat prefix "%s %s unbound during conversion in form:\n %s")
+           keyword value doct--current)))
 
 ;;;###autoload
 (defun doct-get (keyword)
@@ -248,33 +254,25 @@ If GROUP is non-nil, make sure there is no :keys value."
 ;;;; Target
 (defun doct--valid-file-p (target)
   "Type check declaration's :file TARGET."
-  (cond
-   ((or (stringp target) (functionp target))
-    t)
-   ((doct--variable-p target)
-    (if (doct--should-warn-p target)
-        (lwarn 'doct :warning ":file %s unbound during conversion in form:\n %s"
-               target doct--current)
-      t))
-   (t (signal 'doct-wrong-type-argument
+  (doct--maybe-warn :file target)
+  (or (stringp target)
+      (functionp target)
+      (doct--variable-p target)
+      (signal 'doct-wrong-type-argument
               `((stringp functionp doct--variable-p)
-                (:file ,target) ,doct--current)))))
+                (:file ,target) ,doct--current))))
 
 (defun doct--valid-function-p (function)
   "Type check declaration's :function.
 Return t if FUNCTION is a valid :function value, nil otherwise.
 Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
-  (cond
-   ((or (functionp function) (null function))
-    t)
-   ((doct--variable-p function)
-    (if (doct--should-warn-p function)
-        (lwarn 'doct :warning ":function %s unbound during conversion in form:\n %s"
-               function doct--current)
-      t))
-   (t (signal 'doct-wrong-type-argument
+  (doct--maybe-warn :function function)
+  (or (functionp function)
+      (null function)
+      (doct--variable-p function)
+      (signal 'doct-wrong-type-argument
               `((functionp doct--variable-p null)
-                (:function ,function) ,doct--current)))))
+                (:function ,function) ,doct--current))))
 
 (defun doct--target-file (file-target)
   "Convert declaration's :file FILE-TARGET and extensions to capture template syntax."
@@ -379,21 +377,18 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
 (defun doct--defer (val)
   "Return deferred template filler function for delcaration.
 VAL is partially applied."
-  (pcase val
-    ((or (pred functionp)
-         (pred stringp)
-         (pred listp)
-         (pred doct--variable-p))
-     (when (doct--should-warn-p val)
-       (lwarn 'doct :warning
-              ":template %s unbound during conversion in form:\n %s"
-              val doct--current))
-     (let* ((keys (doct--keys))
-            (fill-fn-symbol (intern (concat "doct--fill/" keys)))
-            (fn (doct--template-filler fill-fn-symbol val)))
-       `(function ,fn)))
-    (_ (signal 'doct-wrong-type-argument
-               `((stringp listp functionp) ,val ,doct--current)))))
+  (doct--maybe-warn :template val)
+  (if (or (functionp val)
+          (stringp val)
+          (listp val)
+          (doct--variable-p val))
+      (let* ((keys (doct--keys))
+             (fill-fn-symbol (intern (concat "doct--fill/" keys)))
+             (fn (doct--template-filler fill-fn-symbol val)))
+        `(function ,fn))
+    (signal 'doct-wrong-type-argument
+            `((stringp listp functionp doct--variable-p)
+              (:template ,val) ,doct--current))))
 
 (defun doct--template ()
   "Convert declaration's :template to Org capture template."
@@ -402,10 +397,7 @@ VAL is partially applied."
      (if (not (or (stringp file) (doct--variable-p file)))
          (signal 'doct-wrong-type-argument
                  '((stringp doct--variable-p) (:template-file ,file) ,doct--current))
-       (when (doct--should-warn-p file)
-         (lwarn 'doct :warning
-                ":template-file %s unbound during conversion in form:\n %s"
-                file doct--current))
+       (doct--maybe-warn :template-file file)
        `(file ,file)))
     (`(:template ,template)
      ;;simple values: nil string, list of strings with no expansion syntax
@@ -511,11 +503,7 @@ CONDITION is either when or unless."
 
 (defun doct--constraint-rule-list (constraint value)
   "Create a rule list for declaration's CONSTRAINT with VALUE."
-  (when (and (doct--variable-p value)
-             (doct--should-warn-p value))
-    (lwarn 'doct :warning
-           ":contexts %s %s unbound during conversion in form:\n %s"
-           constraint value doct--current))
+  (doct--maybe-warn constraint value ":contexts")
   `(,(cond
       ((eq constraint :function)
        (if (or (functionp value) (doct--variable-p value))
@@ -597,9 +585,7 @@ ENTRY-NAME is the name of the entry the hook should run for."
       (unless (or (functionp hook-fn) (doct--variable-p hook-fn))
         (signal 'doct-wrong-type-argument `(functionp doct--variable-p
                                                       ,hook-fn ,doct--current)))
-      (when (doct--should-warn-p hook-fn)
-        (lwarn 'doct :warning "%s function %s unbound during conversion in form:\n %s"
-               keyword hook-fn doct--current))
+      (doct--maybe-warn keyword hook-fn)
       (doct--add-hook keys hook-fn hook name))))
 
 ;;;###autoload
@@ -710,14 +696,12 @@ The :children and :group properties are ignored."
 The list is of the form: (KEYS NAME type target template additional-options...).
 `doct--current-plist' provides the type, target template and additional options.
 If PARENT is non-nil, list is of the form (KEYS NAME)."
-  `(,keys
-    ,name
+  `(,keys ,name
     ,@(unless parent
         `(,(doct--entry-type)
           ,(doct--target)
           ,(doct--template)
-          ,@(when-let ((additional-properties
-                        (doct--additional-properties)))
+          ,@(when-let ((additional-properties (doct--additional-properties)))
               `(,@(car additional-properties)
                 ,@(when-let ((custom-opts (cadr additional-properties)))
                     `(:doct-custom ,custom-opts))))))))
@@ -732,17 +716,15 @@ For a full description of the PROPERTIES plist see `doct'."
       (unless (or (stringp name) group)
         (signal 'doct-wrong-type-argument
                 `(stringp :group ,name ,doct--current)))
-
       ;;remove :group description
       (when (and group (stringp (car properties)))
         (let ((props (cdr properties)))
           (setq properties props
                 doct--current-plist props)))
-
       (let ((children (doct--children))
             (keys (doct--keys group))
             entry)
-        (when children
+        (if children
           (setq children (mapcar (lambda (child)
                                    (apply #'doct--convert
                                           `(,(car child)
@@ -750,8 +732,7 @@ For a full description of the PROPERTIES plist see `doct'."
                                                              (cdr child)))))
                                  (if (seq-every-p #'listp children)
                                      children
-                                   `(,children)))))
-        (unless children
+                                   `(,children))))
           (doct--add-hooks name keys)
           (doct--add-contexts))
         (unless group
