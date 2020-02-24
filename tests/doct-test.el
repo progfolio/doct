@@ -450,7 +450,13 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                 (doct '(("Enabled"  :keys "e" :file "")
                         ;;has no :keys
                         ("Disabled" :file "" :disabled t))))
-              :not :to-equal 'user-error))))
+              :not :to-equal 'user-error)))
+  (describe "Utility functions"
+    (describe "doct--get"
+      (it "gets a value from `doct--current-plist'"
+        (expect (let ((doct--current-plist '(:test t)))
+                  (doct--get :test))
+                :to-equal t)))))
 
 (provide 'doct-test)
 
