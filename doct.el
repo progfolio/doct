@@ -122,6 +122,7 @@ Its value is not stored between invocations to doct.")
                                    :contexts
                                    :custom
                                    :disabled
+                                   :doct-current
                                    :doct-keys
                                    :doct-warn
                                    :keys
@@ -199,9 +200,12 @@ Return (KEYWORD VAL)."
 
 ;;;###autoload
 (defun doct-get (keyword)
-  "Return KEYWORD's value from doct-custom in `org-capture-plist'.
+  "Return KEYWORD's value from `org-capture-plist'.
+Checks :doct-custom for KEYWORD and then `org-capture-plist'.
 Intended to be used at capture template time."
-  (plist-get (plist-get org-capture-plist :doct-custom) keyword))
+  (if-let ((member (plist-member (plist-get org-capture-plist :doct-custom) keyword)))
+      (cadr member)
+    (plist-get (plist-get org-capture-plist :doct-current) keyword)))
 
 ;;;###autoload
 (defun doct-flatten-lists-in (list-of-lists)
@@ -697,14 +701,15 @@ The list is of the form: (KEYS NAME type target template additional-options...).
 `doct--current-plist' provides the type, target template and additional options.
 If PARENT is non-nil, list is of the form (KEYS NAME)."
   `(,keys ,name
-    ,@(unless parent
-        `(,(doct--entry-type)
-          ,(doct--target)
-          ,(doct--template)
-          ,@(when-let ((additional-properties (doct--additional-properties)))
-              `(,@(car additional-properties)
-                ,@(when-let ((custom-opts (cadr additional-properties)))
-                    `(:doct-custom ,custom-opts))))))))
+          ,@(unless parent
+              `(,(doct--entry-type)
+                ,(doct--target)
+                ,(doct--template)
+                ,@(when-let ((additional-properties (doct--additional-properties)))
+                    `(,@(car additional-properties)
+                      ,@(when-let ((custom-opts (cadr additional-properties)))
+                          `(:doct-custom ,custom-opts))))
+                :doct-current (:doct-name ,name ,@(cdr doct--current))))))
 
 (defun doct--convert (name &rest properties)
   "Convert declaration to a template named NAME with PROPERTIES.
@@ -725,14 +730,14 @@ For a full description of the PROPERTIES plist see `doct'."
             (keys (doct--keys group))
             entry)
         (if children
-          (setq children (mapcar (lambda (child)
-                                   (apply #'doct--convert
-                                          `(,(car child)
-                                            ,@(doct--inherit properties
-                                                             (cdr child)))))
-                                 (if (seq-every-p #'listp children)
-                                     children
-                                   `(,children))))
+            (setq children (mapcar (lambda (child)
+                                     (apply #'doct--convert
+                                            `(,(car child)
+                                              ,@(doct--inherit properties
+                                                               (cdr child)))))
+                                   (if (seq-every-p #'listp children)
+                                       children
+                                     `(,children))))
           (doct--add-hooks name keys)
           (doct--add-contexts))
         (unless group

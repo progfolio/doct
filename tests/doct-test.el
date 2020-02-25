@@ -9,6 +9,20 @@
 (require 'cl-lib)
 (require 'doct)
 
+(defun doct-test--remove-doct-current (template)
+  (let (copy)
+    (dolist (element template)
+      (pcase element
+        ((or :doct-current `(:doct-name . ,cdr)) nil)
+        (_ (push element copy))))
+    (nreverse copy)))
+
+(defun doct-test-without-current (templates)
+  "Remove :doct-current from `doct' templates."
+  (setq doct-templates
+        (mapcar #'doct-test--remove-doct-current
+                (doct-flatten-lists-in templates))))
+
 (defmacro doct-test-signal-to-symbol (&rest body)
   "Work around `debug-on-error' limitation of buttercup.
 Buttercup internally sets `debug-on-error' to t.
@@ -83,7 +97,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   (before-each
     (setq doct-default-entry-type        'entry
           doct-warn-when-unbound         t
-          doct-after-conversion-hook     nil
+          doct-after-conversion-hook     '(doct-test-without-current)
           org-capture-mode-hook          nil
           org-before-finalize-hook       nil
           org-prepare-finalize-hook      nil
@@ -434,7 +448,50 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                               :immediate-finish t
                               :empty-lines 0)))))
                 (doct-test--template-string "i"))
-              :to-equal "* TODO-still-works\n")))
+              :to-equal "* TODO-still-works\n"))
+    (it "expands members of doct-recognized-keywords"
+      (expect (let* ((doct-after-conversion-hook nil)
+                     (org-capture-templates
+                      ;;:file workaround for older Org versions
+                      ;;Org complains if target file isn't in Org mode
+                      ;;even if we're just inserting into current buffer
+                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                               :no-save t
+                               :immediate-finish t
+                               :empty-lines 0
+                               :type plain
+                               :headline "PASS"
+                               :template "%doct(headline)")))))
+                (doct-test--template-string "h"))
+              :to-equal "PASS\n"))
+    (it "prefers :doct-custom over :doct-current"
+      (expect (let* ((doct-after-conversion-hook nil)
+                     (org-capture-templates
+                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                               :no-save t
+                               :immediate-finish t
+                               :empty-lines 0
+                               :type plain
+                               :headline "FAIL"
+                               :custom (:headline "PASS")
+                               :template "%doct(headline)")))))
+                (doct-test--template-string "h"))
+              :to-equal "PASS\n"))
+    (it "prefers :doct-custom over :doct-current w explicit nil"
+      (expect (let* ((doct-after-conversion-hook nil)
+                     (org-capture-templates
+                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                               :no-save t
+                               :immediate-finish t
+                               :empty-lines 0
+                               :type plain
+                               :headline "FAIL"
+                               :custom (:headline nil)
+                               :template "%doct(headline)")))))
+                (doct-test--template-string "h"))
+              ;;Another Org mode difference...
+              ;;Older versions add the newline, newer do not.
+              :to-match "\n?")))
   (describe ":disabled"
     (it "does not include templates with a :disabled value of t"
       (expect (doct '(("Enabled"  :keys "e" :file "")
