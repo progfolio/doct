@@ -1,0 +1,393 @@
+#    -*- mode: org -*-
+
+
+Archived entries from file /home/n/.emacs.d/lisp/doct/notes.org
+* 2020
+** 2020-01 January
+*** 2020-01-18 Saturday
+**** DONE Update tests.
+CLOSED: [2020-01-18 Sat 14:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:01
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+**** DONE inline %doct expansion?
+CLOSED: [2020-01-18 Sat 14:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+we can't do it yet. %doct:val%doct:another will fail...
+recursively parse the :keyword section? have to be mindful of prefix and postfix characters...
+**** DONE Update documentation to reflect API changes, new features
+CLOSED: [2020-01-18 Sat 14:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+**** DONE group settings
+CLOSED: [2020-01-18 Sat 14:14]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:24
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+Allow form's name to be a symbol.
+Its children inherit its properties, but it is not included in the final list.
+This would allow 'global' settings for all templates or settings for groups of parents.
+
+*** 2020-01-19 Sunday
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::;;@FIX some of these should probably be warnings instead of errors][doct--validate-file substitute errors for warning where appropriate]]
+CLOSED: [2020-01-19 Sun 13:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::;;@OPTIMIZE don't need to compute additive keyword every time.][doct--get only compute keyword once]]
+CLOSED: [2020-01-19 Sun 13:17]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::(defmacro doct--defer-merge (keyword values)][add checks to prevent unnecessary merge deferral]]
+CLOSED: [2020-01-19 Sun 13:16]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+If the values are atoms (not user defined) and constants,
+we shouldn't have to defer merging them. A special case is a string utilizing the ~%doct~
+expansion syntax.
+**** CANCELED [[file:~/.emacs.d/straight/repos/doct/doct.el::;;@MAYBE warn if no file extension][doct--template warn if no file extension?]]
+CLOSED: [2020-01-19 Sun 13:15]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:24
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: CANCELED
+:ARCHIVE_ITAGS: feature
+:END:
+- State "CANCELED"   from "IDEA"       [2020-01-19 Sun 13:15] \\
+  Unnecessary. org-capture correctly changes file to Org mode and issues warning.
+
+*** 2020-01-26 Sunday
+**** DONE add proper autoloads
+CLOSED: [2020-01-26 Sun 15:01]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+doct, other user-facing commands/procedures
+**** DONE [#B] Single pass recursion to compute all properties?
+CLOSED: [2020-01-26 Sun 15:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+Is it possible without getting unwieldy?
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::;;@INCOMPLETE: add rest of custom spec][finish defcustom specs]]
+CLOSED: [2020-01-26 Sun 15:01]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:24
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::;;@FIX needs overview docstring][doct needs overview documentation]]
+CLOSED: [2020-01-26 Sun 15:01]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:24
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+
+** 2020-02 February
+*** 2020-02-21 Friday
+**** DONE Go through and get all possible types for template components
+CLOSED: [2020-02-21 Fri 15:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:29
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+Right now we have `doct--variable-p' and `doct--should-warn-p' etc.
+There's probably an optimization to be made here.
+Will lead to simpler code.
+
+***** Keywords
+
+***** file-extension
+| Keyword   | Types           | Warn? |
+|-----------+-----------------+-------|
+| :datetree | boolean         |       |
+| :function | symbol function | x     |
+| :headline | string          |       |
+| :regexp   | string          |       |
+| :olp      | (string)        |       |
+
+***** exclusive locations
+| Keyword   | Types                  | Warn? |
+|-----------+------------------------+-------|
+| :clock    | boolean                |       |
+| :file     | string symbol function | x     |
+| :function | symbol function        | x     |
+| :id       | string                 |       |
+
+***** hooks
+| Keyword           | Types           | Warn? |
+|-------------------+-----------------+-------|
+| :after-finalize   | function symbol | x     |
+| :before-finalize  | ''              | x     |
+| :hook             | ''              | x     |
+| :prepare-finalize | ''              | x     |
+
+***** contexts
+| Keyword      | Types                | Warn? |
+|--------------+----------------------+-------|
+| :in/unless-* | stringp list         |       |
+| :function    | function symbol      | x     |
+| :when/unless | function symbol list | x     |
+
+***** template
+| Keyword        | Types                       | Warn? |
+|----------------+-----------------------------+-------|
+| :template      | string list function symbol | x     |
+| :template-file | string symbol               | x     |
+
+***** doct words
+| Keyword   | Types   |
+|-----------+---------|
+| children  | list    |
+| contexts  | list    |
+| custom    | plist   |
+| disabled  | boolean |
+| doct-keys | string  |
+| keys      | string  |
+| doct-warn | boolean |
+| type      | symbol  |
+
+
+*** 2020-02-22 Saturday
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::(when extension][design flaw? Are we able to override inheritance w nil values?]]
+CLOSED: [2020-02-22 Sat 15:28]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+**** DONE We don't handle deprecated file+datetree syntax...
+CLOSED: [2020-02-22 Sat 15:28]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 14:02
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+Use org-capture-upgrade-templates in doct or polyfill it?
+**** DONE :disable keyword which just creates a context blocking template from all buffers?
+CLOSED: [2020-02-22 Sat 15:28]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:25
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+**** DONE contexts
+CLOSED: [2020-02-22 Sat 15:29]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:25
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+These are the rules for validating a key defined in org.el:
+#+begin_src emacs-lisp
+(defun org-contextualize-validate-key (key contexts)
+  "Check CONTEXTS for agenda or capture KEY."
+  (let (res)
+    (dolist (r contexts)
+      (dolist (rr (car (last r)))
+        (when
+            (and (equal key (car r))
+                 (if (functionp rr) (funcall rr)
+                   (or (and (eq (car rr) 'in-file)
+                            (buffer-file-name)
+                            (string-match (cdr rr) (buffer-file-name)))
+                       (and (eq (car rr) 'in-mode)
+                            (string-match (cdr rr) (symbol-name major-mode)))
+                       (and (eq (car rr) 'in-buffer)
+                            (string-match (cdr rr) (buffer-name)))
+                       (when (and (eq (car rr) 'not-in-file)
+                                  (buffer-file-name))
+                         (not (string-match (cdr rr) (buffer-file-name))))
+                       (when (eq (car rr) 'not-in-mode)
+                         (not (string-match (cdr rr) (symbol-name major-mode))))
+                       (when (eq (car rr) 'not-in-buffer)
+                         (not (string-match (cdr rr) (buffer-name)))))))
+          (push r res))))
+    (delete-dups (delq nil res))))
+#+end_src
+#+begin_src emacs-lisp
+("context" :keys "c"
+ :context ([:keys "w"]
+           :in-mode (one two three) | one
+           :not-in-mode (one two three) | one
+           :in-buffer ("one.org" "two.org") | "one.org"
+           :not-in-buffer ("one.org" "two.org") | "one.org"
+           :function (lambda () t) | (one two three)
+
+           (setq org-capture-templates-contexts
+                 '(("n" "t" ((lambda () nil)))))
+
+           (plist-get '(:doct_ ("one" "two" "three") :keys "x") :doct_)
+
+           :in-mode ((major-mode "t")
+                     (second-mode third-mode "x")
+                     (fourth "z"))
+           :hide-in-mode
+           :hide-in-mode))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun doct-plist-p (list)
+  "Non-null if and only if LIST is a plist with keyword keys."
+  (while (consp list)
+    (setq list (if (and (keywordp (car list))
+                        (consp (cdr list)))
+                   (cddr list)
+                 'not-plist)))
+  (null list))
+#+end_src
+***** rough sketch
+#+name: properties
+#+begin_src emacs-lisp
+'(:doct-keys "xp" :contexts ((:unless-file "one.org")
+                             (:in-file ("one.org" "two.org") :keys "xp")))
+#+end_src
+
+#+RESULTS: properties
+| :doct-keys | xp | :contexts | ((:unless-file one.org) (:in-buffer (one.org two.org) :keys xp)) |
+
+
+#+begin_src emacs-lisp :var properties=properties :results replace scalar
+(defvar doct-context-keywords '(:in-buffer
+                                :in-file
+                                :in-mode
+                                :unless-buffer
+                                :unless-file
+                                :unless-mode
+                                :function))
+
+(pp
+ (doct--add-contexts properties))
+#+end_src
+
+#+RESULTS:
+#+begin_example
+"((\"xp\"
+  ((not-in-file . \"one.org\")))
+ (\"xp\" \"xp\"
+  (#'(lambda nil
+       (seq-some
+        (lambda
+          (val)
+          (string-match val
+                        (or
+                         (buffer-file-name)
+                         \"\")))
+        '(\"one.org\" \"two.org\"))))))
+"
+#+end_example
+
+#+begin_src emacs-lisp
+(setq org-capture-templates-contexts '(("n" ((lambda () (not (member major-mode '(org-mode elisp-mode wikinforg))))))))
+#+end_src
+*** 2020-02-23 Sunday
+**** DONE type check custom options
+CLOSED: [2020-02-23 Sun 15:28]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-02 Mon 15:28
+:ARCHIVE_FILE: ~/.emacs.d/lisp/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+e.g. :empty-lines* -> numberp
+     :table-line-pos -> ?
+     :tree-type
+     warn if not valid type.
+
+| Keyword             | Type          | Check?                                                                       |
+|---------------------+---------------+------------------------------------------------------------------------------|
+| :clock-in           | boolean       |                                                                              |
+| :clock-keep         | boolean       |                                                                              |
+| :clock-resume       | boolean       |                                                                              |
+| :unnarrowed         | boolean       |                                                                              |
+| :prepend            | boolean       |                                                                              |
+| :immediate-finish   | boolean       |                                                                              |
+| :jump-to-captured   | boolean       |                                                                              |
+| :kill-buffer        | boolean       |                                                                              |
+| :no-save            | boolean       |                                                                              |
+| :time-prompt        | boolean       |                                                                              |
+| :empty-lines        | integer       | integerp                                                                     |
+| :empty-lines-after  | integer       | integerp                                                                     |
+| :empty-lines-before | integer       | integerp                                                                     |
+| :table-line-pos     | string        | stringp                                                                      |
+| :tree-type          | 'week 'month? | warn if not one of these, it'll still work but may not be what user intended |
+|---------------------+---------------+------------------------------------------------------------------------------|
+
+Skipping the booleans because they only need to be non-nil or nil (not strictly 't').

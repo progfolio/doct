@@ -1,0 +1,19 @@
+#+TITLE: DOCT notes
+#+archive: %s_archive::datetree/
+* Bugs :bug:
+** RESEARCH fix doct-get
+Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
+I haven't run into any problems, but I do not often have multiple overlapping captures.
+* Documentation :documentation:
+* Optimizations :optimization:
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--defer (val][we don't really need to pass val to doct--maybe-warn or this fn]]
+Should be able to just use global `doct--current'
+* Features :feature:
+* Enhancements :enhancement:
+* Miscellaneous :misc:
+Unload byte compiled file loaded by straight.el when developing
+#+begin_src emacs-lisp :results silent
+(when (featurep 'doct)
+  (unload-feature 'doct t))
+(load-file "~/.emacs.d/straight/repos/doct/doct.el")
+#+end_src
