@@ -244,29 +244,32 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("t" "template join test" entry (file "") "test"))))
     (it "allows lambdas"
-      (expect (let ((org-capture-templates
-                     (doct '(("template lambda test" :keys "t"
-                              :type plain
-                              :file ""
-                              :immediate-finish t
-                              :no-save t
-                              :test "OK"
-                              :empty-lines nil
-                              :template (lambda () (doct-get :test)))))))
+      ;;clearing doct-after-conversion-hook because we normally discard :doct-current in other tests
+      (expect (let* ((doct-after-conversion-hook nil)
+                     (org-capture-templates
+                      (doct '(("template lambda test" :keys "t"
+                               :type plain
+                               :file ""
+                               :immediate-finish t
+                               :no-save t
+                               :test "OK"
+                               :empty-lines nil
+                               :template (lambda () (doct-get :test)))))))
                 (doct-test--template-string "t"))
               :to-equal "OK\n"))
     (it "allows named functions"
       (defun doct-test-template ()
         (doct-get :test))
-      (expect (let ((org-capture-templates
-                     (doct '(("template function test" :keys "t"
-                              :type plain
-                              :file ""
-                              :immediate-finish t
-                              :no-save t
-                              :test "OK"
-                              :empty-lines nil
-                              :template doct-test-template)))))
+      (expect (let* ((doct-after-conversion-hook nil)
+                     (org-capture-templates
+                      (doct '(("template function test" :keys "t"
+                               :type plain
+                               :file ""
+                               :immediate-finish t
+                               :no-save t
+                               :test "OK"
+                               :empty-lines nil
+                               :template doct-test-template)))))
                 (doct-test--template-string "t"))
               :to-equal "OK\n")
       (fmakunbound 'doct-test-template)))
@@ -425,6 +428,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                     (doct-test--template-selections))
                   :to-equal nil)))))
   (describe "%doct(KEYWORD) syntax"
+    (before-each (setq doct-after-conversion-hook nil))
     (it "expands metadata at capture time"
       (expect (let ((org-capture-templates
                      (doct '(("fill test" :keys "f"
@@ -450,48 +454,61 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                 (doct-test--template-string "i"))
               :to-equal "* TODO-still-works\n"))
     (it "expands members of doct-recognized-keywords"
-      (expect (let* ((doct-after-conversion-hook nil)
-                     (org-capture-templates
-                      ;;:file workaround for older Org versions
-                      ;;Org complains if target file isn't in Org mode
-                      ;;even if we're just inserting into current buffer
-                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                               :no-save t
-                               :immediate-finish t
-                               :empty-lines 0
-                               :type plain
-                               :headline "PASS"
-                               :template "%doct(headline)")))))
+      (expect (let ((org-capture-templates
+                     ;;:file workaround for older Org versions
+                     ;;Org complains if target file isn't in Org mode
+                     ;;even if we're just inserting into current buffer
+                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                              :no-save t
+                              :immediate-finish t
+                              :empty-lines 0
+                              :type plain
+                              :headline "PASS"
+                              :template "%doct(headline)")))))
                 (doct-test--template-string "h"))
               :to-equal "PASS\n"))
     (it "prefers :doct-custom over :doct-current"
-      (expect (let* ((doct-after-conversion-hook nil)
-                     (org-capture-templates
-                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                               :no-save t
-                               :immediate-finish t
-                               :empty-lines 0
-                               :type plain
-                               :headline "FAIL"
-                               :custom (:headline "PASS")
-                               :template "%doct(headline)")))))
+      (expect (let ((org-capture-templates
+                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                              :no-save t
+                              :immediate-finish t
+                              :empty-lines 0
+                              :type plain
+                              :headline "FAIL"
+                              :custom (:headline "PASS")
+                              :template "%doct(headline)")))))
                 (doct-test--template-string "h"))
               :to-equal "PASS\n"))
     (it "prefers :doct-custom over :doct-current w explicit nil"
-      (expect (let* ((doct-after-conversion-hook nil)
-                     (org-capture-templates
-                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                               :no-save t
-                               :immediate-finish t
-                               :empty-lines 0
-                               :type plain
-                               :headline "FAIL"
-                               :custom (:headline nil)
-                               :template "%doct(headline)")))))
+      (expect (let ((org-capture-templates
+                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                              :no-save t
+                              :immediate-finish t
+                              :empty-lines 0
+                              :type plain
+                              :headline "FAIL"
+                              :custom (:headline nil)
+                              :template "%doct(headline)")))))
                 (doct-test--template-string "h"))
               ;;Another Org mode difference...
               ;;Older versions add the newline, newer do not.
-              :to-match "\n?")))
+              :to-match "\n?"))
+    (it "queries fill function from :doct-current"
+      (expect
+       (let* ((doct-after-conversion-hook nil)
+              (org-capture-templates (doct '(("fill override test" :keys "f"
+                                              :file ""
+                                              :type plain
+                                              :template "%doct(num) = 1"
+                                              :num "1")))))
+         (let ((org-capture-templates
+                (doct '(("some other f" :keys "f"
+                         :file ""
+                         :type plain
+                         :template "%doct(num) = 2"
+                         :num "2"))))))
+         (doct-test--template-string "f"))
+       :to-equal "1 = 1")))
   (describe ":disabled"
     (it "does not include templates with a :disabled value of t"
       (expect (doct '(("Enabled"  :keys "e" :file "")

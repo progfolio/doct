@@ -351,45 +351,35 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
   "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
 
-(defun doct--fill-template (val current)
-  "Fill CURRENT declaration's :template VAL at capture time."
-  (cond
-   ((stringp val)
-    (if (doct--expansion-syntax-p val)
-        (doct--replace-template-strings val)
-      val))
-   ((functionp val)
-    (doct--fill-template (funcall val) current))
-   ((listp val)
-    (unless (seq-every-p #'stringp val)
-      (signal 'doct-wrong-type-argument `(((stringp)) (:template ,val) ,current)))
-    (mapconcat (if (seq-some #'doct--expansion-syntax-p val)
-                   (lambda (element) (doct--fill-template element current))
-                 #'identity)
-               val "\n"))
-   (t (signal 'doct-wrong-type-argument `((stringp listp functionp)
-                                          (:template ,val) ,current)))))
-
-(defun doct--template-filler (symbol val)
-  "Generate function named SYMBOL to fill declaration's :template VAL at capture time."
-  (eval `(defun ,symbol ()
-           ,(concat "Fill template \""
-                    (car (last (split-string (symbol-name symbol) "/")))
-                    "\" at capture time.")
-           (doct--fill-template ',val ',doct--current))))
+(defun doct--fill-template (&optional template)
+  "Fill declaration's TEMPLATE at capture time."
+  (let* ((declaration (plist-get org-capture-plist :doct-current))
+         (template (or template (plist-get declaration :template))))
+    (cond
+     ((stringp template)
+      (if (doct--expansion-syntax-p template)
+          (doct--replace-template-strings template)
+        template))
+     ((functionp template)
+      (doct--fill-template (funcall template)))
+     ((listp template)
+      (unless (seq-every-p #'stringp template)
+        (signal 'doct-wrong-type-argument `(((stringp)) (:template ,template) ,declaration)))
+      (mapconcat (if (seq-some #'doct--expansion-syntax-p template)
+                     (lambda (element) (doct--fill-template element))
+                   #'identity)
+                 template "\n"))
+     (t (signal 'doct-wrong-type-argument `((stringp listp functionp)
+                                            (:template ,template) ,declaration))))))
 
 (defun doct--defer (val)
-  "Return deferred template filler function for delcaration.
-VAL is partially applied."
+  "Type check :template VAL."
   (doct--maybe-warn :template val)
   (if (or (functionp val)
           (stringp val)
           (listp val)
           (doct--variable-p val))
-      (let* ((keys (doct--keys))
-             (fill-fn-symbol (intern (concat "doct--fill/" keys)))
-             (fn (doct--template-filler fill-fn-symbol val)))
-        `(function ,fn))
+      '(function doct--fill-template)
     (signal 'doct-wrong-type-argument
             `((stringp listp functionp doct--variable-p)
               (:template ,val) ,doct--current))))
@@ -475,6 +465,50 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
          custom-properties))))
 
 ;;; External Variables
+;;;;Hooks
+(defun doct--run-hook (hook-keyword)
+  "Run declaration's HOOK-KEYWORD function."
+  (let ((declaration (plist-get org-capture-plist :doct-current)))
+    (when (string= (or (plist-get declaration :doct-keys)
+                       (plist-get declaration :keys))
+                   (plist-get org-capture-plist :key))
+      (when-let ((hook-fn (plist-get declaration hook-keyword)))
+        (funcall hook-fn)))))
+
+(defun doct-run-capture-mode-hook ()
+  "Run declaration's :hook function."
+  (doct--run-hook :hook))
+
+(defun doct-run-after-finalize-hook ()
+  "Run declaration's :after-finalze function."
+  (doct--run-hook :after-finalize))
+
+(defun doct-run-before-finalize-hook ()
+  "Run declaration's :before-finalze function."
+  (doct--run-hook :before-finalize))
+
+(defun doct-run-prepare-finalize-hook ()
+  "Run declaration's :prepare-finalze function."
+  (doct--run-hook :prepare-finalize))
+
+(defun doct--add-hooks ()
+  "Type check and add declaration's hooks."
+  (dolist (keyword doct-hook-keywords)
+    (when-let ((fn (doct--get keyword)))
+      (unless (or (doct--variable-p fn)
+                  (functionp fn))
+        (signal 'doct-wrong-type-argument `((functionp doct--variable-p)
+                                            (,keyword ,fn) ,doct--current)))
+      (doct--maybe-warn keyword fn)
+      (pcase keyword
+        (:hook (add-to-list 'org-capture-mode-hook #'doct-run-capture-mode-hook))
+        (:after-finalize
+         (add-to-list 'org-capture-after-finalize-hook #'doct-run-after-finalize-hook))
+        (:before-finalize
+         (add-to-list 'org-capture-before-finalize-hook #'doct-run-before-finalize-hook))
+        (:prepare-finalize
+         (add-to-list 'org-capture-prepare-finalize-hook #'doct-run-prepare-finalize-hook))))))
+
 ;;;; Contexts
 (defun doct--convert-constraint-keyword (keyword)
   "Convert KEYWORD to `org-capture-templates-contexts' equivalent symbol."
@@ -547,132 +581,6 @@ CONDITION is either when or unless."
           (signal 'doct-wrong-type-argument `(,@doct-context-keywords nil ,doct--current))))
       (dolist (rule (nreverse rules))
         (add-to-list 'org-capture-templates-contexts rule)))))
-
-;;;; Hooks
-(defun doct--add-hook (keys fn where &optional entry-name)
-  "Generate and add hook function for current declaration.
-The generated hook function takes the form \"doct--hook/WHERE/KEYS\".
-FN is called when an org-capture-template's keys match KEYS.
-WHERE is one of the following strings:
-\"mode\"
-\"after-finalize\"
-\"before-finalize\"
-\"prepare-finalize\"
-ENTRY-NAME is the name of the entry the hook should run for."
-  (if-let ((wrapper (intern (string-join `("doct--hook" ,where ,keys) "/")))
-           (hook (intern-soft (concat "org-capture-" where "-hook"))))
-      (progn
-        (eval `(defun ,wrapper ()
-                 ,(string-join
-                   `("Auto generated by `doct--add-hook'."
-                     ,(concat "It runs as part of `" (symbol-name hook) "'"
-                              (if entry-name
-                                  (concat " when selecting the \"" entry-name
-                                          "\" template.")
-                                "'."))
-                     "It can be removed using `doct-remove-hooks' like so:"
-                     ,(concat "(doct-remove-hooks \""
-                              keys "\" \\='" where " t)"))
-                   "\n")
-                 (when (string= ,keys (plist-get org-capture-plist :key))
-                   (funcall (quote ,fn)))))
-        (add-hook hook wrapper))
-    (user-error "DOCT Could not add %s as doct--hook/%s to %s" fn keys where)))
-
-(defun doct--add-hooks (name keys)
-  "Add declaration's hooks for template NAME with KEYS."
-  (dolist (keyword doct-hook-keywords)
-    (when-let ((hook-fn (doct--get keyword))
-               (hook (if (eq keyword :hook) "mode"
-                       ;;remove preceding ':' from keyword
-                       (substring (symbol-name keyword) 1))))
-      (unless (or (functionp hook-fn) (doct--variable-p hook-fn))
-        (signal 'doct-wrong-type-argument `(functionp doct--variable-p
-                                                      ,hook-fn ,doct--current)))
-      (doct--maybe-warn keyword hook-fn)
-      (doct--add-hook keys hook-fn hook name))))
-
-;;;###autoload
-(defun doct-remove-hooks (&optional keys hooks unintern-functions)
-  "Remove hooks matching KEYS from HOOKS.
-doct hook functions follow the form:
-
-  doct--hook/<org-capture-hook-variable-name>/KEYS.
-
-KEYS is a regular expression which matches KEYS in the above form.
-
-HOOKS is one of five symbols:
-  after-finalize
-    removes matching functions from `org-capture-after-finalize-hook'
-  before-finalize
-    removes matching functions from `org-capture-before-finalize-hook'
-  prepare-finalize
-    removes matching functions from `org-capture-prepare-finalize-hook'
-  mode
-    removes matching functions from `org-capture-mode-hook'
-  t
-    removes matching functions from all of the above hooks.
-
-Or a list including any combination of the first four symbols. e.g.
-
-  \\='(after-finalize before-finalize mode prepare-finalize)
-
-is equivalent to passing t as HOOKS.
-
-If UNINTERN-FUNCTIONS is non-nil, the matching functions are uninterned.
-
-For Example:
-
-  (doct-remove-hooks \"^t\" \\='mode t)
-
-Removes and uninterns:
-
-  doct--hook/mode/t
-  doct--hook/mode/tt
-
-But not:
-
-  doct--hook/mode/p
-
-From the `org-capture-mode-hook'."
-  (interactive)
-  (let* ((keys (or keys (read-string "Remove hooks with keys matching: ")))
-         (hook-symbols (pcase hooks
-                         ('nil (mapcar #'intern-soft
-                                       (completing-read-multiple
-                                        "Hooks: " '("after-finalize"
-                                                    "before-finalize"
-                                                    "mode"
-                                                    "prepare-finalize"
-                                                    "t"))))
-                         ((pred (lambda (hook)
-                                  (memq hook '(after-finalize
-                                               before-finalize
-                                               mode
-                                               prepare-finalize
-                                               t))))
-                          (list hooks))
-                         ((and (pred listp) hooks
-                               (guard (seq-every-p #'symbolp hooks)))
-                          hooks)
-                         (_ (user-error "Unrecognized HOOKS value %s" hooks))))
-         (hooks (if (memq t hook-symbols)
-                    '(org-capture-after-finalize-hook
-                      org-capture-before-finalize-hook
-                      org-capture-mode-hook
-                      org-capture-prepare-finalize-hook)
-                  (mapcar (lambda (symbol)
-                            (intern-soft (concat "org-capture-"
-                                                 (symbol-name symbol)
-                                                 "-hook")))
-                          hook-symbols))))
-    (dolist (hook hooks)
-      (dolist (hook-fn (symbol-value hook))
-        (when (string-match
-               keys (car (last (split-string (symbol-name hook-fn) "/"))))
-          (remove-hook hook hook-fn)
-          (when unintern-functions (unintern hook-fn nil)))))))
-
 ;;; Conversion
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.
@@ -738,8 +646,8 @@ For a full description of the PROPERTIES plist see `doct'."
                                    (if (seq-every-p #'listp children)
                                        children
                                      `(,children))))
-          (doct--add-hooks name keys)
-          (doct--add-contexts))
+          (doct--add-contexts)
+          (doct--add-hooks))
         (unless group
           (setq entry (doct--compose-entry keys name children)))
         (if children
@@ -1061,13 +969,9 @@ Each child template has its :todo-state value expanded in the inherited \
 Hooks
 =====
 
-Adding one of the following hook keywords in a declaration will generate a \
-function of the form:
-
-  doct--hook/<hook-variable-abbreviation>/KEYS
-
-which wraps the user's function in a conditional check for the current \
-template's keys and adds it to the appropriate hook.
+Adding the following keywords in a declaration adds its value to the appropriate \
+org-capture hook.
+The value may be a function or a variable.
 
   - :hook
     `org-capture-mode-hook'
@@ -1080,28 +984,13 @@ template's keys and adds it to the appropriate hook.
 
 For example:
 
-  (doct \\='((\"example\"
+  (doct \\=`((\"example\"
            :keys \"e\"
            :file \"\"
-           :hook (lambda ()
-                   ;;when selecting the \"example\" template
-                   ;;doct--hook/mode/e executes
-                   ;;during the org-capture-mode-hook.
+           :hook ,(defun my/fn ()
                    (ignore)))))
 
-defines the function doct--hook/mode/e:
-
-    (defun doct--hook/mode/e ()
-      \"Auto generated by `doct--add-hook'.
-    It runs as part of `org-capture-mode-hook' when selecting the \"example\" \
-template.
-    It can be removed using `doct-remove-hooks' like so:
-    (doct-remove-hooks \"e\" \\='mode t)\"
-      (when (string= \"e\" (plist-get org-capture-plist :key))
-        (funcall \\='(lambda nil (ignore)))))
-
-and adds it to the `org-capture-mode-hook'.
-See `doct-remove-hooks' to remove and unintern generated functions.
+runs my/fn during the `org-capture-mode-hook' when selecting the \"example\" template.
 
 Contexts
 ========

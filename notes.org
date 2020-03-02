@@ -4,6 +4,9 @@
 ** RESEARCH fix doct-get
 Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
 I haven't run into any problems, but I do not often have multiple overlapping captures.
+** TODO rename doct-after-conversion-hook
+Convention for -hook suffix denotes normal hook.
+This is an abnormal hook. Should be ~doct-after-conversion-functions~.
 * Documentation :documentation:
 * Optimizations :optimization:
 ** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--defer (val][we don't really need to pass val to doct--maybe-warn or this fn]]
