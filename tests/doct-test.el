@@ -97,7 +97,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   (before-each
     (setq doct-default-entry-type        'entry
           doct-warn-when-unbound         t
-          doct-after-conversion-hook     '(doct-test-without-current)
+          doct-after-conversion-functions     '(doct-test-without-current)
           org-capture-mode-hook          nil
           org-before-finalize-hook       nil
           org-prepare-finalize-hook      nil
@@ -244,8 +244,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("t" "template join test" entry (file "") "test"))))
     (it "allows lambdas"
-      ;;clearing doct-after-conversion-hook because we normally discard :doct-current in other tests
-      (expect (let* ((doct-after-conversion-hook nil)
+      ;;clearing doct-after-conversion-functions because we normally discard :doct-current in other tests
+      (expect (let* ((doct-after-conversion-functions nil)
                      (org-capture-templates
                       (doct '(("template lambda test" :keys "t"
                                :type plain
@@ -260,7 +260,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (it "allows named functions"
       (defun doct-test-template ()
         (doct-get :test))
-      (expect (let* ((doct-after-conversion-hook nil)
+      (expect (let* ((doct-after-conversion-functions nil)
                      (org-capture-templates
                       (doct '(("template function test" :keys "t"
                                :type plain
@@ -428,7 +428,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                     (doct-test--template-selections))
                   :to-equal nil)))))
   (describe "%doct(KEYWORD) syntax"
-    (before-each (setq doct-after-conversion-hook nil))
+    (before-each (setq doct-after-conversion-functions nil))
     (it "expands metadata at capture time"
       (expect (let ((org-capture-templates
                      (doct '(("fill test" :keys "f"
@@ -495,7 +495,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-match "\n?"))
     (it "queries fill function from :doct-current"
       (expect
-       (let* ((doct-after-conversion-hook nil)
+       (let* ((doct-after-conversion-functions nil)
               (org-capture-templates (doct '(("fill override test" :keys "f"
                                               :file ""
                                               :type plain

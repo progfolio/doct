@@ -48,8 +48,8 @@ It can be overridden by using the :type keyword in a declarative form."
                  (const :tag "plain text" plain))
   :group 'doct)
 
-(defcustom doct-after-conversion-hook nil
-  "Hook run after doct has converted declarative forms to templates.
+(defcustom doct-after-conversion-functions nil
+  "Abnormal hook run after doct has converted declarative forms to templates.
 Hook functions are run with the list of templates as their only argument.
 The templates have not been flattened at this point and are of the form:
 \(((parent) (child)...)...)."
@@ -66,7 +66,7 @@ Can be overridden on a per-declaration basis by setting :doct-warn."
 (defvar doct-templates nil
   "If non-nil, this is used as the return value of doct.
 Use this variable to return an altered list from a function run during
-`doct-after-conversion-hook'
+`doct-after-conversion-functions'
 Its value is not stored between invocations to doct.")
 
 (defvar doct--current nil
@@ -1110,7 +1110,7 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
   (let* ((entries (mapcar #'doct--maybe-convert-declaration declarations)))
     (unwind-protect
         (progn
-          (run-hook-with-args 'doct-after-conversion-hook entries)
+          (run-hook-with-args 'doct-after-conversion-functions entries)
           ;;hook functions may set doct-templates to return manipulated list
           (or doct-templates (doct-flatten-lists-in entries)))
       (setq doct-templates nil))))
