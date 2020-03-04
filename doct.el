@@ -202,6 +202,18 @@ Return (KEYWORD VAL)."
     (lwarn 'doct :warning (concat prefix "%s %s unbound during conversion in form:\n %s")
            keyword value doct--current)))
 
+(defun doct--type-check (keyword val predicates &optional current)
+  "Type check KEYWORD's VAL.
+PREDICATES is a list of predicate functions.
+If non-nil, CURRENT is the declaration form where an error has occurred.
+It defaults to `doct--current'."
+  (unless (seq-some (lambda (predicate)
+                      (funcall predicate val))
+                    predicates)
+    (signal 'doct-wrong-type-argument `(,predicates (,keyword ,val)
+                                                    ,(or current doct--current))))
+  (doct--maybe-warn keyword val))
+
 ;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from `org-capture-plist'.
@@ -260,66 +272,41 @@ If GROUP is non-nil, make sure there is no :keys value."
                 `(,doct-entry-types (:type ,type) ,doct--current)))))
 
 ;;;; Target
-(defun doct--valid-file-p (target)
-  "Type check declaration's :file TARGET."
-  (doct--maybe-warn :file target)
-  (or (stringp target)
-      (functionp target)
-      (doct--variable-p target)
-      (signal 'doct-wrong-type-argument
-              `((stringp functionp doct--variable-p)
-                (:file ,target) ,doct--current))))
-
-(defun doct--valid-function-p (function)
-  "Type check declaration's :function.
-Return t if FUNCTION is a valid :function value, nil otherwise.
-Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
-  (doct--maybe-warn :function function)
-  (or (functionp function)
-      (null function)
-      (doct--variable-p function)
-      (signal 'doct-wrong-type-argument
-              `((functionp doct--variable-p null)
-                (:function ,function) ,doct--current))))
-
 (defun doct--target-file (file-target)
   "Convert declaration's :file FILE-TARGET and extensions to capture template syntax."
-  (when (doct--valid-file-p file-target)
-    (let (type target)
-      (pcase (doct--first-in doct-file-extension-keywords)
-        (`(:olp ,path) (unless (and (listp path) (seq-every-p #'stringp path))
-                         (signal 'doct-wrong-type-argument
-                                 `((listp stringp) (:olp ,path) ,doct--current)))
-         (when (doct--get :datetree)
-           (push :datetree type))
-         (push :olp type)
+  (doct--type-check :file file-target '(stringp functionp doct--variable-p))
+  (let (type target)
+    (pcase (doct--first-in doct-file-extension-keywords)
+      (`(:olp ,path) (doct--type-check :olp path '(doct--list-of-strings-p))
+       (when (doct--get :datetree)
+         (push :datetree type))
+       (push :olp type)
+       (dolist (heading (nreverse (seq-copy path)))
+         (push heading target)))
+      (`(:datetree ,val)
+       (when val
+         (push :datetree type)
+         (push :olp type))
+       (when-let ((path (doct--get :olp)))
+         (doct--type-check :olp path '(doct--list-of-strings-p))
          (dolist (heading (nreverse (seq-copy path)))
-           (push heading target)))
-        (`(:datetree ,val)
-         (when val
-           (push :datetree type)
-           (push :olp type))
-         (when-let ((path (doct--get :olp)))
-           (dolist (heading (nreverse (seq-copy path)))
-             (push heading target))))
-        (`(:function ,fn)
-         (when (doct--valid-function-p fn)
-           (push fn target)
-           (push :function type)))
-        ;;:headline, :regexp
-        (`(,keyword ,extension)
-         (when extension
-           (unless (stringp extension)
-             (signal 'doct-wrong-type-argument
-                     `(stringp (,keyword ,extension) ,doct--current)))
-           (push extension target)
-           (push keyword type))))
-      (push :file type)
-      (push file-target target)
-      `(,(intern (mapconcat (lambda (keyword)
-                              (substring (symbol-name keyword) 1))
-                            (delq nil type) "+"))
-        ,@(delq nil target)))))
+           (push heading target))))
+      (`(:function ,fn)
+       (doct--type-check :function fn '(functionp doct--variable-p null))
+       (push fn target)
+       (push :function type))
+      ;;:headline, :regexp
+      (`(,keyword ,extension)
+       (when extension
+         (doct--type-check keyword extension '(stringp))
+         (push extension target)
+         (push keyword type))))
+    (push :file type)
+    (push file-target target)
+    `(,(intern (mapconcat (lambda (keyword)
+                            (substring (symbol-name keyword) 1))
+                          (delq nil type) "+"))
+      ,@(delq nil target))))
 
 (defun doct--target ()
   "Convert declaration's target to template target."
@@ -329,14 +316,13 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
                                ,nil-target
                                ,doct--current)))
     (`(:clock ,_) '(clock))
-    (`(:id ,id) (if (stringp id)
-                    `(id ,id)
-                  (signal 'doct-wrong-type-argument
-                          '(stringp ,id ,doct--current))))
-    (`(:function ,fn) (when (doct--valid-function-p fn)
-                        (if-let ((file (doct--get :file)))
-                            (doct--target-file file)
-                          `(function ,fn))))
+    (`(:id ,id) (doct--type-check :id id '(stringp))
+     `(id ,id))
+    (`(:function ,fn)
+     (doct--type-check :function fn '(functionp doct--variable-p null))
+     (if-let ((file (doct--get :file)))
+         (doct--target-file file)
+       `(function ,fn)))
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
@@ -392,11 +378,8 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
   "Convert declaration's :template to Org capture template."
   (pcase (doct--first-in doct-template-keywords)
     (`(:template-file ,file)
-     (if (not (or (stringp file) (doct--variable-p file)))
-         (signal 'doct-wrong-type-argument
-                 '((stringp doct--variable-p) (:template-file ,file) ,doct--current))
-       (doct--maybe-warn :template-file file)
-       `(file ,file)))
+     (doct--type-check :template-file file '(stringp doct--variable-p))
+     `(file ,file))
     (`(:template ,template)
      ;;simple values: nil string, list of strings with no expansion syntax
      (pcase template
@@ -404,19 +387,12 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
         template)
-       ((and (pred listp)
-             (guard (seq-every-p #'stringp template))
+       ((and (pred doct--list-of-strings-p)
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
         (string-join template "\n"))
-       (deferred (doct--defer deferred))))))
-
-;;;; Custom Metadata
-(defun doct--custom ()
-  "Type check and return declaration's :custom property."
-  (when-let ((custom (doct--get :custom)))
-    (unless (doct--plist-p custom)
-      (signal 'doct-wrong-type-argument `(plist ,custom ,doct--current)))
-    custom))
+       (deferred
+         (doct--type-check :template deferred '(functionp stringp listp doct--variable-p))
+         '(function doct--fill-template))))))
 
 ;;;; Additional Options
 (defun doct--validate-option (option value)
@@ -425,13 +401,9 @@ Optionally (see `doct-warn-when-unbound') issue warning for unbound functions."
   (when value
     (cond
      ((member option '(:empty-lines :empty-lines-after :empty-lines-before))
-      (unless (integerp value)
-        (signal 'doct-wrong-type-argument
-                `(intergerp ,option ,doct--current))))
+      (doct--type-check option value '(integerp)))
      ((eq option :table-line-pos)
-      (unless (stringp value)
-        (signal 'doct-wrong-type-argument
-                `(stringp ,option ,doct--current))))
+      (doct--type-check option value '(stringp)))
      ((eq option :tree-type)
       ;;only a warning because `org-capture-set-target-location'
       ;;has a default if any symbol other than week or month is set
@@ -464,8 +436,9 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
                           custom-properties))))))
     (setq custom-properties (nreverse custom-properties))
     `(,(nreverse additional-options)
-      ,(if-let ((explicit (doct--custom)))
-           (append explicit  custom-properties)
+      ,(if-let ((explicit (doct--get :custom)))
+           (progn (doct--type-check :custom explicit '(doct--plist-p))
+                  (append explicit custom-properties))
          custom-properties))))
 
 ;;; External Variables
@@ -499,11 +472,7 @@ Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
   "Type check and add declaration's hooks."
   (dolist (keyword doct-hook-keywords)
     (when-let ((fn (doct--get keyword)))
-      (unless (or (doct--variable-p fn)
-                  (functionp fn))
-        (signal 'doct-wrong-type-argument `((functionp doct--variable-p)
-                                            (,keyword ,fn) ,doct--current)))
-      (doct--maybe-warn keyword fn)
+      (doct--type-check keyword fn '(functionp doct--variable-p))
       (pcase keyword
         (:hook (add-to-list 'org-capture-mode-hook #'doct-run-capture-mode-hook))
         (:after-finalize
@@ -548,22 +517,16 @@ CONDITION is either when or unless."
   (doct--maybe-warn constraint value ":contexts")
   `(,(cond
       ((eq constraint :function)
-       (if (or (functionp value) (doct--variable-p value))
-           value
-         (signal 'doct-wrong-type-argument
-                 `((functionp doct--variable-p)
-                   (:contexts (:function ,value)) ,doct--current))))
+       (doct--type-check :function value '(functionp doct--variable-p))
+       value)
       ((or (eq constraint :when) (eq constraint :unless))
-       (eval
-        (macroexpand `(doct--conditional-constraint
-                       ,(intern (substring (symbol-name constraint) 1))
-                       ,value))))
+       (eval (macroexpand `(doct--conditional-constraint
+                            ,(intern (substring (symbol-name constraint) 1))
+                            ,value))))
       ((stringp value)
-       `(,(doct--convert-constraint-keyword constraint)
-         . ,value))
-      ((and (listp value) (seq-every-p #'stringp value))
-       (macroexpand
-        `(doct--constraint-function ,constraint ,value)))
+       `(,(doct--convert-constraint-keyword constraint) . ,value))
+      ((doct--list-of-strings-p value)
+       (macroexpand `(doct--constraint-function ,constraint ,value)))
       (t (signal 'doct-wrong-type-argument
                  `((stringp listp) (:contexts (,constraint ,value))
                    ,doct--current))))))
