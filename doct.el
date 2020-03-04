@@ -226,10 +226,7 @@ Intended to be used at capture template time."
 ;;;###autoload
 (defun doct-flatten-lists-in (list-of-lists)
   "Flatten each list in LIST-OF-LISTS.
-For example:
-  '((1) ((2 3) (4)) (((5))))
-returns:
-  '((1) (2) (3) (4) (5))"
+For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
   (let (flattend)
     (letrec ((flatten (lambda (list)
                         (dolist (element list)
@@ -878,7 +875,7 @@ Custom data
 doct stores unrecognized keywords on the template's `org-capture-plist' \
 as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
-See \"Doct String Expansion\" below for detail on using that data.
+See \"%doct String Expansion\" below for detail on using that data.
 
 The :custom keyword accepts a plist.
 The doct-custom plist stores its elements.
@@ -937,7 +934,7 @@ Hooks
 =====
 
 Adding the following keywords in a declaration adds its value to the appropriate \
-org-capture hook.
+`org-capture' hook.
 The value may be a function or a variable.
 
   - :hook
