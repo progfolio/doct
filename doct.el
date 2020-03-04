@@ -338,38 +338,24 @@ If GROUP is non-nil, make sure there is no :keys value."
   "Return t for STRING containing %doct(keyword) syntax, else nil."
   (when (string-match-p "%doct(.*?)" string) t))
 
-(defun doct--fill-template (&optional template)
-  "Fill declaration's TEMPLATE at capture time."
+(defun doct--fill-template (&optional value)
+  "Fill declaration's :template VALUE at capture time."
   (let* ((declaration (plist-get org-capture-plist :doct-current))
-         (template (or template (plist-get declaration :template))))
-    (cond
-     ((stringp template)
-      (if (doct--expansion-syntax-p template)
-          (doct--replace-template-strings template)
-        template))
-     ((functionp template)
-      (doct--fill-template (funcall template)))
-     ((listp template)
-      (unless (seq-every-p #'stringp template)
-        (signal 'doct-wrong-type-argument `(((stringp)) (:template ,template) ,declaration)))
-      (mapconcat (if (seq-some #'doct--expansion-syntax-p template)
-                     (lambda (element) (doct--fill-template element))
-                   #'identity)
-                 template "\n"))
-     (t (signal 'doct-wrong-type-argument `((stringp listp functionp)
-                                            (:template ,template) ,declaration))))))
-
-(defun doct--defer (val)
-  "Type check :template VAL."
-  (doct--maybe-warn :template val)
-  (if (or (functionp val)
-          (stringp val)
-          (listp val)
-          (doct--variable-p val))
-      '(function doct--fill-template)
-    (signal 'doct-wrong-type-argument
-            `((stringp listp functionp doct--variable-p)
-              (:template ,val) ,doct--current))))
+         (value (or value (plist-get declaration :template)))
+         (template (pcase value
+                     ((pred stringp) (if (doct--expansion-syntax-p value)
+                                         (doct--replace-template-strings
+                                          value declaration)
+                                       value))
+                     ((pred functionp) (doct--fill-template (funcall value)))
+                     ((pred doct--list-of-strings-p)
+                      (mapconcat (lambda (element)
+                                   (if (doct--expansion-syntax-p element)
+                                       (doct--fill-template element)
+                                     element))
+                                 value "\n")))))
+    (doct--type-check :template template '(stringp) declaration)
+    template))
 
 (defun doct--template ()
   "Convert declaration's :template to Org capture template."
