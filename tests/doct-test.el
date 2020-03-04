@@ -508,7 +508,20 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                          :template "%doct(num) = 2"
                          :num "2"))))))
          (doct-test--template-string "f"))
-       :to-equal "1 = 1")))
+       :to-equal "1 = 1"))
+    (it "warns when expansion is wrong type"
+      (expect (doct-test-warning-message
+                (let* ((org-capture-bookmark)
+                       (org-capture-templates
+                       (doct '(("wrong expansion type" :keys "w"
+                                :no-save t
+                                :immediate-finish t
+                                :file ""
+                                :type plain
+                                :template "%doct(number)"
+                                :number 1)))))
+                  (org-capture 0 "w")))
+              :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*")))
   (describe ":disabled"
     (it "does not include templates with a :disabled value of t"
       (expect (doct '(("Enabled"  :keys "e" :file "")

@@ -420,9 +420,9 @@ returns:
 :PROPERTIES:
 :CUSTOM_ID: doct-string-expansion
 :END:
-A declaration may include custom metadata which is accessible during capture.
+A declaration ~:template~ may include a keyword's value during capture.
 The syntax is similar to other, built-in "%-escapes".
-~%doct(KEYWORD)~ will insert the value declared with ~:KEYWORD~ in the template.
+~%doct(KEYWORD)~ will insert the value declared with ~:KEYWORD~ in the declaration.
 
 For example, with:
 
@@ -435,6 +435,18 @@ For example, with:
 #+end_src
 
 Each child template has its ~:todo-state~ value expanded in the inherited ~:template.~
+
+Custom keywords take precedence over other declaration keywords.
+For example, with:
+
+#+begin_src emacs-lisp
+(doct '(("Music Gear" :keys "m" :file "" :type plain
+         :custom (:keys "Moog")
+         :template "%doct(keys)")))
+#+end_src
+
+The "Music Gear" template expands to "Moog" instead of "m".
+Nil values expand to an empty string.
 
 **** Hooks
 Adding the following hook keywords in a declaration adds its value to the appropriate org-capture hook.
@@ -469,7 +481,7 @@ For example:
          :keys "e"
          :file ""
          :hook ,(defun my/fn  ()
-                 (ignore)))))
+                  (ignore)))))
 #+end_src
 
 runs ~my/fn~ during the ~org-capture-mode-hook~ when selecting the "example" template.

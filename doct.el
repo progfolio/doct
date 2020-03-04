@@ -323,15 +323,22 @@ If GROUP is non-nil, make sure there is no :keys value."
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
-(defun doct--replace-template-strings (string)
-  "Replace STRING's %doct(KEYWORD) occurrences with their :doct-custom values."
+(defun doct--replace-template-strings (string declaration)
+  "Replace STRING's %doct(KEYWORD) occurrences with their :doct-custom values.
+If non-nil, DECLARATION is the declaration containing STRING."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
     (save-match-data
       (while (re-search-forward "%doct(\\(.*?\\))" nil :no-error)
-        (replace-match (or (doct-get (intern (concat ":" (match-string 1))))
-                           ""))))
+        (let* ((keyword (intern (concat ":" (match-string 1))))
+               (val (doct-get keyword)))
+          (unless (or (stringp val) (null val))
+            (lwarn 'doct :warning "%%doct(%s) wrong type: stringp %s in form:
+%s\nSubstituted for empty string."
+                   keyword val declaration)
+            (setq val ""))
+          (replace-match (or val "")))))
     (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
@@ -899,7 +906,7 @@ The parent's :keys prefix each child's :keys.
 %doct String Expansion
 ======================
 
-A declaration may include custom metadata which is accessible during capture.
+A declaration :template may include a keyword's value during capture.
 The syntax is similar to other, built-in \"%-escapes\":
 
   %doct(KEYWORD)
@@ -915,6 +922,16 @@ For example, with:
 
 Each child template has its :todo-state value expanded in the inherited \
 :template.
+
+Custom keywords take precedence over other declaration keywords.
+For example, with:
+
+  (doct \\='((\"Music Gear\" :keys \"m\" :file \"\" :type plain
+           :custom (:keys \"Moog\")
+           :template \"%doct(keys)\")))
+
+The \"Music Gear\" template expands to \"Moog\" instead of \"m\".
+Nil values expand to an empty string.
 
 Hooks
 =====
