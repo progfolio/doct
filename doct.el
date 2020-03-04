@@ -173,6 +173,10 @@ Return (KEYWORD VAL)."
                  'not-plist)))
   (null list))
 
+(defun doct--list-of-strings-p (object)
+  "Return t if OBJECT is a list of strings."
+  (and (listp object) (seq-every-p #'stringp object)))
+
 (defun doct--variable-p (object)
   "Return t if OBJECT is a variable symbol."
   (and (symbolp object)
