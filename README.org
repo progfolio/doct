@@ -607,7 +607,7 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
   It can be overridden by using the ~:type~ keyword in an entry.
 
 - doct-after-conversion-functions ::
-  Abnormal hook run after doct has converted declarative forms to templates.
+  Abnormal hook run after converting declarations to templates.
   Hook functions run with the list of templates as their only argument.
   The templates are not flattened at this point and are of the form:
   #+begin_src emacs-lisp

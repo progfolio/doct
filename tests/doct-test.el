@@ -403,7 +403,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
                   '((":headline no :file error" :keys "h" :headline "test")))
-                :to-equal "Form has no target"))
+                :to-equal "Declaration has no target"))
       (it "errors if it is not a string or nil"
         (expect (doct-test-types '(":headline type" :keys "h" :file "" :headline type))
                 :to-equal '(:nil :string)))
@@ -417,7 +417,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
                   '((":olp without :file error" :keys "o" :olp ("one"))))
-                :to-equal "Form has no target"))
+                :to-equal "Declaration has no target"))
       (it "errors if it is not a list of strings or nil"
         (expect (doct-test-types '(":olp type" :keys "o" :file "" :olp type))
                 :to-equal '(:list-of-strings :nil)))
@@ -431,7 +431,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
         (it "errors if not used with :file"
           (expect (doct-test-signal-to-message
                     '((":datetree without :file error" :keys "d" :datetree t)))
-                  :to-equal "Form has no target"))
+                  :to-equal "Declaration has no target"))
         (it "can be used without specifying :olp"
           (expect (doct-test-without-declarations
                    '((":datetree + :file" :keys "d" :file "" :datetree t)))
@@ -448,7 +448,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
                   '((":regexp without :file warning" :keys "r" :regexp "test")))
-                :to-match "Form has no target"))
+                :to-match "Declaration has no target"))
       (it "errors if it is not a string or nil"
         (expect (doct-test-types '(":regexp type" :keys "r" :file "" :regexp type))
                 :to-equal '(:nil :string)))
@@ -466,7 +466,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (expect (doct-test-warning-message
                 (doct '((":function warn" :keys "f" :function unbound-symbol))))
               :to-match
-              "Warning (doct): :function unbound-symbol unbound during conversion in form.*"))
+              "Warning (doct): :function unbound-symbol unbound during conversion in declaration.*"))
     (it "exlucsively sets target when not used with :file"
       (expect (doct-test-without-declarations
                '((":function exclusivity" :keys "f" :function identity
@@ -522,7 +522,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
        (doct-test-warning-message
          (doct '((":template warning" :keys "t" :file "" :template unbound-symbol))))
        :to-match
-       "Warning (doct): :template unbound-symbol unbound during conversion in form:.*"))
+       "Warning (doct): :template unbound-symbol unbound during conversion in declaration:.*"))
     (it "exclusively sets template target"
       (expect (doct-test-without-declarations
                '((":template exclusivity" :keys "t" :file ""
@@ -551,7 +551,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (expect (doct-test-warning-message
                 (doct '((":template-file warning" :keys "f" :file ""
                          :template-file unbound-symbol))))
-              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in form.*"))
+              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in declaration.*"))
     (it "exclusively sets template target"
       (expect (doct-test-without-declarations
                '((":template-file exclusivity" :keys "t" :type entry :file ""
@@ -601,7 +601,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   ;;   (it "warns if :tree-type is not week or month"
   ;;     (expect (doct-test-warning-message
   ;;               (doct '((":tree-type warning" :doct-warn t :keys "t" :file "" :tree-type weak))))
-  ;;             :to-match "Warning (doct): :tree-type weak in form:.*")))
+  ;;             :to-match "Warning (doct): :tree-type weak in declaration:.*")))
   (describe "%doct(KEYWORD)"
     (it "warns when expansion is wrong type"
       (expect (doct-test-warning-message

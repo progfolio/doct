@@ -41,7 +41,7 @@
 
 (defcustom doct-default-entry-type 'entry
   "The default template entry type.
-It can be overridden by using the :type keyword in a declarative form."
+It can be overridden by using the :type keyword in a declaration."
   :type '(choice (const :tag "Regular entry" entry)
                  (const :tag "plain list item" item)
                  (const :tag "checklist item" checkitem)
@@ -49,7 +49,7 @@ It can be overridden by using the :type keyword in a declarative form."
   :group 'doct)
 
 (defcustom doct-after-conversion-functions nil
-  "Abnormal hook run after doct has converted declarative forms to templates.
+  "Abnormal hook run after converting declarations to templates.
 Hook functions are run with the list of templates as their only argument.
 The templates have not been flattened at this point and are of the form:
 \(((parent) (child)...)...)."
@@ -70,10 +70,10 @@ Use this variable to return an altered list from a function run during
 Its value is not stored between invocations to doct.")
 
 (defvar doct--current nil
-  "The current form being processed by doct. Used for error processing.")
+  "The current declaration being processed by doct. Used for error processing.")
 
 (defvar doct--current-plist nil
-  "The plist of the current form being processed by doct.")
+  "The plist of the current declaration being processed by doct.")
 
 (defvar doct-entry-types '(entry item checkitem table-line plain)
   "The allowed template entry types.")
@@ -142,11 +142,11 @@ Its value is not stored between invocations to doct.")
 ;;doct-error is just parent error symbol.
 ;;Not intended to be directly signaled.
 (define-error 'doct-error               "DOCT peculiar error!")
-(define-error 'doct-no-keys             "Form has no :keys value" 'doct-error)
-(define-error 'doct-group-keys          "Group has :keys value"   'doct-error)
-(define-error 'doct-no-target           "Form has no target"      'doct-error)
-(define-error 'doct-no-template         "Form has no template"    'doct-error)
-(define-error 'doct-wrong-type-argument "Wrong type argument"     'doct-error)
+(define-error 'doct-no-keys             "Declaration has no :keys value" 'doct-error)
+(define-error 'doct-group-keys          "Group has :keys value"          'doct-error)
+(define-error 'doct-no-target           "Declaration has no target"      'doct-error)
+(define-error 'doct-no-template         "Declaration has no template"    'doct-error)
+(define-error 'doct-wrong-type-argument "Wrong type argument"            'doct-error)
 
 ;;; Utility Functions
 (defun doct--get (keyword)
@@ -199,13 +199,13 @@ Return (KEYWORD VAL)."
 (defun doct--maybe-warn (keyword value &optional prefix)
   "Warn for KEYWORD VALUE. If non-nil, PREFIX prefixes message."
   (when (doct--should-warn-p value)
-    (lwarn 'doct :warning (concat prefix "%s %s unbound during conversion in form:\n %s")
+    (lwarn 'doct :warning (concat prefix "%s %s unbound during conversion in declaration:\n %s")
            keyword value doct--current)))
 
 (defun doct--type-check (keyword val predicates &optional current)
   "Type check KEYWORD's VAL.
 PREDICATES is a list of predicate functions.
-If non-nil, CURRENT is the declaration form where an error has occurred.
+If non-nil, CURRENT is the declaration where an error has occurred.
 It defaults to `doct--current'."
   (unless (seq-some (lambda (predicate)
                       (funcall predicate val))
@@ -336,7 +336,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
         (let* ((keyword (intern (concat ":" (match-string 1))))
                (val (doct-get keyword)))
           (unless (or (stringp val) (null val))
-            (lwarn 'doct :warning "%%doct(%s) wrong type: stringp %s in form:
+            (lwarn 'doct :warning "%%doct(%s) wrong type: stringp %s in declaration:
 %s\nSubstituted for empty string."
                    keyword val declaration)
             (setq val ""))
@@ -501,7 +501,7 @@ CONDITION is either when or unless."
 
 (defun doct--constraint-rule-list (constraint value)
   "Create a rule list for declaration's CONSTRAINT with VALUE."
-  (doct--maybe-warn constraint value ":contexts")
+  (doct--maybe-warn constraint value ":contexts ")
   `(,(cond
       ((eq constraint :function)
        (doct--type-check :function value '(functionp doct--variable-p))
