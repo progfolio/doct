@@ -180,6 +180,7 @@ Return (KEYWORD VAL)."
 (defun doct--variable-p (object)
   "Return t if OBJECT is a variable symbol."
   (and (symbolp object)
+       (not (functionp object))
        (not (keywordp object))
        (not (booleanp object))))
 
