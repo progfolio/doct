@@ -122,7 +122,7 @@ Its value is not stored between invocations to doct.")
                                    :contexts
                                    :custom
                                    :disabled
-                                   :doct-current
+                                   :doct
                                    :doct-keys
                                    :doct-warn
                                    :keys
@@ -219,9 +219,11 @@ It defaults to `doct--current'."
   "Return KEYWORD's value from `org-capture-plist'.
 Checks :doct-custom for KEYWORD and then `org-capture-plist'.
 Intended to be used at capture template time."
-  (if-let ((member (plist-member (plist-get org-capture-plist :doct-custom) keyword)))
-      (cadr member)
-    (plist-get (plist-get org-capture-plist :doct-current) keyword)))
+  (let* ((declaration (cdr (plist-get org-capture-plist :doct)))
+         (custom (plist-get declaration :doct-custom)))
+    (if-let ((member (plist-member custom keyword)))
+        (cadr member)
+      (plist-get declaration keyword))))
 
 ;;;###autoload
 (defun doct-flatten-lists-in (list-of-lists)
@@ -347,7 +349,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((declaration (plist-get org-capture-plist :doct-current))
+  (let* ((declaration (cdr (plist-get org-capture-plist :doct)))
          (value (or value (plist-get declaration :template)))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
@@ -381,61 +383,56 @@ If non-nil, DECLARATION is the declaration containing STRING."
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
         (string-join template "\n"))
        (deferred
-         (doct--type-check :template deferred '(functionp stringp listp doct--variable-p))
+         (doct--type-check :template deferred '(functionp stringp doct--list-of-strings-p
+                                                          doct--variable-p))
          '(function doct--fill-template))))))
 
 ;;;; Additional Options
-(defun doct--validate-option (option value)
-  "Type check OPTION's VALUE in declaration."
-  ;;nil values allowed for overrides. org-capture will just use defaults.
-  (when value
-    (cond
-     ((member option '(:empty-lines :empty-lines-after :empty-lines-before))
-      (doct--type-check option value '(integerp)))
-     ((eq option :table-line-pos)
-      (doct--type-check option value '(stringp)))
-     ((eq option :tree-type)
-      ;;only a warning because `org-capture-set-target-location'
-      ;;has a default if any symbol other than week or month is set
-      (unless (member value '(week month))
-        (when (doct--warning-enabled-p)
-          (lwarn 'doct :warning ":tree-type %s in form:\n
+(defun doct--validate-option (pair)
+  "Type check :KEY VALUE option PAIR declaration."
+  (pcase pair
+    ;;nil values allowed for overrides. org-capture will just use defaults.
+    (`(,(and (or :empty-lines :empty-lines-after :empty-lines-before) option) ,value)
+     (doct--type-check option value '(integerp)))
+    (`(:table-line-pos ,value)
+     (doct--type-check :table-line-pos value '(stringp)))
+    (`(:tree-type ,value)
+     ;;only a warning because `org-capture-set-target-location'
+     ;;has a default if any symbol other than week or month is set
+     (unless (member value '(week month))
+       (when (doct--warning-enabled-p)
+         (lwarn 'doct :warning ":tree-type %s in declaration:\n
 %s\n
 should be set to week or month, any other values use default datetree type."
-                 value doct--current)))))))
+                value doct--current))))))
 
-(defun doct--additional-properties ()
-  "Convert declaration's additional properties to Org capture syntax.
-Returns a list of ((ADDITIONAL OPTIONS) (CUSTOM PROPERTIES))."
+(defun doct--additional-options ()
+  "Convert declaration's additional options to Org capture syntax."
+  (let (additional-options)
+    (dolist (keyword doct-option-keywords additional-options)
+      (when-let ((key-val (plist-member doct--current-plist keyword)))
+        (doct--validate-option key-val)
+        (setq additional-options (plist-put additional-options
+                                            (car key-val) (cadr key-val)))))))
+
+(defun doct--custom-properties ()
+  "Return a copy of declaration's :custom plist with unrecognized keywords added."
   (let ((keywords (delete-dups (seq-filter #'keywordp doct--current-plist)))
-        additional-options
         custom-properties)
     (dolist (keyword keywords)
-      (let* ((optionp (member keyword doct-option-keywords))
-             (customp (not (or optionp
-                               (member keyword doct-recognized-keywords))))
-             (additionalp (or optionp customp)))
-        (when additionalp
-          (let ((value (doct--get keyword)))
-            (doct--validate-option keyword value)
-            (push keyword (if optionp
-                              additional-options
-                            custom-properties))
-            (push value (if optionp
-                            additional-options
-                          custom-properties))))))
-    (setq custom-properties (nreverse custom-properties))
-    `(,(nreverse additional-options)
-      ,(if-let ((explicit (doct--get :custom)))
-           (progn (doct--type-check :custom explicit '(doct--plist-p))
-                  (append explicit custom-properties))
-         custom-properties))))
+      (unless (member keyword doct-recognized-keywords)
+        (setq custom-properties
+              (plist-put custom-properties keyword (doct--get keyword)))))
+    (if-let ((explicit (doct--get :custom)))
+        (progn (doct--type-check :custom explicit '(doct--plist-p))
+               (append explicit custom-properties))
+      custom-properties)))
 
 ;;; External Variables
 ;;;;Hooks
 (defun doct--run-hook (hook-keyword)
   "Run declaration's HOOK-KEYWORD function."
-  (let ((declaration (plist-get org-capture-plist :doct-current)))
+  (let ((declaration (plist-get org-capture-plist :doct)))
     (when (string= (or (plist-get declaration :doct-keys)
                        (plist-get declaration :keys))
                    (plist-get org-capture-plist :key))
@@ -570,11 +567,11 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
               `(,(doct--entry-type)
                 ,(doct--target)
                 ,(doct--template)
-                ,@(when-let ((additional-properties (doct--additional-properties)))
-                    `(,@(car additional-properties)
-                      ,@(when-let ((custom-opts (cadr additional-properties)))
-                          `(:doct-custom ,custom-opts))))
-                :doct-current (:doct-name ,name ,@(cdr doct--current))))))
+                ,@(doct--additional-options)
+                :doct (,name
+                       ,@(cdr doct--current)
+                       ,@(when-let ((custom (doct--custom-properties)))
+                           `(:doct-custom ,(doct--custom-properties))))))))
 
 (defun doct--convert (name &rest properties)
   "Convert declaration to a template named NAME with PROPERTIES.
