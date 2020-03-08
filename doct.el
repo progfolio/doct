@@ -159,8 +159,8 @@ If PLIST is nil, `doct--current-plist' is used.
 Return (KEYWORD VAL)."
   (let ((target-list (or plist doct--current-plist)))
     (seq-some (lambda (keyword)
-                (let ((val (plist-get target-list keyword)))
-                  (when (and val (member keyword keywords))
+                (when-let ((val (plist-get target-list keyword)))
+                  (when (member keyword keywords)
                     `(,keyword ,val))))
               (seq-filter #'keywordp target-list))))
 
@@ -284,9 +284,8 @@ If GROUP is non-nil, make sure there is no :keys value."
        (dolist (heading (nreverse (seq-copy path)))
          (push heading target)))
       (`(:datetree ,val)
-       (when val
-         (push :datetree type)
-         (push :olp type))
+       (push :datetree type)
+       (push :olp type)
        (when-let ((path (doct--get :olp)))
          (doct--type-check :olp path '(doct--list-of-strings-p))
          (dolist (heading (nreverse (seq-copy path)))
@@ -295,12 +294,10 @@ If GROUP is non-nil, make sure there is no :keys value."
        (doct--type-check :function fn '(functionp doct--variable-p null))
        (push fn target)
        (push :function type))
-      ;;:headline, :regexp
-      (`(,keyword ,extension)
-       (when extension
-         (doct--type-check keyword extension '(stringp))
-         (push extension target)
-         (push keyword type))))
+      (`(,(and (or :headline :regexp) keyword) ,extension)
+       (doct--type-check keyword extension '(stringp))
+       (push extension target)
+       (push keyword type)))
     (push :file type)
     (push file-target target)
     `(,(intern (mapconcat (lambda (keyword)
@@ -311,9 +308,9 @@ If GROUP is non-nil, make sure there is no :keys value."
 (defun doct--target ()
   "Convert declaration's target to template target."
   (pcase (doct--first-in doct-exclusive-location-keywords)
-    ((and (or 'nil `(,key nil)) nil-target)
+    ('nil
      (signal 'doct-no-target `(,doct-exclusive-location-keywords
-                               ,nil-target
+                               nil
                                ,doct--current)))
     (`(:clock ,_) '(clock))
     (`(:id ,id) (doct--type-check :id id '(stringp))
@@ -376,7 +373,6 @@ If non-nil, DECLARATION is the declaration containing STRING."
     (`(:template ,template)
      ;;simple values: nil string, list of strings with no expansion syntax
      (pcase template
-       ((or 'nil "") nil)
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
         template)
