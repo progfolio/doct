@@ -376,19 +376,19 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        ("Disabled" :file "" :disabled t))))
               :not :to-equal 'user-error)))
 
-  (describe ":doct-warn"
-    (it "suppresses warning for unbound symbols when :doct-warn is nil"
+  (describe ":warn"
+    (it "suppresses warning for unbound symbols when :warn is nil"
       (expect (let ((doct-warn-when-unbound t))
                 (doct-test-warning-message
                   (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
                            :function unbound-function
-                           :doct-warn nil)))))
+                           :warn nil)))))
               :not :to-match "Warning (doct): :function .* unbound during conversion .*"))
     (it "overrides doct-warn-when-unbound"
       (expect (let ((doct-warn-when-unbound nil))
                 (doct-test-warning-message
                   (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                           :doct-warn t
+                           :warn t
                            :function unbound-function)))))
               :to-match "Warning (doct): :function .* unbound during conversion .*")))
 
@@ -612,7 +612,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   ;;             :to-equal 'user-error))
   ;;   (it "warns if :tree-type is not week or month"
   ;;     (expect (doct-test-warning-message
-  ;;               (doct '((":tree-type warning" :doct-warn t :keys "t" :file "" :tree-type weak))))
+  ;;               (doct '((":tree-type warning" :warn t :keys "t" :file "" :tree-type weak))))
   ;;             :to-match "Warning (doct): :tree-type weak in declaration:.*")))
   (describe "%doct(KEYWORD)"
     (it "warns when expansion is wrong type"

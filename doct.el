@@ -58,7 +58,7 @@ The templates have not been flattened at this point and are of the form:
 
 (defcustom doct-warn-when-unbound t
   "When non-nil, unbound declaration symbols issue warnings.
-Can be overridden on a per-declaration basis by setting :doct-warn."
+Can be overridden on a per-declaration basis by setting :warn."
   :group 'doct
   :type 'boolean)
 
@@ -124,7 +124,7 @@ Its value is not stored between invocations to doct.")
                                    :disabled
                                    :doct
                                    :doct-keys
-                                   :doct-warn
+                                   :warn
                                    :keys
                                    :type
                                    ,@(append
@@ -185,9 +185,9 @@ Return (KEYWORD VAL)."
        (not (booleanp object))))
 
 (defun doct--warning-enabled-p ()
-  "Return t if `doct-warn-when-unbound' or `doct--current-plist''s :doct-warn is non-nil."
-  (if (plist-member doct--current-plist :doct-warn)
-      (doct--get :doct-warn)
+  "Return t if `doct-warn-when-unbound' or `doct--current-plist''s :warn is non-nil."
+  (if (plist-member doct--current-plist :warn)
+      (doct--get :warn)
     doct-warn-when-unbound))
 
 (defun doct--should-warn-p (object)
@@ -531,6 +531,7 @@ CONDITION is either when or unless."
           (signal 'doct-wrong-type-argument `(,@doct-context-keywords nil ,doct--current))))
       (dolist (rule (nreverse rules))
         (add-to-list 'org-capture-templates-contexts rule)))))
+
 ;;; Conversion
 (defun doct--inherit (parent child)
   "Inherit PARENT's plist members unless CHILD has already declared them.

@@ -616,7 +616,7 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
 
 - doct-warn-when-unbound ::
   When non-nil, unbound declaration symbols issue warnings.
-  This can be overridden on a per-declaration basis by setting ~:doct-warn~.
+  This can be overridden on a per-declaration basis by setting ~:warn~.
 *** Contributing
 
 Pull/feature requests, code review, angry comments are all welcome.
