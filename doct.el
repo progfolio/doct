@@ -194,7 +194,6 @@ Return (KEYWORD VAL)."
   "Return t if `doct--current-plist' satisfies `doct--warning-enabled-p' and OBJECT is unbound."
   (and (doct--variable-p object)
        (not (boundp object))
-       (not (fboundp object))
        (doct--warning-enabled-p)))
 
 (defun doct--maybe-warn (keyword value &optional prefix)
