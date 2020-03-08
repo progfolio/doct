@@ -255,14 +255,22 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (before-each (setq org-capture-templates-contexts nil))
     (it "errors if no context rule keyword is found"
       (expect (doct-test-signal-to-message
-                '(("Context rule keyword nil" :keys "c" :file ""
-                   :contexts (:foo t :keys "oops"))))
+               '(("Context rule keyword nil" :keys "c" :file ""
+                  :contexts (:foo t :keys "oops"))))
               :to-equal "Wrong type argument"))
+    ;;@TODO: flesh this out for all the rule keywords. Some accept variables/functions/forms...
+    ;;main divide is between general conditional keywords (:when, :unless, :function)
+    ;;and :in/unless-:buffer/:mode/:file keywords
     (it "errors if context rule's value is not a string or list of strings"
       (expect (doct-test-types '("Context value test" :keys "cf" :file ""
                                  :contexts (:in-buffer type)))
               :to-equal '(:list-of-strings :string)))
-    (it "warns if context rule's value is unbound")
+    (it "warns if context rule's value is unbound"
+      (expect (doct-test-warning-message
+                (doct '((":context rule unbound warning" :keys "c" :file ""
+                         :contexts (:when unbound-symbol)))))
+              :to-match
+              "Warning (doct): :contexts :when unbound-symbol unbound during conversion in declaration:.*"))
     (it "allows a single context rule"
       (doct '(("single context rule" :keys "c" :file ""
                :contexts (:in-buffer "test.org"))))
@@ -289,26 +297,30 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                                        (string-match val
                                                      (symbol-name major-mode)))
                                      '("org-mode" "elisp-mode"))))))))
-    (it "is not added to doct-custom"
-      (expect (doct-test-without-declarations
-               '(("context not custom" :keys "c" :file ""
-                  :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
+    (it "is not added to :doct-custom"
+      (expect (doct '((":context not custom" :keys "c" :file ""
+                       :custom (:alone t)
+                       :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
               :to-equal
-              '(("c" "context not custom" entry (file "") nil))))
+              '((#1="c" #2=":context not custom" entry (file #3="") nil
+                    :doct (#2# :keys #1# :file #3# :custom #4=(:alone t)
+                               :contexts ((:in-mode ("org-mode" "elisp-mode")))
+                               :doct-custom #4#)))))
     (describe ":function"
       (it "errors if value is not a function"
         (expect (doct-test-signal-to-message
-                  '(("Context :function test" :keys "cf" :file ""
-                     :contexts (:function t))))
+                 '(("Context :function test" :keys "cf" :file ""
+                    :contexts (:function t))))
                 :to-equal "Wrong type argument"))
       (it "only includes templates which pass predicate"
         (setq org-capture-templates-contexts nil)
         (expect (let ((org-capture-templates
                        (doct '((:group
                                 :file ""
-                                :children (("One"   :keys "1" :contexts (:function (lambda () t)))
-                                           ("Two"   :keys "2" :contexts (:function (lambda () nil)))
-                                           ("Three" :keys "3")))))))
+                                :children
+                                (("One"   :keys "1" :contexts (:function (lambda () t)))
+                                 ("Two"   :keys "2" :contexts (:function (lambda () nil)))
+                                 ("Three" :keys "3")))))))
                   (doct-test-select-menu))
                 :to-equal '(("1" "One") ("3" "Three")))))
     (describe ":when"
@@ -359,9 +371,9 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                           ("d" "Disabled" entry (file "") nil))))
     (it "does not error check a disabled template"
       (expect (doct-test-signal-to-message
-                (doct '(("Enabled"  :keys "e" :file "")
-                        ;;has no :keys
-                        ("Disabled" :file "" :disabled t))))
+               (doct '(("Enabled"  :keys "e" :file "")
+                       ;;has no :keys
+                       ("Disabled" :file "" :disabled t))))
               :not :to-equal 'user-error)))
 
   (describe ":doct-warn"
@@ -402,7 +414,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (describe ":headline"
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
-                  '((":headline no :file error" :keys "h" :headline "test")))
+                 '((":headline no :file error" :keys "h" :headline "test")))
                 :to-equal "Declaration has no target"))
       (it "errors if it is not a string or nil"
         (expect (doct-test-types '(":headline type" :keys "h" :file "" :headline type))
@@ -416,7 +428,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (describe ":olp"
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
-                  '((":olp without :file error" :keys "o" :olp ("one"))))
+                 '((":olp without :file error" :keys "o" :olp ("one"))))
                 :to-equal "Declaration has no target"))
       (it "errors if it is not a list of strings or nil"
         (expect (doct-test-types '(":olp type" :keys "o" :file "" :olp type))
@@ -430,7 +442,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (describe ":datetree"
         (it "errors if not used with :file"
           (expect (doct-test-signal-to-message
-                    '((":datetree without :file error" :keys "d" :datetree t)))
+                   '((":datetree without :file error" :keys "d" :datetree t)))
                   :to-equal "Declaration has no target"))
         (it "can be used without specifying :olp"
           (expect (doct-test-without-declarations
@@ -447,7 +459,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (describe ":regexp"
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
-                  '((":regexp without :file warning" :keys "r" :regexp "test")))
+                 '((":regexp without :file warning" :keys "r" :regexp "test")))
                 :to-match "Declaration has no target"))
       (it "errors if it is not a string or nil"
         (expect (doct-test-types '(":regexp type" :keys "r" :file "" :regexp type))
