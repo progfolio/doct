@@ -240,13 +240,15 @@ For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
 
 ;;; Acessors
 ;;;; Children
+(defun doct--child-list-p (object)
+  "Return t when OBJECT is a list but not a function."
+  (and (listp object) (not (functionp object))))
+
 (defun doct--children ()
   "Type check and return declaration's :children."
   (let ((children (doct--get :children)))
-    (if (and (listp children) (not (functionp children)))
-        children
-      (signal 'doct-wrong-type-argument `(listp (:children ,children)
-                                                ,doct--current)))))
+    (doct--type-check :children children '(doct--child-list-p))
+    children))
 
 ;;;; Keys
 (defun doct--keys (&optional group)
