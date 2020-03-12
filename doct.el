@@ -226,17 +226,15 @@ Intended to be used at runtime."
       (plist-get declaration keyword))))
 
 ;;;###autoload
-(defun doct-flatten-lists-in (list-of-lists)
-  "Flatten each list in LIST-OF-LISTS.
+(defun doct-flatten-lists-in (list &optional acc)
+  "Flatten each list in LIST. Return ACC.
 For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
-  (let (flattend)
-    (letrec ((flatten (lambda (list)
-                        (dolist (element list)
-                          (if (seq-every-p #'listp element)
-                              (funcall flatten element)
-                            (push element flattend))))))
-      (funcall flatten list-of-lists)
-      (nreverse flattend))))
+  (dolist (element (nreverse list))
+    (if (seq-every-p #'listp element)
+        (setq acc (doct-flatten-lists-in element acc))
+      (push element acc)))
+  acc)
+
 
 ;;; Acessors
 ;;;; Children
