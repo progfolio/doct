@@ -186,8 +186,8 @@ Return (KEYWORD VAL)."
 
 (defun doct--warning-enabled-p ()
   "Return t if `doct-warn-when-unbound' or `doct--current-plist''s :warn is non-nil."
-  (if (plist-member doct--current-plist :warn)
-      (doct--get :warn)
+  (if-let (member (plist-member doct--current-plist :warn))
+      (cadr member)
     doct-warn-when-unbound))
 
 (defun doct--should-warn-p (object)
@@ -257,7 +257,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     (when (and group keys)
       (signal 'doct-group-keys `(,doct--current)))
     (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
-    (let ((keys (or (doct--get :doct-keys) (doct--get :keys))))
+    (let ((keys (or (cadr inherited) (cadr keys))))
       (unless (or (stringp keys) group)
         (signal 'doct-wrong-type-argument `(stringp (:keys ,keys) ,doct--current)))
       keys)))
@@ -342,7 +342,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
 
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %doct(keyword) syntax, else nil."
-  (when (string-match-p "%doct(.*?)" string) t))
+  (and (string-match-p "%doct(.*?)" string) t))
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
