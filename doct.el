@@ -428,7 +428,7 @@ should be set to week or month, any other values use default datetree type."
 ;;;;Hooks
 (defun doct--run-hook (hook-keyword)
   "Run declaration's HOOK-KEYWORD function."
-  (let ((declaration (plist-get org-capture-plist :doct)))
+  (let ((declaration (cdr (plist-get org-capture-plist :doct))))
     (when (string= (or (plist-get declaration :doct-keys)
                        (plist-get declaration :keys))
                    (plist-get org-capture-plist :key))
