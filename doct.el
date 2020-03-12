@@ -284,7 +284,7 @@ If GROUP is non-nil, make sure there is no :keys value."
        (push :olp type)
        (dolist (heading (nreverse (seq-copy path)))
          (push heading target)))
-      (`(:datetree ,val)
+      (`(:datetree ,_)
        (push :datetree type)
        (push :olp type)
        (when-let ((path (doct--get :olp)))
