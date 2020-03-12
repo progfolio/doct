@@ -534,20 +534,21 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (it "exclusively sets template target"
       (expect (doct-test-without-declarations
                '((":template exclusivity" :keys "t" :file ""
-                  :template "test" :template-file "./ignored.txt")))
+                  :template "* test" :template-file "./ignored.txt")))
               :to-equal
-              '(("t" ":template exclusivity" entry (file "") "test"))))
+              '(("t" ":template exclusivity" entry (file "") "* test"))))
     (it "joins multiple strings with a newline"
       (expect (doct-test-without-declarations
                '(("template join test" :keys "t" :file ""
+                  :type plain
                   :template ("one" "two" "three"))))
               :to-equal
-              '(("t" "template join test" entry (file "") "one\ntwo\nthree"))))
+              '(("t" "template join test" plain (file "") "one\ntwo\nthree"))))
     (it "is returned verbatim when it is a string"
       (expect (doct-test-without-declarations
-               '(("template join test" :keys "t" :file "" :template "test")))
+               '(("template join test" :keys "t" :file "" :template "* test")))
               :to-equal
-              '(("t" "template join test" entry (file "") "test")))))
+              '(("t" "template join test" entry (file "") "* test")))))
 
   (describe ":template-file"
     (it "errors if it is not a string, variable or nil"
@@ -611,7 +612,55 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   ;;               (doct '((":tree-type warning" :warn t :keys "t" :file "" :tree-type weak))))
   ;;             :to-match "Warning (doct): :tree-type weak in declaration:.*")))
   (describe "%doct(KEYWORD)"
-    (it "warns when expansion is wrong type"
+    (it "warns when keyword is not declared during conversion"
+      (expect (doct-test-warning-message
+                (doct '(("%doct(KEYWORD) keyword undeclared" :keys "t" :file ""
+                         :template "%doct(undeclared)"))))
+              :to-match
+              "Warning (doct): %doct(KEYWORD): :undeclared undeclared during conversion
+in declaration:.*"))
+    (it "warns when multiple keywords are not declared during conversion"
+      (expect (doct-test-warning-message
+                (doct '(("%doct(KEYWORD) multiple undeclared" :keys "t" :file ""
+                         :template "%doct(first)%doct(second)"))))
+              :to-match
+              "Warning (doct): %doct(KEYWORD): :first, :second undeclared during conversion
+in declaration:.*"))
+    (it "warns for multiple :template strings"
+      (expect (doct-test-warning-message
+                (doct '(("%doct(KEYWORD) list undeclared" :keys "t" :file ""
+                         :template ("%doct(first)" "%doct(second)")))))
+              :to-match
+              "Warning (doct): %doct(KEYWORD): :first, :second undeclared during conversion
+in declaration:.*"))
+    (it "warns when expansion is wrong type during conversion"
+      (expect (doct-test-warning-message
+                (doct '(("wrong expansion type" :keys "w"
+                         :file ""
+                         :type plain
+                         :template "%doct(number)"
+                         :number 1)))))
+      :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*")
+    (it "warns when type is entry and template is not an entry or empty string"
+      (expect (doct-test-warning-message
+                (doct '(("template expansion entry type" :keys "t"
+                         :file ""
+                         :type entry
+                         :template "no leading star"))))
+              :to-match
+              "Warning (doct): :template no leading star in declaration:
+.*
+is not a valid Org entry
+Are you missing the leading '*'?"))
+    (it "warns when type is table-line and '|' does not prefix template's lines"
+      (expect (doct-test-warning-message
+                (doct '(("template table-line entry type" :keys "t"
+                         :file ""
+                         :type table-line
+                         :template "| leading pipe\nno leading pipe"))))
+              :to-match
+              "Warning (doct): :template | leading pipe\nno leading pipe in declaration:.*"))
+    (it "warns when expansion is wrong type at runtime"
       (expect (doct-test-warning-message
                 (let* ((org-capture-bookmark)
                        (org-capture-templates
