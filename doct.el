@@ -218,7 +218,7 @@ It defaults to `doct--current'."
 (defun doct-get (keyword)
   "Return KEYWORD's value from `org-capture-plist'.
 Checks :doct-custom for KEYWORD and then `org-capture-plist'.
-Intended to be used at capture template time."
+Intended to be used at runtime."
   (let* ((declaration (cdr (plist-get org-capture-plist :doct)))
          (custom (plist-get declaration :doct-custom)))
     (if-let ((member (plist-member custom keyword)))
@@ -308,9 +308,7 @@ If GROUP is non-nil, make sure there is no :keys value."
   "Convert declaration's target to template target."
   (pcase (doct--first-in doct-exclusive-location-keywords)
     ('nil
-     (signal 'doct-no-target `(,doct-exclusive-location-keywords
-                               nil
-                               ,doct--current)))
+     (signal 'doct-no-target `(,doct-exclusive-location-keywords nil ,doct--current)))
     (`(:clock ,_) '(clock))
     (`(:id ,id) (doct--type-check :id id '(stringp))
      `(id ,id))
