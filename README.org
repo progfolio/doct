@@ -455,8 +455,7 @@ The value may be a function or a variable.
 - :hook function ::
   - org-capture-mode-hook ::
 
-    Runs FUNCTION when entering the org-capture-mode minor mode. Useful for running a
-    function immediately after filling the template out.
+    Runs FUNCTION when entering the org-capture-mode minor mode.
 
 - :prepare-finalize function ::
   - org-capture-prepare-finalize-hook ::
