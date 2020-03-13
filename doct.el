@@ -127,9 +127,10 @@ Its value is not stored between invocations to doct.")
                                    :disabled
                                    :doct
                                    :doct-keys
-                                   :warn
+                                   :doct-name
                                    :keys
                                    :type
+                                   :warn
                                    ,@(append
                                       ;;:function is in two categories
                                       ;;only need to add once
@@ -222,7 +223,7 @@ It defaults to `doct--current'."
   "Return KEYWORD's value from `org-capture-plist'.
 Checks :doct-custom for KEYWORD and then `org-capture-plist'.
 Intended to be used at runtime."
-  (let* ((declaration (cdr (plist-get org-capture-plist :doct)))
+  (let* ((declaration (plist-get org-capture-plist :doct))
          (custom (plist-get declaration :doct-custom)))
     (if-let ((member (plist-member custom keyword)))
         (cadr member)
@@ -346,7 +347,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((declaration (cdr (plist-get org-capture-plist :doct)))
+  (let* ((declaration (plist-get org-capture-plist :doct))
          (value (or value (plist-get declaration :template)))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
@@ -407,7 +408,10 @@ Are you missing the leading pipe?"
                        (member  (or (plist-member custom keyword)
                                     (plist-member doct--current-plist keyword)))
                        (value   (cadr member)))
-                  (unless member (push (symbol-name keyword) undeclared))
+                  (unless (or member
+                              ;;doct implicitly adds these
+                              (member keyword '(:doct-keys :doct-name)))
+                    (push (symbol-name keyword) undeclared))
                   (unless (or (stringp value) (null value))
                     (push (symbol-name keyword) not-string))
                   (replace-match (format "%s" value) nil t)
@@ -498,7 +502,7 @@ should be set to week or month, any other values use default datetree type."
 ;;;;Hooks
 (defun doct--run-hook (keyword)
   "Run declaration's KEYWORD function."
-  (let ((declaration (cdr (plist-get org-capture-plist :doct))))
+  (let ((declaration (plist-get org-capture-plist :doct)))
     (when (string= (or (plist-get declaration :doct-keys)
                        (plist-get declaration :keys))
                    (plist-get org-capture-plist :key))
@@ -616,7 +620,7 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                 ,(doct--target)
                 ,(doct--template)
                 ,@(doct--additional-options)
-                :doct (,name
+                :doct (:doct-name ,name
                        ,@(cdr doct--current)
                        ,@(when-let ((custom (doct--custom-properties)))
                            `(:doct-custom ,(doct--custom-properties))))))))

@@ -206,7 +206,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("p" "parent")
                 (#1="pc" #2="child" entry (file #3="") nil
-                    :doct (#2# :keys "c" :doct-keys #1# #4=:foo #5=t :file #3#
+                    :doct (:doct-name #2# :keys "c" :doct-keys #1# #4=:foo #5=t :file #3#
                                :doct-custom (#4# #5#))))))
     (it "allows a child to override its inherited properties."
       (expect (doct-test-without-declarations
@@ -227,8 +227,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                                                     :function (lambda () "pass"))))))
                      (child (nth 1 templates))
                      (target (nth 3 child))
-                     (declaration (car (nthcdr 6 child)))
-                     (custom (plist-get (cdr declaration) :doct-custom)))
+                     (declaration (nth 6 child))
+                     (custom (plist-get declaration :doct-custom)))
                 `(,(funcall (eval target)) ,custom))
               :to-equal '("pass" (:foo nil))))
     (it "allows a child to cancel exclusive inherited properties"
@@ -299,7 +299,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        :contexts ((:in-mode ("org-mode" "elisp-mode"))))))
               :to-equal
               '((#1="c" #2=":context not custom" entry (file #3="") nil
-                    :doct (#2# :keys #1# :file #3# :custom #4=(:alone t)
+                    :doct (:doct-name #2# :keys #1# :file #3# :custom #4=(:alone t)
                                :contexts ((:in-mode ("org-mode" "elisp-mode")))
                                :doct-custom #4#)))))
     (describe ":function"
@@ -347,7 +347,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        :custom (:keys "Moog"))))
               :to-equal
               '((#1="c" #2=":custom data" entry (file #3="") nil
-                    :doct (#2# :keys #1# :file #3# #4=:implicit #5=t
+                    :doct (:doct-name #2# :keys #1# :file #3# #4=:implicit #5=t
                                :custom (#6=:keys #7="Moog")
                                :doct-custom (#6# #7# #4# #5#))))))
     (it "errors if value is not a plist or nil"

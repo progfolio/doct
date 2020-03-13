@@ -11,7 +11,8 @@ I haven't run into any problems, but I do not often have multiple overlapping ca
 ** IDEA doct--type-check take pair as first arg? Returns pair if succesful
 May reduce verbosity when using doct--first-in...
 ** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--maybe-warn (keyword value &optional prefix][generalize this to accept warning string and args]]
-** IDEA make :doct proper plist
+** DONE make :doct proper plist
+CLOSED: [2020-03-13 Fri 13:02]
 just add description as :doct-name?
 You can rebuild without that property in errors/warnings if necessary.
 Then %doct(doct-name) would allow introspection of org-plist :description.
