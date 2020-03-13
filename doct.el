@@ -430,35 +430,16 @@ should be set to week or month, any other values use default datetree type."
       (when-let ((fn (plist-get declaration keyword)))
         (funcall fn)))))
 
-(defun doct-run-capture-mode-hook ()
-  "Run declaration's :hook function."
-  (doct--run-hook :hook))
-
-(defun doct-run-after-finalize-hook ()
-  "Run declaration's :after-finalze function."
-  (doct--run-hook :after-finalize))
-
-(defun doct-run-before-finalize-hook ()
-  "Run declaration's :before-finalze function."
-  (doct--run-hook :before-finalize))
-
-(defun doct-run-prepare-finalize-hook ()
-  "Run declaration's :prepare-finalze function."
-  (doct--run-hook :prepare-finalize))
-
-(defun doct--add-hooks ()
-  "Type check and add declaration's hooks."
-  (dolist (keyword doct-hook-keywords)
-    (when-let ((fn (doct--get keyword)))
-      (doct--type-check keyword fn '(functionp doct--variable-p))
-      (pcase keyword
-        (:hook (add-to-list 'org-capture-mode-hook #'doct-run-capture-mode-hook))
-        (:after-finalize
-         (add-to-list 'org-capture-after-finalize-hook #'doct-run-after-finalize-hook))
-        (:before-finalize
-         (add-to-list 'org-capture-before-finalize-hook #'doct-run-before-finalize-hook))
-        (:prepare-finalize
-         (add-to-list 'org-capture-prepare-finalize-hook #'doct-run-prepare-finalize-hook))))))
+;;install hook functinos
+(dolist (keyword doct-hook-keywords)
+  (let* ((name (substring (symbol-name keyword) 1))
+         (fn (eval `(defun ,(intern (concat "doct-run-" name)) ()
+                      ,(concat "Run declaration's" name "function.")
+                      (doct--run-hook ,keyword))))
+         (hook (intern (concat "org-capture-" (if (string= name "hook")
+                                                  "mode"
+                                                name) "-hook"))))
+    (add-to-list hook fn)))
 
 ;;;; Contexts
 (defun doct--convert-constraint-keyword (keyword)
@@ -593,7 +574,10 @@ For a full description of the PROPERTIES plist see `doct'."
                                        children
                                      `(,children))))
           (doct--add-contexts)
-          (doct--add-hooks))
+          (dolist (keyword doct-hook-keywords)
+            (when-let (member (plist-member doct--current-plist keyword))
+              (doct--type-check keyword (cadr member)
+                                '(functionp doct--variable-p null)))))
         (unless group
           (setq entry (doct--compose-entry keys name children)))
         (if children

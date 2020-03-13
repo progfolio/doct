@@ -166,10 +166,6 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
   (before-each
     (setq doct-default-entry-type           'entry
           doct-warn-when-unbound            t
-          org-capture-mode-hook             nil
-          org-capture-before-finalize-hook  nil
-          org-capture-prepare-finalize-hook nil
-          org-capture-after-finalize-hook   nil
           org-capture-templates-contexts    nil))
   (describe "name"
     (it "errors if name is not a string or the keyword :group"
@@ -712,12 +708,38 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (it "gets a value from `doct--current-plist'"
         (expect (let ((doct--current-plist '(:test t)))
                   (doct--get :test))
-                :to-equal t)))))
+                :to-equal t))))
+  (describe "Hooks"
+    (it "errors if value is not a function, variable or nil"
+      (expect (doct-test-types '("hook keyword type" :keys "h"
+                                 :file ""
+                                 :hook type))
+              :to-equal '(:function :lambda :nil :unbound-symbol)))
+    (it "warns when value is unbound during conversion"
+      (expect (doct-test-warning-message
+                (doct '(("unbound hook" :keys "h"
+                         :file ""
+                         :before-finalize unbound-symbol))))
+              :to-match "Warning (doct): :before-finalize unbound-symbol unbound during conversion in declaration:.*"))
+              (it "runs hook functions"
+                (expect (let ((org-capture-templates
+                               (doct '(("hooks" :keys "h"
+                                        :file ""
+                                        :immediate-finish t
+                                        :no-save t
+                                        :type plain
+                                        :template ""
+                                        :hook             (lambda () (insert "capture "))
+                                        :prepare-finalize (lambda () (insert "prepare "))
+                                        :before-finalize  (lambda () (insert "before "))
+                                        :after-finalize   (lambda () (end-of-line) (insert "after")))))))
+                          (doct-test-filled-template "h"))
+                        :to-equal "capture prepare before after"))))
 
-(provide 'doct-test)
+    (provide 'doct-test)
 
-;; Local Variables:
-;; flycheck-emacs-lisp-load-path: inherit
-;; End:
+    ;; Local Variables:
+    ;; flycheck-emacs-lisp-load-path: inherit
+    ;; End:
 
 ;;; doct-test.el ends here
