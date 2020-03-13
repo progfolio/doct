@@ -363,7 +363,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
     template))
 
 (defun doct--type-check-template-entry-type (string)
-  "Check template STRING to make sure it matches entry type."
+  "Check template STRING against entry type."
   ;;if string is empty, default templates are used.
   (unless (string-empty-p string)
     (pcase (doct--entry-type)
