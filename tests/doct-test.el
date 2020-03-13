@@ -206,7 +206,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("p" "parent")
                 (#1="pc" #2="child" entry (file #3="") nil
-                    :doct (:doct-name #2# :keys "c" :doct-keys #1# #4=:foo #5=t :file #3#
+                    :doct (:doct-name #2# :keys #1# #4=:foo #5=t :file #3#
                                :doct-custom (#4# #5#))))))
     (it "allows a child to override its inherited properties."
       (expect (doct-test-without-declarations

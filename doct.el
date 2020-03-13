@@ -126,7 +126,6 @@ Its value is not stored between invocations to doct.")
                                    :custom
                                    :disabled
                                    :doct
-                                   :doct-keys
                                    :doct-name
                                    :keys
                                    :type
@@ -255,12 +254,11 @@ For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
 (defun doct--keys (&optional group)
   "Type check and return declaration's :keys.
 If GROUP is non-nil, make sure there is no :keys value."
-  (let ((keys      (plist-member doct--current-plist :keys))
-        (inherited (plist-member doct--current-plist :doct-keys)))
+  (let ((keys (plist-member doct--current-plist :keys)))
     (when (and group keys)
       (signal 'doct-group-keys `(,doct--current)))
-    (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
-    (let ((keys (or (cadr inherited) (cadr keys))))
+    (unless (or group keys) (signal 'doct-no-keys `(,doct--current)))
+    (let ((keys (cadr keys)))
       (unless (or (stringp keys) group)
         (signal 'doct-wrong-type-argument `(stringp (:keys ,keys) ,doct--current)))
       keys)))
@@ -409,8 +407,8 @@ Are you missing the leading pipe?"
                                     (plist-member doct--current-plist keyword)))
                        (value   (cadr member)))
                   (unless (or member
-                              ;;doct implicitly adds these
-                              (member keyword '(:doct-keys :doct-name)))
+                              ;;doct implicitly adds this
+                              (eq keyword :doct-name))
                     (push (symbol-name keyword) undeclared))
                   (unless (or (stringp value) (null value))
                     (push (symbol-name keyword) not-string))
@@ -503,8 +501,7 @@ should be set to week or month, any other values use default datetree type."
 (defun doct--run-hook (keyword)
   "Run declaration's KEYWORD function."
   (let ((declaration (plist-get org-capture-plist :doct)))
-    (when (string= (or (plist-get declaration :doct-keys)
-                       (plist-get declaration :keys))
+    (when (string= (plist-get declaration :keys)
                    (plist-get org-capture-plist :key))
       (when-let ((fn (plist-get declaration keyword)))
         (funcall fn)))))
@@ -600,12 +597,11 @@ The :children and :group properties are ignored."
                                  (and (keywordp el)
                                       (not (member el '(:children :group)))))
                                parent))
-    (let ((keysp (member keyword '(:keys :doct-keys))))
-      (unless (and (plist-member child keyword) (not keysp))
+    (let ((keysp (eq keyword :keys)))
+      (unless (and (not keysp) (plist-member child keyword))
         (if keysp
-            (plist-put child :doct-keys (concat (or (plist-get parent :doct-keys)
-                                                    (plist-get parent :keys))
-                                                (plist-get child :keys)))
+            (plist-put child :keys (concat (plist-get parent :keys)
+                                           (plist-get child :keys)))
           (plist-put child keyword (plist-get parent keyword))))))
   child)
 
@@ -621,9 +617,9 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                 ,(doct--template)
                 ,@(doct--additional-options)
                 :doct (:doct-name ,name
-                       ,@(cdr doct--current)
-                       ,@(when-let ((custom (doct--custom-properties)))
-                           `(:doct-custom ,(doct--custom-properties))))))))
+                                  ,@(cdr doct--current)
+                                  ,@(when-let ((custom (doct--custom-properties)))
+                                      `(:doct-custom ,(doct--custom-properties))))))))
 
 (defun doct--convert (name &rest properties)
   "Convert declaration to a template named NAME with PROPERTIES.

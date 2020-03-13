@@ -5,7 +5,12 @@
 Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
 I haven't run into any problems, but I do not often have multiple overlapping captures.
 * Documentation :documentation:
+** TODO fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
+ :doct-custom is now member of :doct
 * Optimizations :optimization:
+** DONE Simplify doct--keys logic
+CLOSED: [2020-03-13 Fri 14:46]
+Do we really need to add :doct-keys as a separate property?
 * Features :feature:
 * Enhancements :enhancement:
 ** IDEA doct--type-check take pair as first arg? Returns pair if succesful
