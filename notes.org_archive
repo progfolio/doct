@@ -391,3 +391,132 @@ e.g. :empty-lines* -> numberp
 |---------------------+---------------+------------------------------------------------------------------------------|
 
 Skipping the booleans because they only need to be non-nil or nil (not strictly 't').
+** 2020-03 March
+*** 2020-03-03 Tuesday
+**** DONE rename doct-after-conversion-hook
+CLOSED: [2020-03-03 Tue 10:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:52
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+Convention for -hook suffix denotes normal hook.
+This is an abnormal hook. Should be ~doct-after-conversion-functions~.
+*** 2020-03-08 Sunday
+**** CANCELED [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--target-file (file-target][doct--target-file has duplicate logic. Function is long.]]
+CLOSED: [2020-03-08 Sun 15:34]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: CANCELED
+:ARCHIVE_ITAGS: optimization
+:END:
+- State "CANCELED"   from "TODO"       [2020-03-08 Sun 15:34] \\
+  Not technically duplicate logic.
+  I can live with function length.
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct-get (keyword][doct-get should warn when keyword does not exist on declaration (custom, or otherwise)]]
+CLOSED: [2020-03-08 Sun 19:30]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+This would help in diagnosing typos in template expansion strings
+e.g.
+#+begin_src emacs-lisp
+(:keyword val :template "%doct(keyward)")
+#+end_src
+should issue warning along the lines of:
+
+#+begin_src emacs-lisp
+"%doct(keyward), :keyward not found in declaration:
+(:keyword val :template \"%doct(keyward)\")"
+#+end_src
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el:::doct-warn][change :doct-warn to :warn?]]
+CLOSED: [2020-03-08 Sun 15:37]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Miscellaneous
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: misc
+:END:
+
+*** 2020-03-12 Thursday
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--entry-type (][when template string is not deferred, check that it conforms to template entry type]]
+CLOSED: [2020-03-12 Thu 18:27]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+- State "STARTED"    from "IDEA"       [2020-03-12 Thu 12:13]
+e.g.
+#+begin_src emacs-lisp
+(... :type entry :template "no leading star")
+#+end_src
+will throw at capture time because it is not a valid entry string
+We could catch this error at conversion time.
+
+***** DONE any other errors we can catch for other types?
+CLOSED: [2020-03-12 Thu 18:27]
+| Entry type | Warn? | values                                                     |
+|------------+-------+------------------------------------------------------------|
+| entry      | yes   | empty string fine, string without leading stars fails      |
+| item       | no    | +,-,digit.                                                 |
+| checkitem  | no    | any string                                                 |
+| table-line | yes   | empty string, string w each line starting w pipe character |
+| plain      | no    | any string                                                 |
+
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::letrec ((flatten (lambda (list][refactor to get rid of letrec. Use an accumulator argument instead.]]
+CLOSED: [2020-03-12 Thu 18:39]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+letrec allows locally defined recursive functions, but this is probably less idiomatic than having a formal accumlator argument:
+
+#+begin_src emacs-lisp
+(defun doct-flatten-lists-in (list &optional acc)
+  ;;...
+  )
+#+end_src
+
+*** 2020-03-13 Friday
+**** DONE :hook isn't run after filling function out. Fix documentation.
+CLOSED: [2020-03-13 Fri 00:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::let ((target-list (or plist doct--current-plist))][rename hyphenated local vars]]
+CLOSED: [2020-03-13 Fri 00:52]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-13 Fri 00:53
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+Can cause uninteneded conflict with dynamic variables.

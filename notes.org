@@ -4,49 +4,17 @@
 ** RESEARCH overlapping captures & doct-get?
 Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
 I haven't run into any problems, but I do not often have multiple overlapping captures.
-** DONE rename doct-after-conversion-hook
-CLOSED: [2020-03-03 Tue 10:52]
-Convention for -hook suffix denotes normal hook.
-This is an abnormal hook. Should be ~doct-after-conversion-functions~.
 * Documentation :documentation:
 * Optimizations :optimization:
-** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--target-file (file-target][doct--target-file has duplicate logic. Function is long.]]
-** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--defer (val][we don't really need to pass val to doct--maybe-warn or this fn]]
-Should be able to just use global `doct--current'
 * Features :feature:
-** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el:::doct-warn][change :doct-warn to :warn?]]
-
 * Enhancements :enhancement:
-** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct-get (keyword][doct-get should warn when keyword does not exist on declaration (custom, or otherwise)]]
-This would help in diagnosing typos in template expansion strings
-e.g.
-#+begin_src emacs-lisp
-(:keyword val :template "%doct(keyward)")
-#+end_src
-should issue warning along the lines of:
-
-#+begin_src emacs-lisp
-"%doct(keyward), :keyward not found in declaration:
-(:keyword val :template \"%doct(keyward)\")"
-#+end_src
-** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--entry-type (][when template string is not deferred, check that it conforms to template entry type]]
-e.g.
-#+begin_src emacs-lisp
-(... :type entry :template "no leading star")
-#+end_src
-will throw at capture time because it is not a valid entry string
-We could catch this error at conversion time.
-
-***  RESEARCH any other errors we can catch for other types?
-| Entry type | Error?                       |
-|------------+------------------------------|
-| entry      | x (usually no leading stars) |
-| item       | ?                            |
-| checkitem  | ?                            |
-| table-line | ?                            |
-| plain      | -                            |
-** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::let ((target-list (or plist doct--current-plist))][rename hyphenated local vars]]
-Can cause uninteneded conflict with dynamic variables.
+** IDEA doct--type-check take pair as first arg? Returns pair if succesful
+May reduce verbosity when using doct--first-in...
+** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--maybe-warn (keyword value &optional prefix][generalize this to accept warning string and args]]
+** IDEA make :doct proper plist
+just add description as :doct-name?
+You can rebuild without that property in errors/warnings if necessary.
+Then %doct(doct-name) would allow introspection of org-plist :description.
 * Miscellaneous :misc:
 Unload byte compiled file loaded by straight.el when developing
 #+begin_src emacs-lisp :results silent
@@ -54,5 +22,11 @@ Unload byte compiled file loaded by straight.el when developing
   (unload-feature 'doct t))
 (load-file "~/.emacs.d/straight/repos/doct/doct.el")
 #+end_src
-** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in once case?]]
+** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in one case?]]
 Both macros return lambdas...
+** RESEARCH do we need to depend on org-capture?
+only thing we're using is org-capture-plist at runtime.
+org-capture is loaded by then.
+we also add to: org-capture-hooks, org-capture-contexts
+
+Ok to defvar these before org-capture loaded?
