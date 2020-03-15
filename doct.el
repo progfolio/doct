@@ -500,18 +500,14 @@ should be set to week or month, any other values use default datetree type."
 ;;;;Hooks
 (defun doct--run-hook (keyword)
   "Run declaration's KEYWORD function."
-  (let ((declaration (plist-get org-capture-plist :doct)))
-    (when (string= (plist-get declaration :keys)
-                   (plist-get org-capture-plist :key))
-      (when-let ((fn (plist-get declaration keyword)))
-        (funcall fn)))))
+  (when-let ((fn (doct-get keyword)))
+    (funcall fn)))
 
-;;install hook functinos
+;;install hook functions
 (dolist (keyword doct-hook-keywords)
   (let* ((name (substring (symbol-name keyword) 1))
-         (fn (eval `(defun ,(intern (concat "doct-run-" name)) ()
-                      ,(concat "Run declaration's" name "function.")
-                      (doct--run-hook ,keyword))))
+         (fn (fset (intern (concat "doct-run-" name))
+                   (apply-partially #'doct--run-hook keyword)))
          (hook (intern (concat "org-capture-" (if (string= name "hook")
                                                   "mode"
                                                 name) "-hook"))))
