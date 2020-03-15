@@ -415,7 +415,7 @@ Are you missing the leading pipe?"
                   (replace-match (format "%s" value) nil t)
                   (setq string (buffer-string)))))))
         (push string template))
-      (doct--type-check-template-entry-type (string-join template "\n"))
+      (doct--type-check-template-entry-type (string-join (nreverse template) "\n"))
       (when (or undeclared not-string entry-type-mismatches)
         (apply #'lwarn
                (delq nil `(doct
