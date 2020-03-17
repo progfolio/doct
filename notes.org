@@ -7,6 +7,8 @@ I haven't run into any problems, but I do not often have multiple overlapping ca
 * Documentation :documentation:
 ** TODO fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
  :doct-custom is now member of :doct
+** TODO tests for all code examples
+People often test packages "by the examples". Don't scare them away.
 * Optimizations :optimization:
 ** DONE Simplify doct--keys logic
 CLOSED: [2020-03-13 Fri 14:46]
