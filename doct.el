@@ -127,6 +127,7 @@ Its value is not stored between invocations to doct.")
                                    :disabled
                                    :doct
                                    :doct-name
+                                   :inherited-keys
                                    :keys
                                    :type
                                    :warn
@@ -254,11 +255,12 @@ For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
 (defun doct--keys (&optional group)
   "Type check and return declaration's :keys.
 If GROUP is non-nil, make sure there is no :keys value."
-  (let ((keys (plist-member doct--current-plist :keys)))
+  (let ((keys (plist-member doct--current-plist :keys))
+        (inherited (plist-member doct--current-plist :inherited-keys)))
     (when (and group keys)
       (signal 'doct-group-keys `(,doct--current)))
-    (unless (or group keys) (signal 'doct-no-keys `(,doct--current)))
-    (let ((keys (cadr keys)))
+    (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
+    (let ((keys (or (cadr inherited) (cadr keys))))
       (unless (or (stringp keys) group)
         (signal 'doct-wrong-type-argument `(stringp (:keys ,keys) ,doct--current)))
       keys)))
@@ -407,8 +409,8 @@ Are you missing the leading pipe?"
                                     (plist-member doct--current-plist keyword)))
                        (value   (cadr member)))
                   (unless (or member
-                              ;;doct implicitly adds this
-                              (eq keyword :doct-name))
+                              ;;doct implicitly adds these
+                              (member keyword '(:inherited-keys :doct-name)))
                     (push (symbol-name keyword) undeclared))
                   (unless (or (stringp value) (null value))
                     (push (symbol-name keyword) not-string))
@@ -593,12 +595,13 @@ The :children and :group properties are ignored."
                                  (and (keywordp el)
                                       (not (member el '(:children :group)))))
                                parent))
-    (let ((keysp (eq keyword :keys)))
-      (unless (and (not keysp) (plist-member child keyword))
-        (if keysp
-            (plist-put child :keys (concat (plist-get parent :keys)
-                                           (plist-get child :keys)))
-          (plist-put child keyword (plist-get parent keyword))))))
+    (if (member keyword '(:inherited-keys :keys))
+        (plist-put child :inherited-keys (concat
+                                          (or (plist-get parent :inherited-keys)
+                                              (plist-get parent :keys))
+                                          (plist-get child :keys)))
+      (unless (plist-member child keyword)
+        (plist-put child keyword (plist-get parent keyword)))))
   child)
 
 (defun doct--compose-entry (keys name parent)
