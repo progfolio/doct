@@ -520,3 +520,40 @@ CLOSED: [2020-03-13 Fri 00:52]
 :ARCHIVE_ITAGS: enhancement
 :END:
 Can cause uninteneded conflict with dynamic variables.
+**** DONE Simplify doct--keys logic
+CLOSED: [2020-03-13 Fri 14:46]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-17 Tue 20:48
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+Do we really need to add :doct-keys as a separate property?
+**** DONE make :doct proper plist
+CLOSED: [2020-03-13 Fri 13:02]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-17 Tue 20:48
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+just add description as :doct-name?
+You can rebuild without that property in errors/warnings if necessary.
+Then %doct(doct-name) would allow introspection of org-plist :description.
+
+*** 2020-03-17 Tuesday
+**** DONE tests for all code examples
+CLOSED: [2020-03-17 Tue 20:48]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-17 Tue 20:48
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+People often test packages "by the examples". Don't scare them away.

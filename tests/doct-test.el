@@ -206,8 +206,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '(("p" "parent")
                 (#1="pc" #2="child" entry (file #3="") nil
-                    :doct (:doct-name #2# :keys #1# #4=:foo #5=t :file #3#
-                               :doct-custom (#4# #5#))))))
+                    :doct (:doct-name #2# :keys "c" :inherited-keys #1# #4=:foo #5=t :file #3#
+                                      :doct-custom (#4# #5#))))))
     (it "allows a child to override its inherited properties."
       (expect (doct-test-without-declarations
                '(("parent" :keys "p" :file "test.org"
@@ -300,8 +300,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '((#1="c" #2=":context not custom" entry (file #3="") nil
                     :doct (:doct-name #2# :keys #1# :file #3# :custom #4=(:alone t)
-                               :contexts ((:in-mode ("org-mode" "elisp-mode")))
-                               :doct-custom #4#)))))
+                                      :contexts ((:in-mode ("org-mode" "elisp-mode")))
+                                      :doct-custom #4#)))))
     (describe ":function"
       (it "errors if value is not a function"
         (expect (doct-test-signal-to-message
@@ -348,8 +348,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
               :to-equal
               '((#1="c" #2=":custom data" entry (file #3="") nil
                     :doct (:doct-name #2# :keys #1# :file #3# #4=:implicit #5=t
-                               :custom (#6=:keys #7="Moog")
-                               :doct-custom (#6# #7# #4# #5#))))))
+                                      :custom (#6=:keys #7="Moog")
+                                      :doct-custom (#6# #7# #4# #5#))))))
     (it "errors if value is not a plist or nil"
       (expect (doct-test-types '(":custom type" :keys "t" :file "" :custom type))
               :to-equal '(:nil :plist))))
@@ -770,25 +770,126 @@ Are you missing the leading '*'?"))
                          :file ""
                          :before-finalize unbound-symbol))))
               :to-match "Warning (doct): :before-finalize unbound-symbol unbound during conversion in declaration:.*"))
-              (it "runs hook functions"
-                (expect (let ((org-capture-templates
-                               (doct '(("hooks" :keys "h"
-                                        :file ""
-                                        :immediate-finish t
-                                        :no-save t
-                                        :type plain
-                                        :template ""
-                                        :hook             (lambda () (insert "capture "))
-                                        :prepare-finalize (lambda () (insert "prepare "))
-                                        :before-finalize  (lambda () (insert "before "))
-                                        :after-finalize   (lambda () (end-of-line) (insert "after")))))))
-                          (doct-test-filled-template "h"))
-                        :to-equal "capture prepare before after"))))
+    (it "runs hook functions"
+      (expect (let ((org-capture-templates
+                     (doct '(("hooks" :keys "h"
+                              :file ""
+                              :immediate-finish t
+                              :no-save t
+                              :type plain
+                              :template ""
+                              :hook             (lambda () (insert "capture "))
+                              :prepare-finalize (lambda () (insert "prepare "))
+                              :before-finalize  (lambda () (insert "before "))
+                              :after-finalize   (lambda () (end-of-line) (insert "after")))))))
+                (doct-test-filled-template "h"))
+              :to-equal "capture prepare before after")))
+  (describe "Documentation Examples"
+    (it "returns documented value for tl;dr"
+      (expect (doct-test-without-declarations
+               '(("Parent" :keys "p"
+                  :file "~/example.org"
+                  :prepend t
+                  :template ("* %doct(todo-state) %^{Description}"
+                             ":PROPERTIES:"
+                             ":Created: %U"
+                             ":END:"
+                             "%?")
+                  :children (("First Child"  :keys "1"
+                              :headline   "One"
+                              :todo-state "TODO"
+                              :hook (lambda () (message "\"First Child\" selected.")))
+                             ("Second Child" :keys "2"
+                              :headline   "Two"
+                              :todo-state "NEXT")
+                             ("Third Child"  :keys "3"
+                              :headline   "Three"
+                              :todo-state "MAYBE")))))
+              :to-equal
+              '(("p" "Parent")
+                ("p1" "First Child"  #1=entry (#2=file+headline #3="~/example.org" "One")
+                 #4=#'doct--fill-template #5=:prepend #6=t)
+                ("p2" "Second Child" #1# (#2# #3# "Two") #4# #5# #6#)
+                ("p3" "Third Child"  #1# (#2# #3# "Three") #4# #5# #6#))))
+    (it "returns documented value for :group example"
+      (expect (doct-test-without-declarations
+               '(("Work" :keys "w" :file "~/org/work.org" :children
+                  ((:group "Clocked" :clock-in t :children
+                           (("Phone Call" :keys "p" :template "* Phone call with %?")
+                            ("Meeting"    :keys "m" :template "* Meeting with %?")))
+                   ("Browsing" :keys "b" :template "* Browsing %x")))))
+              :to-equal
+              '(("w" "Work")
+                ("wp" "Phone Call" entry (file "~/org/work.org") "* Phone call with %?" :clock-in t)
+                ("wm" "Meeting"    entry (file "~/org/work.org") "* Meeting with %?"    :clock-in t)
+                ("wb" "Browsing"   entry (file "~/org/work.org") "* Browsing %x"))))
+    (it "returns documented value for :children example"
+      (expect (doct-test-without-declarations '(("parent" :keys "p"
+                                                 :children
+                                                 (("child" :keys "c"
+                                                   :children
+                                                   (("grandchild" :keys "g"
+                                                     :file ""
+                                                     :type plain
+                                                     :template "test")))))))
+              :to-equal
+              '(("p" "parent") ("pc" "child") ("pcg" "grandchild" plain (file "") "test"))))
+    (it "returns a proper value for inherited properties example"
+      (expect (doct-test-without-declarations
+               '(("Grandparent" :keys "g"
+                  :file "example.org"
+                  :children ("Parent" :keys "p"
+                             :children ("Child" :keys "c")))))
+              :to-equal '(("g"   "Grandparent")
+                          ("gp"  "Parent")
+                          ("gpc" "Child" entry (file "example.org") nil))))
+    (it "returns a proper value for inheritance override example"
+      (expect (doct-test-without-declarations
+               '(("Grandparent" :keys "g"
+                  :file "example.org"
+                  :children ("Parent" :keys "p"
+                             :file "overridden.org"
+                             :children ("Child" :keys "c")))))
+              :to-equal '(("g"   "Grandparent")
+                          ("gp"  "Parent")
+                          ("gpc" "Child" entry (file "overridden.org") nil))))
+    (it "returns documented value for :type entry example"
+      (expect (let ((doct-default-entry-type 'entry))
+                (doct-test-without-declarations
+                 '(("example" :keys "e" :type entry :file ""))))
+              :to-equal
+              '(("e" "example" entry (file "") nil))))
+    (it "returns documented value for undeclared type example"
+      (expect (let ((doct-default-entry-type 'entry))
+                (doct-test-without-declarations
+                 '(("example" :keys "e" :file ""))))
+              :to-equal
+              '(("e" "example" entry (file "") nil))))
+    (it "returns documented value for first target keyword example"
+      (expect (doct-test-without-declarations
+               '(("example"
+                  :keys "e"
+                  :type entry
+                  :clock t
+                  ;;ignored because clock is first
+                  :function (lambda () (ignore))
+                  ;;also ignored
+                  :id "1")))
+              :to-equal
+              '(("e" "example" entry (clock) nil))))
+    (it "returns documented value for :custom exmaple"
+      (doct '(("Music Gear" :keys "m" :file ""
+               :custom (:keys "Moog"))))
+      :to-equal
+      '((#1="m" #2="Music Gear" entry (file #3="") nil
+            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))
 
-    (provide 'doct-test)
+    ))
 
-    ;; Local Variables:
-    ;; flycheck-emacs-lisp-load-path: inherit
-    ;; End:
+(provide 'doct-test)
+
+;; Local Variables:
+;; flycheck-emacs-lisp-load-path: inherit
+;; End:
 
 ;;; doct-test.el ends here

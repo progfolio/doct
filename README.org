@@ -280,7 +280,6 @@ The ~:file~ keyword is not necessary for these.
   item. If ~:file~ defines a target file, then the function is only
   responsible for moving point to the desired location within that file.
 
-
 #+begin_src emacs-lisp
 (doct '(("example"
          :keys "e"
@@ -407,13 +406,14 @@ This is only necessary if you wish to use a keyword which doct already uses.
 For example:
 #+begin_src emacs-lisp
 (doct '(("Music Gear" :keys "m" :file ""
-         :custom (:keys "Moog"))
+         :custom (:keys "Moog"))))
 #+end_src
 
 returns:
 
 #+begin_src emacs-lisp
-("m" "Music Gear" entry (file "") nil :doct-custom (:keys "Moog"))
+(#1="m" #2="Music Gear" entry (file #3="") nil
+    :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))
 #+end_src
 
 **** %doct String Expansion
