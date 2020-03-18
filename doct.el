@@ -394,7 +394,6 @@ Are you missing the leading pipe?"
           not-string
           entry-type-mismatches
           template)
-      ;;@ENHANCEMENT: ensure keyword's value is a string?
       (dolist (string strings)
         (when (doct--expansion-syntax-p string)
           (with-temp-buffer
