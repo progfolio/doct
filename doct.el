@@ -29,9 +29,8 @@
 ;; templates. See the doct docstring for more details.
 
 ;;; Code:
-(require 'subr-x)
+(eval-when-compile (require 'subr-x))
 (require 'seq)
-(require 'org-capture)
 (require 'warnings)
 
 ;;; Custom Options
@@ -90,6 +89,14 @@ It can be overridden on a per-declaration basis with the :warn keyword."
                                 doct-warning-types))))
 
 ;;; Variables
+;;necessary for byte-compiler warnings/pre runtime
+(defvar org-capture-plist)
+(defvar org-capture-templates-contexts)
+(defvar org-capture-mode-hook nil)
+(defvar org-capture-before-finalize-hook nil)
+(defvar org-capture-prepare-finalize-hook nil)
+(defvar org-capture-after-finalize-hook nil)
+
 (defvar doct-templates nil
   "If non-nil, this is used as the return value of doct.
 Use this variable to return an altered list from a function run during

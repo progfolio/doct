@@ -8,7 +8,7 @@
 (require 'buttercup)
 (require 'cl-lib)
 (require 'doct)
-
+(require 'org-capture)
 (defvar doct-test-type-data '(
                               :character ?c
                               :child-declaration ("child" :keys "c" :file "")
