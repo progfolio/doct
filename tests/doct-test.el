@@ -167,6 +167,21 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (setq doct-default-entry-type           'entry
           doct-warn-when-unbound            t
           org-capture-templates-contexts    nil))
+  (it "does not mutate the declaration list"
+    (expect (let ((declarations '(("Todo" :keys "t"
+                                   :template "* TODO %?")
+                                  ("Entry" :keys "e"
+                                   :template "* TODO %?\n%a"))))
+              (doct `(("Clock" :keys "c" :clock t
+                       :children ,declarations)
+                      ("Inbox" :keys "i" :file "/tmp/inbox.org"
+                       :children ,declarations)))
+              declarations)
+            :to-equal
+            '(("Todo" :keys "t"
+               :template "* TODO %?")
+              ("Entry" :keys "e"
+               :template "* TODO %?\n%a"))))
   (describe "name"
     (it "errors if name is not a string or the keyword :group"
       (expect (doct-test-types '(type :keys "t" :file ""))

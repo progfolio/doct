@@ -1120,7 +1120,7 @@ returns:
 
 Normally template \"Four\" would throw an error because its :keys are not a string."
 
-  (let* ((entries (mapcar #'doct--maybe-convert-declaration declarations)))
+  (let* ((entries (mapcar #'doct--maybe-convert-declaration (copy-tree declarations))))
     (unwind-protect
         (progn
           (run-hook-with-args 'doct-after-conversion-functions entries)
