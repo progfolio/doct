@@ -33,7 +33,6 @@
 (require 'seq)
 (require 'org-capture)
 (require 'warnings)
-
 ;;; Custom Options
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
@@ -367,25 +366,26 @@ If non-nil, DECLARATION is the declaration containing STRING."
 (defun doct--type-check-template-entry-type (string)
   "Check template STRING against entry type."
   ;;if string is empty, default templates are used.
-  (unless (string-empty-p string)
-    (pcase (doct--entry-type)
-      ('entry
-       (unless (string-prefix-p "*" (string-trim string))
-         (lwarn 'doct :warning ":template %s in declaration:\n%s
+  (when (doct--warning-enabled-p)
+    (unless (string-empty-p string)
+      (pcase (doct--entry-type)
+        ('entry
+         (unless (string-prefix-p "*" (string-trim string))
+           (lwarn 'doct :warning ":template %s in declaration:\n%s
 is not a valid Org entry
 Are you missing the leading '*'?"
-                string doct--current)))
-      ('table-line
-       (unless (string-empty-p (with-temp-buffer
-                                 (insert string)
-                                 (goto-char (point-min))
-                                 (save-match-data
-                                   (flush-lines "\\(?:[[:space:]]*|\\)"))
-                                 (buffer-string)))
-         (lwarn 'doct :warning ":template %s in declaration:\n%s
+                  string doct--current)))
+        ('table-line
+         (unless (string-empty-p (with-temp-buffer
+                                   (insert string)
+                                   (goto-char (point-min))
+                                   (save-match-data
+                                     (flush-lines "\\(?:[[:space:]]*|\\)"))
+                                   (buffer-string)))
+           (lwarn 'doct :warning ":template %s in declaration:\n%s
 contains an invalid table-line
 Are you missing the leading pipe?"
-                string doct--current))))))
+                  string doct--current)))))))
 
 (defun doct--maybe-warn-template (strings)
   "Warn if `doct--should-warn-p' and STRINGS's %doct(KEYWORD) keyword is undeclared."
