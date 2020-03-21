@@ -4,6 +4,11 @@
 ** RESEARCH overlapping captures & doct-get?
 Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
 I haven't run into any problems, but I do not often have multiple overlapping captures.
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::unless (string-prefix-p "*" (string-trim string)][warns for elisp cases ]]
+e.g.
+#+begin_src emacs-lisp
+(:template "%(my/function-that-returns-an-entry)")
+#+end_src
 * Documentation :documentation:
 ** TODO fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
  :doct-custom is now member of :doct
