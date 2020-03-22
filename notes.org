@@ -13,7 +13,13 @@ e.g.
 ** TODO fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
  :doct-custom is now member of :doct
 * Optimizations :optimization:
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::dolist (heading (nreverse (seq-copy path))][Do we still need this?]]
+We're copying declarations before operating on them now.
 * Features :feature:
+** TODO add doct-unload-function
+remove installed hooks
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Unloading.html#Unloading
 * Enhancements :enhancement:
 ** IDEA doct--type-check take pair as first arg? Returns pair if succesful
 May reduce verbosity when using doct--first-in...
