@@ -688,7 +688,7 @@ Are you missing the leading '*'?"))
                                  :number 1)))))
                   (org-capture 0 "w")))
               :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*"))
-    (it "expands metadata at capture time"
+    (it "expands metadata at run time"
       (expect (let ((org-capture-templates
                      (doct '(("fill test" :keys "f"
                               :template "* %doct(todo-state) %doct(result)"
