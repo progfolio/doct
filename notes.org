@@ -2,19 +2,14 @@
 #+archive: %s_archive::datetree/
 * Bugs :bug:
 ** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::unless (string-prefix-p "*" (string-trim string)][warns for elisp cases ]]
+and file inclusion syntax
 e.g.
 #+begin_src emacs-lisp
-(:template "%(my/function-that-returns-an-entry)")
+(:template "%()")
+(:template "%[]")
 #+end_src
 * Documentation :documentation:
-** TODO fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
- :doct-custom is now member of :doct
-** DONE get rid of references to 'capture time' in tests
-CLOSED: [2020-03-22 Sun 14:13]
-Should just be run time.
 * Optimizations :optimization:
-** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::dolist (heading (nreverse (seq-copy path))][Do we still need this?]]
-We're copying declarations before operating on them now.
 * Features :feature:
 ** TODO add doct-unload-function
 remove installed hooks

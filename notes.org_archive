@@ -572,3 +572,40 @@ CLOSED: [2020-03-22 Sun 14:11]
   Seems to be working as intended.
 Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
 I haven't run into any problems, but I do not often have multiple overlapping captures.
+**** DONE fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
+CLOSED: [2020-03-22 Sun 14:17]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-22 Sun 14:18
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+ :doct-custom is now member of :doct
+**** DONE get rid of references to 'capture time' in tests
+CLOSED: [2020-03-22 Sun 14:13]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-22 Sun 14:18
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Documentation
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: documentation
+:END:
+Should just be run time.
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::dolist (heading (nreverse (seq-copy path))][Do we still need this?]]
+CLOSED: [2020-03-22 Sun 14:16]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-22 Sun 14:18
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+- Note taken on [2020-03-22 Sun 14:16] \\
+  Removing it does not cause any test failures.
+  We're also copying declarations before operating on them.
+  Should not be an issue.
+We're copying declarations before operating on them now.
