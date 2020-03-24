@@ -68,7 +68,9 @@ Convert TEMPLATES and return error message head."
   (let ((debug-on-error nil)
         (doct-error-regexp "\\(?:DOCT \\([^z-a]*?\\):\\)"))
     (condition-case err
-        (doct templates)
+        (progn
+          (doct templates)
+          nil)
       (error (when-let ((message (cadr err)))
                (save-match-data
                  (when (string-match doct-error-regexp
@@ -164,9 +166,9 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
 
 (describe "DOCT"
   (before-each
-    (setq doct-default-entry-type           'entry
-          doct-warn-when-unbound            t
-          org-capture-templates-contexts    nil))
+    (setq doct-warnings                  t
+          doct-default-entry-type        'entry
+          org-capture-templates-contexts nil))
   (it "does not mutate the declaration list"
     (expect (let ((declarations '(("Todo" :keys "t"
                                    :template "* TODO %?")
@@ -281,7 +283,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                 (doct '((":context rule unbound warning" :keys "c" :file ""
                          :contexts (:when unbound-symbol)))))
               :to-match
-              "Warning (doct): :contexts :when unbound-symbol unbound during conversion in declaration:.*"))
+              "Warning (doct): :contexts :when unbound-symbol unbound \
+during conversion in the \":context rule unbound warning\" declaration\n"))
     (it "allows a single context rule"
       (doct '(("single context rule" :keys "c" :file ""
                :contexts (:in-buffer "test.org"))))
@@ -337,23 +340,27 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (describe ":when"
       (it "accepts a function as its value"
         (expect (let ((org-capture-templates
-                       (doct '((":when test" :keys "w" :file "" :contexts (:when doct-test-always-p))))))
+                       (doct '((":when test" :keys "w" :file ""
+                                :contexts (:when doct-test-always-p))))))
                   (doct-test-select-menu))
                 :to-equal '(("w" ":when test"))))
       (it "accepts a single form as its value"
         (expect (let ((org-capture-templates
-                       (doct '((":when test" :keys "w" :file "" :contexts (:when (or nil t)))))))
+                       (doct '((":when test" :keys "w" :file ""
+                                :contexts (:when (or nil t)))))))
                   (doct-test-select-menu))
                 :to-equal '(("w" ":when test")))))
     (describe ":unless"
       (it "accepts a function as its value"
         (expect (let ((org-capture-templates
-                       (doct '((":unless test" :keys "u" :file "" :contexts (:unless doct-test-always-p))))))
+                       (doct '((":unless test" :keys "u" :file ""
+                                :contexts (:unless doct-test-always-p))))))
                   (doct-test-select-menu))
                 :to-equal nil))
       (it "accepts a single form as its value"
         (expect (let ((org-capture-templates
-                       (doct '((":unless test" :keys "u" :file "" :contexts (:unless (or nil t)))))))
+                       (doct '((":unless test" :keys "u" :file ""
+                                :contexts (:unless (or nil t)))))))
                   (doct-test-select-menu))
                 :to-equal nil))))
   (describe ":custom"
@@ -382,21 +389,21 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                           ("d" "Disabled" entry (file "") nil))))
     (it "does not error check a disabled template"
       (expect (doct-test-signal-to-message
-               (doct '(("Enabled"  :keys "e" :file "")
-                       ;;has no :keys
-                       ("Disabled" :file "" :disabled t))))
-              :not :to-equal 'user-error)))
+               '(("Enabled" :keys "e" :file "")
+                 ;;has no :keys
+                 ("Disabled" :file "" :disabled t)))
+              :to-equal nil)))
 
   (describe ":warn"
     (it "suppresses warning for unbound symbols when :warn is nil"
-      (expect (let ((doct-warn-when-unbound t))
+      (expect (let ((doct-warnings t))
                 (doct-test-warning-message
                   (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
                            :function unbound-function
                            :warn nil)))))
               :not :to-match "Warning (doct): :function .* unbound during conversion .*"))
-    (it "overrides doct-warn-when-unbound"
-      (expect (let ((doct-warn-when-unbound nil))
+    (it "overrides doct-warnings"
+      (expect (let ((doct-warnings nil))
                 (doct-test-warning-message
                   (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
                            :warn t
@@ -413,7 +420,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (it "warns when value is unbound during conversion"
       (expect (doct-test-warning-message
                 (doct '((":file warn" :keys "f" :type entry :file unbound-file))))
-              :to-match "Warning (doct): :file unbound-file unbound during conversion .*"))
+              :to-match "Warning (doct): :file unbound-file unbound during conversion in the \":file warn\" declaration"))
     (it "exclusively sets target when not used with :function"
       (expect (doct-test-without-declarations
                '((":file exclusivity" :keys "f" :file ""
@@ -489,7 +496,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (expect (doct-test-warning-message
                 (doct '((":function warn" :keys "f" :function unbound-symbol))))
               :to-match
-              "Warning (doct): :function unbound-symbol unbound during conversion in declaration.*"))
+              "Warning (doct): :function unbound-symbol unbound \
+during conversion in the \":function warn\" declaration.*"))
     (it "exlucsively sets target when not used with :file"
       (expect (doct-test-without-declarations
                '((":function exclusivity" :keys "f" :function identity
@@ -545,7 +553,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
        (doct-test-warning-message
          (doct '((":template warning" :keys "t" :file "" :template unbound-symbol))))
        :to-match
-       "Warning (doct): :template unbound-symbol unbound during conversion in declaration:.*"))
+       "Warning (doct): :template unbound-symbol unbound during conversion in the \":template warning\" declaration.*"))
     (it "exclusively sets template target"
       (expect (doct-test-without-declarations
                '((":template exclusivity" :keys "t" :file ""
@@ -575,7 +583,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
       (expect (doct-test-warning-message
                 (doct '((":template-file warning" :keys "f" :file ""
                          :template-file unbound-symbol))))
-              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in declaration.*"))
+              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in the \":template-file warning\" declaration.*"))
     (it "exclusively sets template target"
       (expect (doct-test-without-declarations
                '((":template-file exclusivity" :keys "t" :type entry :file ""
@@ -630,24 +638,27 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (it "warns when keyword is not declared during conversion"
       (expect (doct-test-warning-message
                 (doct '(("%doct(KEYWORD) keyword undeclared" :keys "t" :file ""
-                         :template "%doct(undeclared)"))))
+                         :template "* %doct(undeclared)"))))
               :to-match
-              "Warning (doct): %doct(KEYWORD): :undeclared undeclared during conversion
-in declaration:.*"))
+              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) keyword undeclared\" declaration:
+  :undeclared undeclared during conversion
+"))
     (it "warns when multiple keywords are not declared during conversion"
       (expect (doct-test-warning-message
                 (doct '(("%doct(KEYWORD) multiple undeclared" :keys "t" :file ""
-                         :template "%doct(first)%doct(second)"))))
+                         :template "* %doct(first)%doct(second)"))))
               :to-match
-              "Warning (doct): %doct(KEYWORD): :first, :second undeclared during conversion
-in declaration:.*"))
+              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) multiple undeclared\" declaration:
+  :first, :second undeclared during conversion
+"))
     (it "warns for multiple :template strings"
       (expect (doct-test-warning-message
                 (doct '(("%doct(KEYWORD) list undeclared" :keys "t" :file ""
-                         :template ("%doct(first)" "%doct(second)")))))
+                         :template ("* %doct(first)" "%doct(second)")))))
               :to-match
-              "Warning (doct): %doct(KEYWORD): :first, :second undeclared during conversion
-in declaration:.*"))
+              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) list undeclared\" declaration:
+  :first, :second undeclared during conversion
+"))
     (it "warns when expansion is wrong type during conversion"
       (expect (doct-test-warning-message
                 (doct '(("wrong expansion type" :keys "w"
@@ -663,10 +674,8 @@ in declaration:.*"))
                          :type entry
                          :template "no leading star"))))
               :to-match
-              "Warning (doct): :template no leading star in declaration:
-.*
-is not a valid Org entry
-Are you missing the leading '*'?"))
+              "Warning (doct): expanded :template \"no leading star\" in the \"template expansion entry type\" declaration is not a valid Org entry.
+  Are you missing the leading ’*’?"))
     (it "warns when type is table-line and '|' does not prefix template's lines"
       (expect (doct-test-warning-message
                 (doct '(("template table-line entry type" :keys "t"
@@ -674,7 +683,9 @@ Are you missing the leading '*'?"))
                          :type table-line
                          :template "| leading pipe\nno leading pipe"))))
               :to-match
-              "Warning (doct): :template | leading pipe\nno leading pipe in declaration:.*"))
+              "Warning (doct): :template \"| leading pipe
+no leading pipe\" in the \"template table-line entry type\" declaration is not a valid table-line.
+  Are you missing the leading pipe?"))
     (it "warns when expansion is wrong type at runtime"
       (expect (doct-test-warning-message
                 (let* ((org-capture-bookmark)
@@ -772,7 +783,13 @@ Are you missing the leading '*'?"))
       (it "gets a value from `doct--current-plist'"
         (expect (let ((doct--current-plist '(:test t)))
                   (doct--get :test))
-                :to-equal t))))
+                :to-equal t)))
+    (describe "doct--warning-enabled-p"
+      (it "checks doct--current-plist before doct-warnings"
+        (expect (let ((doct-warnings t)
+                      (doct--current-plist '(:warn nil)))
+                  (doct--warning-enabled-p 'template-keyword))
+                :to-equal nil))))
   (describe "Hooks"
     (it "errors if value is not a function, variable or nil"
       (expect (doct-test-types '("hook keyword type" :keys "h"
@@ -784,7 +801,9 @@ Are you missing the leading '*'?"))
                 (doct '(("unbound hook" :keys "h"
                          :file ""
                          :before-finalize unbound-symbol))))
-              :to-match "Warning (doct): :before-finalize unbound-symbol unbound during conversion in declaration:.*"))
+              :to-match
+              "Warning (doct): :before-finalize unbound-symbol unbound \
+during conversion in the \"unbound hook\" declaration"))
     (it "runs hook functions"
       (expect (let ((org-capture-templates
                      (doct '(("hooks" :keys "h"
@@ -897,9 +916,49 @@ Are you missing the leading '*'?"))
                :custom (:keys "Moog"))))
       :to-equal
       '((#1="m" #2="Music Gear" entry (file #3="") nil
-            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))
-
-    ))
+            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#)))))
+  (describe "Customization Options"
+    (describe "doct-warnings"
+      (let ((declarations '(("doct-warnings" :keys "n" :file unbound
+                             :tree-type weak
+                             :not-string 2
+                             :template "%doct(undeclared) %doct(not-string)"))))
+        (it "errors if warning symbol is not a member of doct-warning-types"
+          (expect (let ((doct-warnings '(option-type)))
+                    (doct-test-warning-message
+                      (doct declarations))
+                    :to-match
+                    "Warning (doct): Unrecognized warning symbol: option-types in doct-warnings:
+(option-types)
+Should be member of (t nil unbound template-keyword template-keyword-type template-entry-type option-type)
+))")))
+        (it "disables warnings when set to nil"
+          (expect (doct-test-warning-message
+                    (let ((doct-warnings nil))
+                      (doct declarations)))
+                  :to-equal ""))
+        (it "enables all warnings when set to t"
+          (expect (doct-test-warning-message
+                    (let ((doct-warnings t))
+                      (doct declarations)))
+                  :to-equal
+                  "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
+Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
+  Are you missing the leading ’*’?
+Warning (doct): %doct(KEYWORD) in the \"doct-warnings\" declaration:
+  :undeclared undeclared during conversion
+  :not-string did not evaluate to a string
+Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
+  Any other values use the default datetree type.
+"))
+        (it "can selectively enable a subset of warnings"
+          (expect  (doct-test-warning-message
+                     (let ((doct-warnings '(option-type)))
+                       (doct declarations)))
+                   :to-match
+                   "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
+declaration should be set to week or month.
+  Any other values use the default datetree type.$"))))))
 
 (provide 'doct-test)
 

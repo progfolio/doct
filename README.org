@@ -613,9 +613,25 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
 (((parent) (child)...)...).
   #+end_src
 
-- doct-warn-when-unbound ::
-  When non-nil, unbound declaration symbols issue warnings.
-  This can be overridden on a per-declaration basis by setting ~:warn~.
+- doct-warnings ::
+  When non-nil, doct will issue warnings. Valid values are:
+  - t ::
+    warn in all cases
+  - nil ::
+    do not warn
+  Or a list containing any of the following symbols:
+  - unbound ::
+    warn when a symbol is unbound during conversion
+  - template-keyword ::
+    warn when %doct(KEYWORD) is not found on the declaration during conversion.
+  - template-keyword-type ::
+    warn when %doct(KEYWORD) expansion does not return a string.
+  - template-entry-type ::
+    warn when the expanded template does not match the capture template's type
+  - option-type ::
+    warn when additional options are not the proper type
+  It can be overridden on a per-declaration basis with the :warn keyword."
+
 *** Contributing
 
 Pull/feature requests, code review, angry comments are all welcome.
