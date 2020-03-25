@@ -605,35 +605,48 @@ during conversion in the \":function warn\" declaration.*"))
           (expect (eval (macroexpand `(doct-test-without-declarations ',test)))
                   :to-equal
                   '(("t" "doct-default-entry-type" plain (file "") nil)))))))
-  ;; (describe "Options"
-  ;;   (it "overrides additional options for the same keyword"
-  ;;     (expect (let (doct-after-conversion-functions)
-  ;;               (doct '(("test" :keys "t"
-  ;;                        :file ""
-  ;;                        :immediate-finish t
-  ;;                        :custom-option t
-  ;;                        :immediate-finish nil
-  ;;                        :custom-option nil)))
-  ;;               :to-equal
-  ;;               '((#1="t" #2="test" entry (file #3="") nil #4=:immediate-finish #5=t
-  ;;                     :doct (#2# :keys #1# :file #3#
-  ;;                                #4# #5#
-  ;;                                #6=:custom-option #5#
-  ;;                                #4# nil
-  ;;                                #6# nil
-  ;;                                :doct-custom (#6# #5#)))))))
-  ;;   (it "errors if :empty-lines is not an interger or nil"
-  ;;     (expect (doct-test-signal-to-message
-  ;;               (doct '((":empty-lines type error" :keys "e" :file "" :empty-lines "one"))))
-  ;;             :to-equal 'user-error))
-  ;;   (it "errors if :table-line-pos is not a string or nil"
-  ;;     (expect (doct-test-signal-to-message
-  ;;               (doct '((":table-line-pos type error" :keys "t" :file "" :table-line-pos symbol))))
-  ;;             :to-equal 'user-error))
-  ;;   (it "warns if :tree-type is not week or month"
-  ;;     (expect (doct-test-warning-message
-  ;;               (doct '((":tree-type warning" :warn t :keys "t" :file "" :tree-type weak))))
-  ;;             :to-match "Warning (doct): :tree-type weak in declaration:.*")))
+  (describe "Options"
+    (it "overrides additional options for the same keyword"
+      (expect (doct '(("test" :keys "t"
+                       :file ""
+                       :type entry
+                       :immediate-finish t
+                       :custom-option t
+                       :immediate-finish nil
+                       :custom-option nil)))
+              :to-equal
+              '((#1="t" #2="test" #3=entry (file #4="") nil #5=:immediate-finish #6=t
+                    :doct (:doct-name #2# :keys #1# :file #4#
+                                      :type #3#
+                                      #5# #6#
+                                      #7=:custom-option #6#
+                                      #5# nil
+                                      #7# nil
+                                      :doct-custom (#7# #6#))))))
+    (describe ":empty-lines(-after/before)"
+      (it "errors if not an integer or nil"
+        (expect (let (tests)
+                  (dolist (keyword '(:empty-lines
+                                     :empty-lines-after
+                                     :empty-lines-before)
+                                   tests)
+                    (let ((result (doct-test-types
+                                   `(":empty-lines* type" :keys "e" :file ""
+                                     ,keyword type))))
+                      (push result tests))))
+                ;;character passes because it is translated to an integer
+                :to-equal '(#1=(:character :integer :nil) #1# #1#))))
+    (describe ":table-line-pos"
+      (it "errors if is not a string or nil"
+        (expect (doct-test-types '(":table-line-pos" :keys "t" :file ""
+                                   :table-line-pos type))
+                :to-equal '(:nil :string))))
+    (describe ":tree-type"
+      (it "warns if :tree-type is not week, month, or nil"
+        (expect (doct-test-warning-message
+                  (doct '((":tree-type warning" :warn t :keys "t" :file "" :tree-type weak))))
+                :to-match "Warning (doct): :tree-type weak in the \
+\":tree-type warning\" declaration.*"))))
   (describe "%doct(KEYWORD)"
     (it "warns when keyword is not declared during conversion"
       (expect (doct-test-warning-message
