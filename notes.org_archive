@@ -609,3 +609,32 @@ CLOSED: [2020-03-22 Sun 14:16]
   We're also copying declarations before operating on them.
   Should not be an issue.
 We're copying declarations before operating on them now.
+*** 2020-03-24 Tuesday
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::unless (string-prefix-p "*" (string-trim string)][warns for elisp cases ]]
+CLOSED: [2020-03-24 Tue 22:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-24 Tue 22:50
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+and file inclusion syntax
+e.g.
+#+begin_src emacs-lisp
+(:template "%()")
+(:template "%[]")
+#+end_src
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::(defcustom doct-warnings t][need to finish custom spec]]
+CLOSED: [2020-03-24 Tue 22:50]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-24 Tue 22:50
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+
+doct-warnings can be nil, t, or a list of pre-defined symbols
