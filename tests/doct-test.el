@@ -256,7 +256,6 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                   :children ("child" :keys "c" :file "" :function nil))))
               :to-equal
               '(("p" "parent") ("pc" "child" entry (file "") nil)))))
-
   (describe ":clock"
     (it "exclusively sets target location"
       (expect (doct-test-without-declarations
@@ -330,39 +329,39 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                 :to-equal "Wrong type argument"))
       (it "only includes templates which pass predicate"
         (setq org-capture-templates-contexts nil)
-        (expect (let ((org-capture-templates
-                       (doct '((:group
-                                :file ""
-                                :children
-                                (("One"   :keys "1" :contexts (:function (lambda () t)))
-                                 ("Two"   :keys "2" :contexts (:function (lambda () nil)))
-                                 ("Three" :keys "3")))))))
+        (expect (doct-test-with-templates
+                  '((:group
+                     :file ""
+                     :children
+                     (("One"   :keys "1" :contexts (:function (lambda () t)))
+                      ("Two"   :keys "2" :contexts (:function (lambda () nil)))
+                      ("Three" :keys "3"))))
                   (doct-test-select-menu))
                 :to-equal '(("1" "One") ("3" "Three")))))
     (describe ":when"
       (it "accepts a function as its value"
-        (expect (let ((org-capture-templates
-                       (doct '((":when test" :keys "w" :file ""
-                                :contexts (:when doct-test-always-p))))))
+        (expect (doct-test-with-templates
+                  '((":when test" :keys "w" :file ""
+                     :contexts (:when doct-test-always-p)))
                   (doct-test-select-menu))
                 :to-equal '(("w" ":when test"))))
       (it "accepts a single form as its value"
-        (expect (let ((org-capture-templates
-                       (doct '((":when test" :keys "w" :file ""
-                                :contexts (:when (or nil t)))))))
+        (expect (doct-test-with-templates
+                  '((":when test" :keys "w" :file ""
+                     :contexts (:when (or nil t))))
                   (doct-test-select-menu))
                 :to-equal '(("w" ":when test")))))
     (describe ":unless"
       (it "accepts a function as its value"
-        (expect (let ((org-capture-templates
-                       (doct '((":unless test" :keys "u" :file ""
-                                :contexts (:unless doct-test-always-p))))))
+        (expect (doct-test-with-templates
+                  '((":unless test" :keys "u" :file ""
+                     :contexts (:unless doct-test-always-p)))
                   (doct-test-select-menu))
                 :to-equal nil))
       (it "accepts a single form as its value"
-        (expect (let ((org-capture-templates
-                       (doct '((":unless test" :keys "u" :file ""
-                                :contexts (:unless (or nil t)))))))
+        (expect (doct-test-with-templates
+                  '((":unless test" :keys "u" :file ""
+                     :contexts (:unless (or nil t))))
                   (doct-test-select-menu))
                 :to-equal nil))))
   (describe ":custom"
@@ -395,23 +394,6 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                  ;;has no :keys
                  ("Disabled" :file "" :disabled t)))
               :to-equal nil)))
-
-  (describe ":warn"
-    (it "suppresses warning for unbound symbols when :warn is nil"
-      (expect (let ((doct-warnings t))
-                (doct-test-warning-message
-                  (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                           :function unbound-function
-                           :warn nil)))))
-              :not :to-match "Warning (doct): :function .* unbound during conversion .*"))
-    (it "overrides doct-warnings"
-      (expect (let ((doct-warnings nil))
-                (doct-test-warning-message
-                  (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
-                           :warn t
-                           :function unbound-function)))))
-              :to-match "Warning (doct): :function .* unbound during conversion .*")))
-
   (describe ":file"
     (it "errors if :file is not a function, string, variable or nil"
       (expect (doct-test-types '(":file type" :keys "f" :file type
@@ -430,7 +412,6 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                   :clock t
                   :id "1")))
               :to-equal '(("f" ":file exclusivity" entry (file "") nil))))
-
     (describe ":headline"
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
@@ -444,7 +425,6 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                  '((":headline + :file" :keys "h" :file "" :headline "headline")))
                 :to-equal
                 '(("h" ":headline + :file" entry (file+headline "" "headline") nil)))))
-
     (describe ":olp"
       (it "errors if used without :file"
         (expect (doct-test-signal-to-message
@@ -458,7 +438,6 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                  '((":olp + :file" :keys "o" :file "" :olp ("one" "two" "three"))))
                 :to-equal
                 '(("o" ":olp + :file" entry (file+olp "" "one" "two" "three") nil))))
-
       (describe ":datetree"
         (it "errors if not used with :file"
           (expect (doct-test-signal-to-message
@@ -489,7 +468,6 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                  '((":regexp + :file" :keys "r" :file "" :regexp "regexp")))
                 :to-equal
                 '(("r" ":regexp + :file" entry (file+regexp "" "regexp") nil))))))
-
   (describe ":function"
     (it "errors if it is not a function, variable or nil"
       (expect (doct-test-types '(":function type" :keys "f" :file "" :function type)))
@@ -515,7 +493,6 @@ during conversion in the \":function warn\" declaration.*"))
               :to-equal
               '(("f" ":function + :file combination" entry
                  (file+function "" identity) nil)))))
-
   (describe ":id"
     (it "errors if it is not a string or nil"
       (expect (doct-test-types '(":id type" :keys "i" :id type
@@ -531,7 +508,6 @@ during conversion in the \":function warn\" declaration.*"))
                   :function identity)))
               :to-equal
               '(("i" ":id exclusivity" entry (id "1") nil)))))
-
   (describe ":keys"
     (it "errors if it is not a string"
       (expect (doct-test-types '(":keys type" :keys type :file ""))
@@ -544,7 +520,6 @@ during conversion in the \":function warn\" declaration.*"))
               :to-equal
               '(("p" "parent") ("po" "one" entry (file "") nil)
                 ("pt" "two" entry (file "") nil)))))
-
   (describe ":template"
     (it "errors unless it is a string, list of strings, function, variable, or nil"
       (expect (doct-test-types '(":template type" :keys "t" :file "" :template type))
@@ -574,7 +549,6 @@ during conversion in the \":function warn\" declaration.*"))
                '(("template join test" :keys "t" :file "" :template "* test")))
               :to-equal
               '(("t" "template join test" entry (file "") "* test")))))
-
   (describe ":template-file"
     (it "errors if it is not a string, variable or nil"
       ;;unbound symbol will warn
@@ -593,7 +567,6 @@ during conversion in the \":function warn\" declaration.*"))
               :to-equal
               '(("t" ":template-file exclusivity" entry (file "")
                  (file "./template.txt"))))))
-
   (describe ":type"
     (it "errors if entry type is not a member of `doct-entry-types' or nil"
       (expect (doct-test-types '(":type type" :keys "t" :file "" :type type))
@@ -607,6 +580,21 @@ during conversion in the \":function warn\" declaration.*"))
           (expect (eval (macroexpand `(doct-test-without-declarations ',test)))
                   :to-equal
                   '(("t" "doct-default-entry-type" plain (file "") nil)))))))
+  (describe ":warn"
+    (it "suppresses warning for unbound symbols when :warn is nil"
+      (expect (let ((doct-warnings t))
+                (doct-test-warning-message
+                  (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                           :function unbound-function
+                           :warn nil)))))
+              :not :to-match "Warning (doct): :function .* unbound during conversion .*"))
+    (it "overrides doct-warnings"
+      (expect (let ((doct-warnings nil))
+                (doct-test-warning-message
+                  (doct '(("unbound fn warning test" :keys "u" :type entry :file ""
+                           :warn t
+                           :function unbound-function)))))
+              :to-match "Warning (doct): :function .* unbound during conversion .*")))
   (describe "Options"
     (it "overrides additional options for the same keyword"
       (expect (doct '(("test" :keys "t"
@@ -715,82 +703,83 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                   (org-capture 0 "w")))
               :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*"))
     (it "expands metadata at run time"
-      (expect (let ((org-capture-templates
-                     (doct '(("fill test" :keys "f"
-                              :template "* %doct(todo-state) %doct(result)"
-                              :file ""
-                              :no-save t
-                              :todo-state "TODO"
-                              :result "WORK"
-                              :immediate-finish t
-                              :empty-lines 0)))))
+      (expect (doct-test-with-templates
+                '(("fill test" :keys "f"
+                   :template "* %doct(todo-state) %doct(result)"
+                   :file ""
+                   :no-save t
+                   :todo-state "TODO"
+                   :result "WORK"
+                   :immediate-finish t
+                   :empty-lines 0))
                 (doct-test-filled-template "f"))
               :to-equal "* TODO WORK"))
     (it "expands when inlined in another string"
-      (expect (let ((org-capture-templates
-                     (doct '(("inline fill test" :keys "i"
-                              :template "* %doct(todo-state)-still-%doct(result)s"
-                              :file ""
-                              :no-save t
-                              :todo-state "TODO"
-                              :result "work"
-                              :immediate-finish t
-                              :empty-lines 0)))))
+      (expect (doct-test-with-templates
+                '(("inline fill test" :keys "i"
+                   :template "* %doct(todo-state)-still-%doct(result)s"
+                   :file ""
+                   :no-save t
+                   :todo-state "TODO"
+                   :result "work"
+                   :immediate-finish t
+                   :empty-lines 0))
                 (doct-test-filled-template "i"))
               :to-equal "* TODO-still-works"))
     (it "expands members of doct-recognized-keywords"
-      (expect (let ((org-capture-templates
-                     ;;:file workaround for older Org versions
-                     ;;Org complains if target file isn't in Org mode
-                     ;;even if we're just inserting into current buffer
-                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                              :no-save t
-                              :immediate-finish t
-                              :empty-lines 0
-                              :type plain
-                              :headline "PASS"
-                              :template "%doct(headline)")))))
+      (expect (doct-test-with-templates
+                ;;:file workaround for older Org versions
+                ;;Org complains if target file isn't in Org mode
+                ;;even if we're just inserting into current buffer
+                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                   :no-save t
+                   :immediate-finish t
+                   :empty-lines 0
+                   :type plain
+                   :headline "PASS"
+                   :template "%doct(headline)"))
                 (doct-test-filled-template "h"))
               :to-equal "PASS"))
     (it "prefers :doct-custom over :doct"
-      (expect (let ((org-capture-templates
-                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                              :no-save t
-                              :immediate-finish t
-                              :empty-lines 0
-                              :type plain
-                              :headline "FAIL"
-                              :custom (:headline "PASS")
-                              :template "%doct(headline)")))))
+      (expect (doct-test-with-templates
+                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                   :no-save t
+                   :immediate-finish t
+                   :empty-lines 0
+                   :type plain
+                   :headline "FAIL"
+                   :custom (:headline "PASS")
+                   :template "%doct(headline)"))
                 (doct-test-filled-template "h"))
               :to-equal "PASS"))
     (it "prefers :doct-custom over :doct w explicit nil"
-      (expect (let ((org-capture-templates
-                     (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
-                              :no-save t
-                              :immediate-finish t
-                              :empty-lines 0
-                              :type plain
-                              :headline "FAIL"
-                              :custom (:headline nil)
-                              :template "%doct(headline)")))))
+      (expect (doct-test-with-templates
+                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                   :no-save t
+                   :immediate-finish t
+                   :empty-lines 0
+                   :type plain
+                   :headline "FAIL"
+                   :custom (:headline nil)
+                   :template "%doct(headline)"))
                 (doct-test-filled-template "h"))
               ;;Another Org mode difference...
               ;;Older versions add the newline, newer do not.
               :to-match "\n?"))
     (it "queries fill function from :doct"
       (expect
-       (let ((org-capture-templates (doct '(("fill override test" :keys "f"
-                                             :file ""
-                                             :type plain
-                                             :template "%doct(num) = 1"
-                                             :num "1")))))
-         (let ((org-capture-templates
-                (doct '(("some other f" :keys "f"
-                         :file ""
-                         :type plain
-                         :template "%doct(num) = 2"
-                         :num "2"))))))
+       (doct-test-with-templates '(("fill override test" :keys "f"
+                                    :file ""
+                                    :type plain
+                                    :template "%doct(num) = 1"
+                                    :num "1"))
+         ;;simulating org-capture-templates being lexical bound elswhere
+         (doct-test-with-templates
+           '(("some other f" :keys "f"
+              :file ""
+              :type plain
+              :template "%doct(num) = 2"
+              :num "2")))
          (doct-test-filled-template "f"))
        :to-equal "1 = 1")))
   (describe "Utility functions"
@@ -832,20 +821,62 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
               "Warning (doct): :before-finalize unbound-symbol unbound \
 during conversion in the \"unbound hook\" declaration"))
     (it "runs hook functions"
-      (expect (let ((org-capture-templates
-                     (doct '(("hooks" :keys "h"
-                              :file ""
-                              :immediate-finish t
-                              :no-save t
-                              :type plain
-                              :template ""
-                              :hook             (lambda () (insert "capture "))
-                              :prepare-finalize (lambda () (insert "prepare "))
-                              :before-finalize  (lambda () (insert "before "))
-                              :after-finalize   (lambda () (end-of-line) (insert "after")))))))
+      (expect (doct-test-with-templates
+                '(("hooks" :keys "h"
+                   :file ""
+                   :immediate-finish t
+                   :no-save t
+                   :type plain
+                   :template ""
+                   :hook             (lambda () (insert "capture "))
+                   :prepare-finalize (lambda () (insert "prepare "))
+                   :before-finalize  (lambda () (insert "before "))
+                   :after-finalize   (lambda () (end-of-line) (insert "after"))))
                 (doct-test-filled-template "h"))
               :to-equal "capture prepare before after")))
-  (describe "Documentation Examples"
+  (describe "Customization Options"
+    (describe "doct-warnings"
+      (let ((declarations '(("doct-warnings" :keys "n" :file unbound
+                             :tree-type weak
+                             :not-string 2
+                             :template "%doct(undeclared) %doct(not-string)"))))
+        (it "errors if warning symbol is not a member of doct-warning-types"
+          (expect (let ((doct-warnings '(option-type)))
+                    (doct-test-warning-message
+                      (doct declarations))
+                    :to-match
+                    "Warning (doct): Unrecognized warning symbol: option-types in doct-warnings:
+(option-types)
+Should be member of (t nil unbound template-keyword template-keyword-type template-entry-type option-type)
+))")))
+        (it "disables warnings when set to nil"
+          (expect (doct-test-warning-message
+                    (let ((doct-warnings nil))
+                      (doct declarations)))
+                  :to-equal ""))
+        (it "enables all warnings when set to t"
+          (expect (doct-test-warning-message
+                    (let ((doct-warnings t))
+                      (doct declarations)))
+                  :to-equal
+                  "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
+Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
+  Are you missing the leading ’*’?
+Warning (doct): %doct(KEYWORD) in the \"doct-warnings\" declaration:
+  :undeclared undeclared during conversion
+  :not-string did not evaluate to a string
+Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
+  Any other values use the default datetree type.
+"))
+        (it "can selectively enable a subset of warnings"
+          (expect  (doct-test-warning-message
+                     (let ((doct-warnings '(option-type)))
+                       (doct declarations)))
+                   :to-match
+                   "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
+declaration should be set to week or month.
+  Any other values use the default datetree type.$")))))
+(describe "Documentation Examples"
     (it "returns documented value for tl;dr"
       (expect (doct-test-without-declarations
                '(("Parent" :keys "p"
@@ -943,49 +974,7 @@ during conversion in the \"unbound hook\" declaration"))
                :custom (:keys "Moog"))))
       :to-equal
       '((#1="m" #2="Music Gear" entry (file #3="") nil
-            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#)))))
-  (describe "Customization Options"
-    (describe "doct-warnings"
-      (let ((declarations '(("doct-warnings" :keys "n" :file unbound
-                             :tree-type weak
-                             :not-string 2
-                             :template "%doct(undeclared) %doct(not-string)"))))
-        (it "errors if warning symbol is not a member of doct-warning-types"
-          (expect (let ((doct-warnings '(option-type)))
-                    (doct-test-warning-message
-                      (doct declarations))
-                    :to-match
-                    "Warning (doct): Unrecognized warning symbol: option-types in doct-warnings:
-(option-types)
-Should be member of (t nil unbound template-keyword template-keyword-type template-entry-type option-type)
-))")))
-        (it "disables warnings when set to nil"
-          (expect (doct-test-warning-message
-                    (let ((doct-warnings nil))
-                      (doct declarations)))
-                  :to-equal ""))
-        (it "enables all warnings when set to t"
-          (expect (doct-test-warning-message
-                    (let ((doct-warnings t))
-                      (doct declarations)))
-                  :to-equal
-                  "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
-Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
-  Are you missing the leading ’*’?
-Warning (doct): %doct(KEYWORD) in the \"doct-warnings\" declaration:
-  :undeclared undeclared during conversion
-  :not-string did not evaluate to a string
-Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
-  Any other values use the default datetree type.
-"))
-        (it "can selectively enable a subset of warnings"
-          (expect  (doct-test-warning-message
-                     (let ((doct-warnings '(option-type)))
-                       (doct declarations)))
-                   :to-match
-                   "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
-declaration should be set to week or month.
-  Any other values use the default datetree type.$"))))))
+            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))))
 
 (provide 'doct-test)
 
