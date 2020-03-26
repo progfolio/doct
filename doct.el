@@ -397,7 +397,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
 
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %doct(keyword) syntax, else nil."
-  (and (string-match-p "%doct(.*?)" string) t))
+  (and (string-match-p doct--expansion-syntax-regexp string) t))
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
