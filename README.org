@@ -436,6 +436,32 @@ For example, with:
 
 Each child template has its ~:todo-state~ value expanded in the inherited ~:template.~
 
+Values should be strings, functions or nil.
+
+#+begin_src emacs-lisp results raw
+(doct '(("%doct(string)" :keys "s" :type plain :file ""
+         :string "string"
+         :template "%doct(string)")))
+#+end_src
+
+Is replaced with ~"string"~.
+
+#+begin_src emacs-lisp results raw
+(doct '(("%doct(fn)" :keys "f" :type plain :file ""
+         :fn (lambda () "string returned from function")
+         :template "%doct(fn)")))
+#+end_src
+
+Is replaced with ~"string returned from function"~.
+
+#+begin_src emacs-lisp
+(doct '(("%doct(nil)" :keys "f" :type plain :file ""
+         :nil nil
+         :template "%doct(nil)")))
+#+end_src
+
+Is replaced with the empty string ~""~.
+
 Custom keywords take precedence over other declaration keywords.
 For example, with:
 

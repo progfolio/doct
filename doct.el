@@ -377,7 +377,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
-(defun doct--replace-template-strings (string declaration)
+(defun doct--replace-template-strings (string &optional declaration)
   "Replace STRING's %doct(KEYWORD) occurrences with their :doct-custom values.
 If non-nil, DECLARATION is the declaration containing STRING."
   (with-temp-buffer
@@ -387,13 +387,18 @@ If non-nil, DECLARATION is the declaration containing STRING."
       (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
         (let* ((keyword (intern (concat ":" (match-string 1))))
                (val (doct-get keyword)))
-          (unless (or (stringp val) (null val))
-            (lwarn 'doct :warning "%%doct(%s) wrong type: stringp %s in declaration:
-%s\nSubstituted for empty string."
+          (unless (or (functionp val) (stringp val) (null val))
+            (lwarn 'doct :warning
+                   (concat
+                    "%%doct(%s) wrong type: stringp %s"
+                    (when declaration " in the \"%s\" declaration")
+                    "\n  Substituted for empty string.")
                    keyword val declaration)
             (setq val ""))
-          (replace-match (or val "")))))
-    (buffer-string)))
+          (replace-match (if (functionp val)
+                             (doct--replace-template-strings (funcall val) declaration)
+                           (or val "")))))
+      (buffer-string))))
 
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %doct(keyword) syntax, else nil."
@@ -425,6 +430,8 @@ If non-nil, DECLARATION is the declaration containing STRING."
       ;;default templates are used when STRING is empty
       (unless (or (string-empty-p trimmed)
                   ;;arbitrary text can be inserted with these patterns
+                  (string-match-p (concat "^" doct--expansion-syntax-regexp)
+                                  trimmed)
                   (string-prefix-p "%(" trimmed)
                   (string-prefix-p "%[" trimmed))
         (pcase (doct--entry-type)
@@ -450,36 +457,8 @@ If non-nil, DECLARATION is the declaration containing STRING."
                      "  Are you missing the leading pipe?")
                     string (car doct--current)))))))))
 
-(defun doct--warn-template-maybe (strings)
-  "Check STRINGS to make sure it is a proper template."
-  (let (undeclared
-        not-string
-        template)
-    (dolist (string strings)
-      (when (doct--expansion-syntax-p string)
-        (with-temp-buffer
-          (insert string)
-          (goto-char (point-min))
-          (save-match-data
-            (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-              (let* ((match   (match-string 1))
-                     (keyword (intern (concat ":" match)))
-                     (custom  (plist-get doct--current-plist :custom))
-                     (member  (or (plist-member custom keyword)
-                                  (plist-member doct--current-plist keyword)))
-                     (value   (cadr member)))
-                (when (doct--warning-enabled-p 'template-keyword)
-                  (unless (or member
-                              ;;doct implicitly adds these
-                              (member keyword '(:inherited-keys :doct-name)))
-                    (push (symbol-name keyword) undeclared)))
-                (when (doct--warning-enabled-p 'template-keyword-type)
-                  (unless (or (stringp value) (null value))
-                    (push (symbol-name keyword) not-string)))
-                (replace-match (format "%s" value) nil t)
-                (setq string (buffer-string)))))))
-      (push string template))
-    (doct--type-check-template-entry-type (string-join (nreverse template) "\n"))
+ (defun doct--warn-template-maybe (&optional undeclared not-string)
+    "If UNDECLARED or NOT-STRING are non-nil, issue appropriate warning."
     (when (or undeclared not-string)
       (apply #'lwarn
              (delq nil
@@ -493,7 +472,43 @@ If non-nil, DECLARATION is the declaration containing STRING."
                                  "  %s did not evaluate to a string")))
                      ,(car doct--current)
                      ,(when undeclared (string-join (nreverse undeclared) ", "))
-                     ,(when not-string (string-join (nreverse not-string) ", "))))))))
+                     ,(when not-string (string-join (nreverse not-string) ", ")))))))
+
+(defun doct--validate-template-maybe (strings)
+  "Check STRINGS to make sure it is a proper template."
+  (let (undeclared
+        not-string
+        template)
+    (catch 'deferred
+      (dolist (string strings)
+        (when (doct--expansion-syntax-p string)
+          (with-temp-buffer
+            (insert string)
+            (goto-char (point-min))
+            (save-match-data
+              (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
+                (let* ((match   (match-string 1))
+                       (keyword (intern (concat ":" match)))
+                       (custom  (plist-get doct--current-plist :custom))
+                       (member  (or (plist-member custom keyword)
+                                    (plist-member doct--current-plist keyword)))
+                       (value   (cadr member)))
+                  ;;If the value is a function, we can't reliably validate during
+                  ;;conversion. It may rely on runtime context.
+                  (when (functionp value) (throw 'deferred nil))
+                  (when (doct--warning-enabled-p 'template-keyword)
+                    (unless (or member
+                                ;;doct implicitly adds these
+                                (member keyword '(:inherited-keys :doct-name)))
+                      (push (symbol-name keyword) undeclared)))
+                  (when (doct--warning-enabled-p 'template-keyword-type)
+                    (unless (or (stringp value) (null value))
+                      (push (symbol-name keyword) not-string)))
+                  (replace-match (format "%s" value) nil t)
+                  (setq string (buffer-string)))))))
+        (push string template))
+      (doct--type-check-template-entry-type (string-join (nreverse template) "\n"))
+      (doct--warn-template-maybe undeclared not-string))))
 
 (defun doct--template ()
   "Convert declaration's :template to Org capture template."
@@ -516,7 +531,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
          (doct--type-check :template deferred
                            '(functionp stringp doct--list-of-strings-p doct--variable-p))
          (unless (or (functionp deferred) (doct--variable-p deferred))
-           (doct--warn-template-maybe
+           (doct--validate-template-maybe
             (if (doct--list-of-strings-p deferred) deferred `(,deferred))))
          '(function doct--fill-template))))))
 
@@ -1033,6 +1048,26 @@ For example, with:
 
 Each child template has its :todo-state value expanded in the inherited \
 :template.
+
+Values should be strings, functions or nil.
+
+  (doct \\='((\"%doct(string)\" :keys \"s\" :type plain :file \"\"
+           :string \"string\"
+           :template \"%doct(string)\")))
+
+Is replaced with \"string\".
+
+  (doct \\='((\"%doct(fn)\" :keys \"f\" :type plain :file \"\"
+           :fn (lambda () \"string returned from function\")
+           :template \"%doct(fn)\")))
+
+Is replaced with \"string returned from function\".
+
+  (doct \\='((\"%doct(nil)\" :keys \"f\" :type plain :file \"\"
+           :nil nil
+           :template \"%doct(nil)\")))
+
+Is replaced with the empty string \"\".
 
 Custom keywords take precedence over other declaration keywords.
 For example, with:

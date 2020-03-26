@@ -638,3 +638,20 @@ CLOSED: [2020-03-24 Tue 22:50]
 :END:
 
 doct-warnings can be nil, t, or a list of pre-defined symbols
+*** 2020-03-26 Thursday
+**** DONE execute functions for custom metadata?
+CLOSED: [2020-03-26 Thu 15:04]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-26 Thu 15:04
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+#+begin_src emacs-lisp
+("example" :keys "e" :file ""
+ :test (lambda () "returns a string")
+ ;;doct--fill-template calls the function
+ :template "%doct(test)")
+#+end_src

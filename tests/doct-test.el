@@ -103,7 +103,9 @@ Returns *Warnings* `buffer-string'."
       (org-mode)
       (let ((inhibit-message t))
         (org-capture 0 keys))
-      (substring-no-properties (buffer-string)))))
+      ;;remove newline org-capture adds when inserting
+      (substring-no-properties
+       (replace-regexp-in-string "\n$" "" (buffer-string))))))
 
 (defun doct-test-select-menu ()
   "Get a list of pairs from the *Org Select* menu.
@@ -723,7 +725,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               :immediate-finish t
                               :empty-lines 0)))))
                 (doct-test-filled-template "f"))
-              :to-equal "* TODO WORK\n"))
+              :to-equal "* TODO WORK"))
     (it "expands when inlined in another string"
       (expect (let ((org-capture-templates
                      (doct '(("inline fill test" :keys "i"
@@ -735,7 +737,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               :immediate-finish t
                               :empty-lines 0)))))
                 (doct-test-filled-template "i"))
-              :to-equal "* TODO-still-works\n"))
+              :to-equal "* TODO-still-works"))
     (it "expands members of doct-recognized-keywords"
       (expect (let ((org-capture-templates
                      ;;:file workaround for older Org versions
@@ -749,7 +751,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               :headline "PASS"
                               :template "%doct(headline)")))))
                 (doct-test-filled-template "h"))
-              :to-equal "PASS\n"))
+              :to-equal "PASS"))
     (it "prefers :doct-custom over :doct"
       (expect (let ((org-capture-templates
                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
@@ -761,7 +763,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               :custom (:headline "PASS")
                               :template "%doct(headline)")))))
                 (doct-test-filled-template "h"))
-              :to-equal "PASS\n"))
+              :to-equal "PASS"))
     (it "prefers :doct-custom over :doct w explicit nil"
       (expect (let ((org-capture-templates
                      (doct '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
@@ -802,7 +804,19 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
         (expect (let ((doct-warnings t)
                       (doct--current-plist '(:warn nil)))
                   (doct--warning-enabled-p 'template-keyword))
-                :to-equal nil))))
+                :to-equal nil)))
+    (describe "doct--replace-template-strings"
+      (it "replaces functions with the result of their call"
+        (expect (doct-test-with-templates
+                  '(("doct--replace-template-strings fn"
+                     :keys "t"
+                     :file ""
+                     :immediate-finish t
+                     :no-save t
+                     :test (lambda () "* PASS")
+                     :template "%doct(test)"))
+                  (doct-test-filled-template "t"))
+                :to-equal "* PASS"))))
   (describe "Hooks"
     (it "errors if value is not a function, variable or nil"
       (expect (doct-test-types '("hook keyword type" :keys "h"
