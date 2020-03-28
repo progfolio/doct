@@ -3,7 +3,7 @@ name: Bug report
 about: I think I have found something wrong with doct
 title: ''
 labels: bug
-assignees: ''
+assignees: progfolio
 
 ---
 
