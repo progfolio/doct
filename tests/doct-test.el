@@ -637,29 +637,29 @@ during conversion in the \":function warn\" declaration.*"))
                   (doct '((":tree-type warning" :warn t :keys "t" :file "" :tree-type weak))))
                 :to-match "Warning (doct): :tree-type weak in the \
 \":tree-type warning\" declaration.*"))))
-  (describe "%doct(KEYWORD)"
+  (describe "%{KEYWORD}"
     (it "warns when keyword is not declared during conversion"
       (expect (doct-test-warning-message
-                (doct '(("%doct(KEYWORD) keyword undeclared" :keys "t" :file ""
-                         :template "* %doct(undeclared)"))))
+                (doct '(("%{KEYWORD} keyword undeclared" :keys "t" :file ""
+                         :template "* %{undeclared}"))))
               :to-match
-              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) keyword undeclared\" declaration:
+              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} keyword undeclared\" declaration:
   :undeclared undeclared during conversion
 "))
     (it "warns when multiple keywords are not declared during conversion"
       (expect (doct-test-warning-message
-                (doct '(("%doct(KEYWORD) multiple undeclared" :keys "t" :file ""
-                         :template "* %doct(first)%doct(second)"))))
+                (doct '(("%{KEYWORD} multiple undeclared" :keys "t" :file ""
+                         :template "* %{first}%{second}"))))
               :to-match
-              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) multiple undeclared\" declaration:
+              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} multiple undeclared\" declaration:
   :first, :second undeclared during conversion
 "))
     (it "warns for multiple :template strings"
       (expect (doct-test-warning-message
-                (doct '(("%doct(KEYWORD) list undeclared" :keys "t" :file ""
-                         :template ("* %doct(first)" "%doct(second)")))))
+                (doct '(("%{KEYWORD} list undeclared" :keys "t" :file ""
+                         :template ("* %{first}" "%{second}")))))
               :to-match
-              "Warning (doct): %doct(KEYWORD) in the \"%doct(KEYWORD) list undeclared\" declaration:
+              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} list undeclared\" declaration:
   :first, :second undeclared during conversion
 "))
     (it "warns when expansion is wrong type during conversion"
@@ -667,9 +667,9 @@ during conversion in the \":function warn\" declaration.*"))
                 (doct '(("wrong expansion type" :keys "w"
                          :file ""
                          :type plain
-                         :template "%doct(number)"
+                         :template "%{number}"
                          :number 1)))))
-      :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*")
+      :to-match  "Warning (doct): %{.*} wrong type: stringp.*")
     (it "warns when type is entry and template is not an entry or empty string"
       (expect (doct-test-warning-message
                 (doct '(("template expansion entry type" :keys "t"
@@ -698,14 +698,14 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                                  :immediate-finish t
                                  :file ""
                                  :type plain
-                                 :template "%doct(number)"
+                                 :template "%{number}"
                                  :number 1)))))
                   (org-capture 0 "w")))
-              :to-match  "Warning (doct): %doct(.*) wrong type: stringp.*"))
+              :to-match  "Warning (doct): %{.*} wrong type: stringp.*"))
     (it "expands metadata at run time"
       (expect (doct-test-with-templates
                 '(("fill test" :keys "f"
-                   :template "* %doct(todo-state) %doct(result)"
+                   :template "* %{todo-state} %{result}"
                    :file ""
                    :no-save t
                    :todo-state "TODO"
@@ -717,7 +717,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
     (it "expands when inlined in another string"
       (expect (doct-test-with-templates
                 '(("inline fill test" :keys "i"
-                   :template "* %doct(todo-state)-still-%doct(result)s"
+                   :template "* %{todo-state}-still-%{result}s"
                    :file ""
                    :no-save t
                    :todo-state "TODO"
@@ -731,37 +731,37 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                 ;;:file workaround for older Org versions
                 ;;Org complains if target file isn't in Org mode
                 ;;even if we're just inserting into current buffer
-                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                '(("%{headline} test" :keys "h" :file "/tmp/notes.org"
                    :no-save t
                    :immediate-finish t
                    :empty-lines 0
                    :type plain
                    :headline "PASS"
-                   :template "%doct(headline)"))
+                   :template "%{headline}"))
                 (doct-test-filled-template "h"))
               :to-equal "PASS"))
     (it "prefers :doct-custom over :doct"
       (expect (doct-test-with-templates
-                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                '(("%{headline} test" :keys "h" :file "/tmp/notes.org"
                    :no-save t
                    :immediate-finish t
                    :empty-lines 0
                    :type plain
                    :headline "FAIL"
                    :custom (:headline "PASS")
-                   :template "%doct(headline)"))
+                   :template "%{headline}"))
                 (doct-test-filled-template "h"))
               :to-equal "PASS"))
     (it "prefers :doct-custom over :doct w explicit nil"
       (expect (doct-test-with-templates
-                '(("%doct(headline) test" :keys "h" :file "/tmp/notes.org"
+                '(("%{headline} test" :keys "h" :file "/tmp/notes.org"
                    :no-save t
                    :immediate-finish t
                    :empty-lines 0
                    :type plain
                    :headline "FAIL"
                    :custom (:headline nil)
-                   :template "%doct(headline)"))
+                   :template "%{headline}"))
                 (doct-test-filled-template "h"))
               ;;Another Org mode difference...
               ;;Older versions add the newline, newer do not.
@@ -771,14 +771,14 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
        (doct-test-with-templates '(("fill override test" :keys "f"
                                     :file ""
                                     :type plain
-                                    :template "%doct(num) = 1"
+                                    :template "%{num} = 1"
                                     :num "1"))
          ;;simulating org-capture-templates being lexical bound elswhere
          (doct-test-with-templates
            '(("some other f" :keys "f"
               :file ""
               :type plain
-              :template "%doct(num) = 2"
+              :template "%{num} = 2"
               :num "2")))
          (doct-test-filled-template "f"))
        :to-equal "1 = 1")))
@@ -803,7 +803,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                      :immediate-finish t
                      :no-save t
                      :test (lambda () "* PASS")
-                     :template "%doct(test)"))
+                     :template "%{test}"))
                   (doct-test-filled-template "t"))
                 :to-equal "* PASS"))))
   (describe "Hooks"
@@ -839,7 +839,7 @@ during conversion in the \"unbound hook\" declaration"))
       (let ((declarations '(("doct-warnings" :keys "n" :file unbound
                              :tree-type weak
                              :not-string 2
-                             :template "%doct(undeclared) %doct(not-string)"))))
+                             :template "%{undeclared} %{not-string}"))))
         (it "errors if warning symbol is not a member of doct-warning-types"
           (expect (let ((doct-warnings '(option-type)))
                     (doct-test-warning-message
@@ -862,7 +862,7 @@ Should be member of (t nil unbound template-keyword template-keyword-type templa
                   "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
 Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
   Are you missing the leading ’*’?
-Warning (doct): %doct(KEYWORD) in the \"doct-warnings\" declaration:
+Warning (doct): %{KEYWORD} in the \"doct-warnings\" declaration:
   :undeclared undeclared during conversion
   :not-string did not evaluate to a string
 Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
@@ -882,7 +882,7 @@ declaration should be set to week or month.
                '(("Parent" :keys "p"
                   :file "~/example.org"
                   :prepend t
-                  :template ("* %doct(todo-state) %^{Description}"
+                  :template ("* %{todo-state} %^{Description}"
                              ":PROPERTIES:"
                              ":Created: %U"
                              ":END:"

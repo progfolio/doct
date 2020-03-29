@@ -31,7 +31,7 @@ becomes:
       (doct '(("Parent" :keys "p"
                :file "~/example.org"
                :prepend t
-               :template ("* %doct(todo-state) %^{Description}"
+               :template ("* %{todo-state} %^{Description}"
                           ":PROPERTIES:"
                           ":Created: %U"
                           ":END:"
@@ -70,7 +70,7 @@ becomes:
       -  [[#template][Template]]
       -  [[#additional-options][Additional options]]
       -  [[#custom-data][Custom data]]
-      -  [[#doct-string-expansion][%doct String Expansion]]
+      -  [[#keyword-expansion][%{KEYWORD} Expansion]]
       -  [[#hooks][Hooks]]
       -  [[#contexts][Contexts]]
       -  [[#disabling-templates][Disabling Templates]]
@@ -397,7 +397,7 @@ see the [[https://orgmode.org/manual/Template-elements.html#Template-elements][O
 :END:
 ~doct~ stores unrecognized keywords on the template's [[https://github.com/emacs-mirror/emacs/blob/d0e2a341dd9a9a365fd311748df024ecb25b70ec/lisp/org/org-capture.el#L450][org-capture-plist]] as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
-See [[#doct-string-expansion][%doct String Expansion]] for details on using that data.
+See [[#keyword-expansion][%{KEYWORD} Expansion]] for details on using that data.
 
 The ~:custom~ keyword accepts a plist.
 doct copies the plist's values to the doct-custom plist.
@@ -416,20 +416,20 @@ returns:
     :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))
 #+end_src
 
-**** %doct String Expansion
+**** %{KEYWORD} Expansion
 :PROPERTIES:
-:CUSTOM_ID: doct-string-expansion
+:CUSTOM_ID: keyword-expansion
 :END:
 A declaration ~:template~ may include a keyword's value during capture.
 The syntax is similar to other, built-in "%-escapes".
-~%doct(KEYWORD)~ will insert the value declared with ~:KEYWORD~ in the declaration.
+~%{KEYWORD}~ will insert the value declared with ~:KEYWORD~ in the declaration.
 
 For example, with:
 
 #+begin_src emacs-lisp
 (doct '(("Parent" :keys "p"
          :file ""
-         :template "* %doct(todo-state) %?"
+         :template "* %{todo-state} %?"
          :children (("One" :keys "1" :todo-state "TODO")
                     ("Two" :keys "2" :todo-state "IDEA")))))
 #+end_src
@@ -439,25 +439,25 @@ Each child template has its ~:todo-state~ value expanded in the inherited ~:temp
 Values should be strings, functions or nil.
 
 #+begin_src emacs-lisp results raw
-(doct '(("%doct(string)" :keys "s" :type plain :file ""
+(doct '(("%{string}" :keys "s" :type plain :file ""
          :string "string"
-         :template "%doct(string)")))
+         :template "%{string}")))
 #+end_src
 
 Is replaced with ~"string"~.
 
 #+begin_src emacs-lisp results raw
-(doct '(("%doct(fn)" :keys "f" :type plain :file ""
+(doct '(("%{fn}" :keys "f" :type plain :file ""
          :fn (lambda () "string returned from function")
-         :template "%doct(fn)")))
+         :template "%{fn}")))
 #+end_src
 
 Is replaced with ~"string returned from function"~.
 
 #+begin_src emacs-lisp
-(doct '(("%doct(nil)" :keys "f" :type plain :file ""
+(doct '(("%{nil}" :keys "f" :type plain :file ""
          :nil nil
-         :template "%doct(nil)")))
+         :template "%{nil}")))
 #+end_src
 
 Is replaced with the empty string ~""~.
@@ -468,7 +468,7 @@ For example, with:
 #+begin_src emacs-lisp
 (doct '(("Music Gear" :keys "m" :file "" :type plain
          :custom (:keys "Moog")
-         :template "%doct(keys)")))
+         :template "%{keys}")))
 #+end_src
 
 The "Music Gear" template expands to "Moog" instead of "m".
@@ -649,9 +649,9 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
   - unbound ::
     warn when a symbol is unbound during conversion
   - template-keyword ::
-    warn when %doct(KEYWORD) is not found on the declaration during conversion.
+    warn when %{KEYWORD} is not found on the declaration during conversion.
   - template-keyword-type ::
-    warn when %doct(KEYWORD) expansion does not return a string.
+    warn when %{KEYWORD} expansion does not return a string.
   - template-entry-type ::
     warn when the expanded template does not match the capture template's type
   - option-type ::
