@@ -436,6 +436,8 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                                           value declaration)
                                        value))
                      ((pred functionp) (doct--fill-template (funcall value)))
+                     ((pred doct--variable-p)
+                      (doct--fill-template (symbol-value value)))
                      ((pred doct--list-of-strings-p)
                       (mapconcat (lambda (element)
                                    (if (doct--expansion-syntax-p element)
