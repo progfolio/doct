@@ -655,3 +655,22 @@ CLOSED: [2020-03-26 Thu 15:04]
  ;;doct--fill-template calls the function
  :template "%doct(test)")
 #+end_src
+*** 2020-03-29 Sunday
+**** DONE use simpler syntax for keyword expansion
+CLOSED: [2020-03-29 Sun 12:21]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-29 Sun 12:21
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+#+begin_src emacs-lisp
+(:template "%{keyword}")
+#+end_src
+Would be compatible with org-roam
+***** DONE open rfc issue for current users
+CLOSED: [2020-03-29 Sun 12:20]
+- State "STARTED"    from "TODO"       [2020-03-22 Sun 14:55]
+  It's a breaking change.
