@@ -104,7 +104,7 @@ Then require it in your init file.
 (doct declarations)
 #+end_src
 
-~doct~ expects a list of declarations.
+~doct~ expects a declaration or a list of declarations as its sole argument.
 Each declaration is either a child, parent, or group.
 **** Child
 A child declaration must have:

@@ -52,10 +52,10 @@
         (push (nreverse copy) removed)))
     (setq doct-templates (nreverse removed))))
 
-(defun doct-test-without-declarations (templates)
-  "Exclude :doct proprety from converted TEMPLATES."
+(defun doct-test-without-declarations (declarations)
+  "Exclude :doct proprety from converted DECLARATIONS."
   (let ((doct-after-conversion-functions #'doct-test-remove-declarations))
-    (doct templates)))
+    (doct declarations)))
 
 (defun doct-test-signal-to-message (templates)
   "Work around `debug-on-error' limitation of buttercup.
@@ -171,6 +171,15 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (setq doct-warnings                  t
           doct-default-entry-type        'entry
           org-capture-templates-contexts nil))
+  (it "allows a single declaration as its argument"
+    (expect (doct-test-without-declarations
+             '("single declaration" :keys "s"
+               :type entry
+               :file ""
+               :children ("child" :keys "c")))
+            :to-equal
+            '(("s"  "single declaration")
+              ("sc" "child" entry (file "") nil))))
   (it "does not mutate the declaration list"
     (expect (let ((declarations '(("Todo" :keys "t"
                                    :template "* TODO %?")

@@ -770,7 +770,7 @@ For a full description of the PROPERTIES plist see `doct'."
 
 ;;;###autoload
 (defun doct (declarations)
-  "DECLARATIONS is a list of declarative forms.
+  "DECLARATIONS may be a single declaration or a list of declarations.
 Each declaration is either a child, parent, or group.
 
 A child declaration must have:
@@ -1243,7 +1243,10 @@ returns:
 
 Normally template \"Four\" would throw an error because its :keys are not a string."
 
-  (let* ((entries (mapcar #'doct--convert-declaration-maybe (copy-tree declarations))))
+  (let* ((declarations
+          ;;allow a single declaration or a list of declarations
+          (if (seq-every-p #'listp declarations) declarations `(,declarations)))
+         (entries (mapcar #'doct--convert-declaration-maybe (copy-tree declarations))))
     (unwind-protect
         (progn
           (run-hook-with-args 'doct-after-conversion-functions entries)
