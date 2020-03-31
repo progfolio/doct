@@ -558,20 +558,6 @@ CLOSED: [2020-03-17 Tue 20:48]
 :END:
 People often test packages "by the examples". Don't scare them away.
 *** 2020-03-22 Sunday
-**** CANCELED overlapping captures & doct-get?
-CLOSED: [2020-03-22 Sun 14:11]
-:PROPERTIES:
-:ARCHIVE_TIME: 2020-03-22 Sun 14:11
-:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
-:ARCHIVE_OLPATH: Bugs
-:ARCHIVE_CATEGORY: notes
-:ARCHIVE_TODO: CANCELED
-:ARCHIVE_ITAGS: bug
-:END:
-- State "CANCELED"   from "RESEARCH"   [2020-03-22 Sun 14:11] \\
-  Seems to be working as intended.
-Should utilize [[help:org-capture-get][org-capture-get]] with the LOCAL parameter to avoid conflict between multiple capture processes.
-I haven't run into any problems, but I do not often have multiple overlapping captures.
 **** DONE fix inaccurate return value in [[file:README.org::#custom-data][Custom data]]
 CLOSED: [2020-03-22 Sun 14:17]
 :PROPERTIES:

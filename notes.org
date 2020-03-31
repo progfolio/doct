@@ -1,6 +1,37 @@
 #+TITLE: DOCT notes
 #+archive: %s_archive::datetree/
 * Bugs :bug:
+** RESEARCH overlapping captures & doct-get?
+:PROPERTIES:
+:END:
+- State "STARTED"    from "CANCELED"   [2020-03-30 Mon 23:14]
+
+From ~org-capture-current-plist~ docstring:
+#+begin_src emacs-lisp
+  "Local variable holding the plist in a capture buffer.
+This is used to store the plist for use when finishing a capture process
+because another such process might have changed the global variable by then.
+
+Each time a new capture buffer has been set up, the global `org-capture-plist'
+is copied to this variable, which is local in the indirect buffer.")
+#+end_src
+
+In our case we may need access to ~doct-get~ before the buffer is set up.
+Modifying ~doct-get~ to prefer  ~org-capture-current-plist~ over ~org-capture-plist~
+should work in all cases.
+
+*** TODO reliable test for overlapping templates
+**** IDEA Use hooks to simulate overlap
+- Call first template. It calls ~doct-get~ in a finalizing hook to add info to the template.
+- It calls second template in its ~:hook~.
+- Second template set to fill and ~:immediate-finish~.
+- It's finalizing hook finalizes first template.
+** TODO fix hook definition
+Since we're not depending on org-capture, we defvar its hooks.
+Can't add to them when they're void. Setting to nil (current solution)
+works but makes doct claim ownership of those variables. e.g.
+documentation claims variable is defined in doct.
+*** RESEARCH is there a way to push without 'owning' variable and not loading org-capture first?
 * Documentation :documentation:
 * Optimizations :optimization:
 * Features :feature:
@@ -9,6 +40,16 @@ remove installed hooks
 https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 https://www.gnu.org/software/emacs/manual/html_node/elisp/Unloading.html#Unloading
 * Enhancements :enhancement:
+** IDEA eliminate or reduce use of doct--fill-template
+vanilla syntax for elisp execution already exists.
+Would it be worth it to replace constructs during conversion
+and return a string?
+#+begin_src emacs-lisp
+"%{key}" -> "%(doct-get key)"
+#+end_src
+What do we gain? Template string is more transparent to user?
+doct-get can't handle case where key's value is a function...
+
 ** IDEA doct--type-check take pair as first arg? Returns pair if succesful
 May reduce verbosity when using doct--first-in...
 ** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--maybe-warn (keyword value &optional prefix][generalize this to accept warning string and args]]
@@ -21,9 +62,25 @@ Unload byte compiled file loaded by straight.el when developing
 #+end_src
 ** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in one case?]]
 Both macros return lambdas...
-** RESEARCH do we need to depend on org-capture?
-only thing we're using is org-capture-plist at runtime.
-org-capture is loaded by then.
-we also add to: org-capture-hooks, org-capture-contexts
 
-Ok to defvar these before org-capture loaded?
+- Note taken on [2020-03-30 Mon 23:42] \\
+  Comment from elfeed-link.el which may be of relevance:
+
+  #+begin_src emacs-lisp
+  ;;;###autoload
+  (eval-after-load 'org
+    `(funcall
+      ;; The extra quote below is necessary because uncompiled closures
+      ;; do not evaluate to themselves. The quote is harmless for
+      ;; byte-compiled function objects.
+      ',(lambda ()
+          ;;omitting body of lambda... ~NV
+          )))
+  #+end_src
+
+** DONE do we need to depend on org-capture?
+CLOSED: [2020-03-30 Mon 23:21]
+Only using  ~org-capture-plist~ at runtime.
+org-capture loaded by then.
+we also add to: org-capture-hooks, org-capture-contexts
+OK to defvar these before org-capture loaded?
