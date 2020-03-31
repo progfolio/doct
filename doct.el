@@ -96,10 +96,10 @@ It can be overridden on a per-declaration basis with the :warn keyword."
 (defvar org-directory)
 (defvar org-capture-plist)
 (defvar org-capture-templates-contexts)
-(defvar org-capture-mode-hook nil)
-(defvar org-capture-before-finalize-hook nil)
-(defvar org-capture-prepare-finalize-hook nil)
-(defvar org-capture-after-finalize-hook nil)
+(defvar org-capture-mode-hook)
+(defvar org-capture-before-finalize-hook)
+(defvar org-capture-prepare-finalize-hook)
+(defvar org-capture-after-finalize-hook)
 
 (defvar doct-templates nil
   "If non-nil, this is used as the return value of doct.
@@ -618,14 +618,16 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
     (funcall fn)))
 
 ;;install hook functions
-(dolist (keyword doct-hook-keywords)
-  (let* ((name (substring (symbol-name keyword) 1))
-         (fn (fset (intern (concat "doct-run-" name))
-                   (apply-partially #'doct--run-hook keyword)))
-         (hook (intern (concat "org-capture-" (if (string= name "hook")
-                                                  "mode"
-                                                name) "-hook"))))
-    (add-to-list hook fn)))
+(with-eval-after-load 'org-capture
+  (dolist (keyword doct-hook-keywords)
+    (let* ((name (substring (symbol-name keyword) 1))
+           (fn-name (intern (concat "doct-run-" name)))
+           (fn (fset fn-name
+                     (apply-partially #'doct--run-hook keyword)))
+           (hook (intern (concat "org-capture-" (if (string= name "hook")
+                                                    "mode"
+                                                  name) "-hook"))))
+      (add-to-list hook fn-name))))
 
 ;;;; Contexts
 (defun doct--convert-constraint-keyword (keyword)
