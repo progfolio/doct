@@ -447,7 +447,11 @@ Values should be strings, functions or nil.
          :template "%{string}")))
 #+end_src
 
-Is replaced with ="string"=.
+Is replaced with:
+
+#+begin_src emacs-lisp
+"string"
+#+end_src
 
 #+begin_src emacs-lisp results raw
 (doct '(("%{fn}" :keys "f" :type plain :file ""
@@ -455,7 +459,11 @@ Is replaced with ="string"=.
          :template "%{fn}")))
 #+end_src
 
-Is replaced with ="string returned from function"=.
+Is replaced with:
+
+#+begin_src emacs-lisp
+"string returned from function"
+#+end_src
 
 #+begin_src emacs-lisp
 (doct '(("%{nil}" :keys "f" :type plain :file ""
@@ -463,7 +471,11 @@ Is replaced with ="string returned from function"=.
          :template "%{nil}")))
 #+end_src
 
-Is replaced with the empty string =""=.
+Is replaced with the empty string
+
+#+begin_src emacs-lisp
+""
+#+end_src
 
 Custom keywords take precedence over other declaration keywords.
 For example, with:
