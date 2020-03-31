@@ -4,6 +4,9 @@
 ~doct~ is a function that provides an alternative, declarative syntax for describing Org capture templates.
 
 ** tl;dr
+:PROPERTIES:
+:TOC:      ignore
+:END:
 #+begin_src emacs-lisp
 (defun my-org-template-hook ()
   (when (string= (org-capture-get :key t) "p1")
@@ -52,8 +55,8 @@ becomes:
 :PROPERTIES:
 :TOC:      this
 :END:
+:CONTENTS:
 -  [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
-  -  [[#tldr][tl;dr]]
   -  [[#installation][Installation]]
     -  [[#melpa][MELPA]]
     -  [[#manual][Manual]]
@@ -76,7 +79,7 @@ becomes:
       -  [[#disabling-templates][Disabling Templates]]
     -  [[#custom-variables][Custom Variables]]
     -  [[#contributing][Contributing]]
-
+:END:
 ** Installation
 *** MELPA
 Try it with the [[https://github.com/raxod502/straight.el][straight package manager]]:
@@ -92,8 +95,8 @@ or [[https://github.com/jwiegley/use-package][use-package]]:
   :commands (doct))
 #+end_src
 *** Manual
-Install ~doct~ and make sure it is in your load-path.
-Then require it in your init file.
+Download ~doct~ and make sure it is in your load-path.
+Require it in your init file.
 #+begin_src emacs-lisp
 (require 'doct)
 #+end_src
@@ -444,7 +447,7 @@ Values should be strings, functions or nil.
          :template "%{string}")))
 #+end_src
 
-Is replaced with ~"string"~.
+Is replaced with ="string"=.
 
 #+begin_src emacs-lisp results raw
 (doct '(("%{fn}" :keys "f" :type plain :file ""
@@ -452,7 +455,7 @@ Is replaced with ~"string"~.
          :template "%{fn}")))
 #+end_src
 
-Is replaced with ~"string returned from function"~.
+Is replaced with ="string returned from function"=.
 
 #+begin_src emacs-lisp
 (doct '(("%{nil}" :keys "f" :type plain :file ""
@@ -460,7 +463,7 @@ Is replaced with ~"string returned from function"~.
          :template "%{nil}")))
 #+end_src
 
-Is replaced with the empty string ~""~.
+Is replaced with the empty string =""=.
 
 Custom keywords take precedence over other declaration keywords.
 For example, with:
