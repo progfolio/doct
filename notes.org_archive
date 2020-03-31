@@ -674,3 +674,16 @@ Would be compatible with org-roam
 CLOSED: [2020-03-29 Sun 12:20]
 - State "STARTED"    from "TODO"       [2020-03-22 Sun 14:55]
   It's a breaking change.
+*** 2020-03-31 Tuesday
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::`(:template-file ,file][warn if file does not exist during conversion]]
+CLOSED: [2020-03-31 Tue 02:19]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-03-31 Tue 02:19
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: enhancement
+:END:
+Common case is for the file to exist during conversion.
+Warn here if it does not. It's possible to create the file after conversion, but before capture, but users can disable that particular warning when appropriate.

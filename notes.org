@@ -12,9 +12,6 @@ https://www.gnu.org/software/emacs/manual/html_node/elisp/Unloading.html#Unloadi
 ** IDEA doct--type-check take pair as first arg? Returns pair if succesful
 May reduce verbosity when using doct--first-in...
 ** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--maybe-warn (keyword value &optional prefix][generalize this to accept warning string and args]]
-** IDEA [[file:~/.emacs.d/straight/repos/doct/doct.el::`(:template-file ,file][warn if file does not exist during conversion]]
-Common case is for the file to exist during conversion.
-Warn here if it does not. It's possible to create the file after conversion, but before capture, but users can disable that particular warning when appropriate.
 * Miscellaneous :misc:
 Unload byte compiled file loaded by straight.el when developing
 #+begin_src emacs-lisp :results silent

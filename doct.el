@@ -59,6 +59,7 @@ The templates have not been flattened at this point and are of the form:
                              template-keyword
                              template-keyword-type
                              template-entry-type
+                             template-file
                              option-type)
   "The allowed warning types.")
 
@@ -71,15 +72,17 @@ Valid values are:
     do not warn
 Or a list containing any of the following symbols:
   - unbound
-    warn when a symbol is unbound during conversion
+      warn when a symbol is unbound during conversion
   - template-keyword
-    warn when %{KEYWORD} is not found on the declaration during conversion.
+      warn when %{KEYWORD} is not found on the declaration during conversion
   - template-keyword-type
-    warn when %{KEYWORD} expansion does not return a string.
+      warn when %{KEYWORD} expansion does not return a string.
   - template-entry-type
-    warn when the expanded template does not match the capture template's type
+      warn when the expanded template does not match the capture template's type
+  - template-file
+      warn when the :template-file's file is not found during conversion
   - option-type
-    warn when additional options are not the proper type
+      warn when additional options are not the proper type
 It can be overridden on a per-declaration basis with the :warn keyword."
   :group 'doct
   :type `(choice (const :tag "Enable all warnings" t)
@@ -90,6 +93,7 @@ It can be overridden on a per-declaration basis with the :warn keyword."
 
 ;;; Variables
 ;;necessary for byte-compiler warnings/pre runtime
+(defvar org-directory)
 (defvar org-capture-plist)
 (defvar org-capture-templates-contexts)
 (defvar org-capture-mode-hook nil)
@@ -537,6 +541,12 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
   (pcase (doct--first-in doct-template-keywords)
     (`(:template-file ,file)
      (doct--type-check :template-file file '(stringp doct--variable-p))
+     (when (and (stringp file) (doct--warning-enabled-p 'template-file))
+       (unless (file-exists-p (expand-file-name file org-directory))
+         (lwarn 'doct :warning
+                ":template-file \"%s\" not found during conversion in the \
+\"%s\" declaration"
+                file (car doct--current))))
      `(file ,file))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax

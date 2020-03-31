@@ -566,13 +566,20 @@ during conversion in the \":function warn\" declaration.*"))
       :to-equal '(:nil :string :unbound-symbol))
     (it "warns when value is unbound during conversion"
       (expect (doct-test-warning-message
-                (doct '((":template-file warning" :keys "f" :file ""
+                (doct '((":template-file unbound warning" :keys "f" :file ""
                          :template-file unbound-symbol))))
-              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in the \":template-file warning\" declaration.*"))
+              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in the \":template-file unbound warning\" declaration"))
+    (it "warns when value is a string referring to a non-existant file"
+      (expect (doct-test-warning-message
+                (doct '((":template-file file warning" :keys "f" :file ""
+                         :template-file "./not-found"))))
+              :to-match "Warning (doct): :template-file \"./not-found\" not found during conversion in the \":template-file file warning\" declaration"))
     (it "exclusively sets template target"
-      (expect (doct-test-without-declarations
-               '((":template-file exclusivity" :keys "t" :type entry :file ""
-                  :template-file "./template.txt" :template "ignored")))
+      ;;suppressing warning becasue "./template.txt" does not exist
+      (expect (let ((warning-suppress-log-types '((doct))))
+                (doct-test-without-declarations
+                 '((":template-file exclusivity" :keys "t" :type entry :file ""
+                    :template-file "./template.txt" :template "ignored"))))
               :to-equal
               '(("t" ":template-file exclusivity" entry (file "")
                  (file "./template.txt"))))))
@@ -885,7 +892,7 @@ Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be s
                    "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
 declaration should be set to week or month.
   Any other values use the default datetree type.$")))))
-(describe "Documentation Examples"
+  (describe "Documentation Examples"
     (it "returns documented value for tl;dr"
       (expect (doct-test-without-declarations
                '(("Parent" :keys "p"
