@@ -39,6 +39,14 @@ documentation claims variable is defined in doct.
 remove installed hooks
 https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
 https://www.gnu.org/software/emacs/manual/html_node/elisp/Unloading.html#Unloading
+** IDEA doct expansion syntax back refs?
+#+begin_src emacs-lisp
+"%{data} %{\1}"
+#+end_src
+** IDEA doct expansion syntax escaping
+#+begin_src emacs-lisp
+"%{interpreted} \%{verbatim}"
+#+end_src
 * Enhancements :enhancement:
 ** IDEA eliminate or reduce use of doct--fill-template
 vanilla syntax for elisp execution already exists.
