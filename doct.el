@@ -55,12 +55,12 @@ The templates have not been flattened at this point and are of the form:
   :group 'doct
   :type 'hook)
 
-(defvar doct-warning-types '(unbound
-                             template-keyword
-                             template-keyword-type
-                             template-entry-type
-                             template-file
-                             option-type)
+(defvar doct--warning-types '(unbound
+                              template-keyword
+                              template-keyword-type
+                              template-entry-type
+                              template-file
+                              option-type)
   "The allowed warning types.")
 
 (defcustom doct-warnings t
@@ -83,13 +83,18 @@ Or a list containing any of the following symbols:
       warn when the :template-file's file is not found during conversion
   - option-type
       warn when additional options are not the proper type
+
+If the list's first element is the :not keyword, the list of warnings is disabled.
 It can be overridden on a per-declaration basis with the :warn keyword."
   :group 'doct
   :type `(choice (const :tag "Enable all warnings" t)
                  (const :tag "Disable all warnings" nil)
-                 (set :menu-tag "Some"
+                 (set :menu-tag "Enable Some"
                       ,@(mapcar (lambda (x) `(const ,x))
-                                doct-warning-types))))
+                                doct--warning-types))
+                 (list :tag "Disable Some" (const :not)
+                       (set :inline t ,@(mapcar (lambda (x) `(const ,x))
+                                                doct--warning-types)))))
 
 ;;; Variables
 ;;necessary for byte-compiler warnings/pre runtime
@@ -231,57 +236,47 @@ Return (KEYWORD VAL)."
   (and (doct--variable-p object)
        (not (boundp object))))
 
-(defun doct--warn-warning-symbol-maybe (symbol &optional local)
-  "Warn if SYMBOL is not t, nil, or member of `doct-warning-types'.
-If LOCAL is non-nil, it is used in place of `doct-warning-types'."
-  (unless (member symbol doct-warning-types)
-    (lwarn 'doct :warning (concat
-                           "Unrecognized warning symbol: %s in "
-                           (if local
-                               "the \"%s\" declaration\n"
-                             "doct-warnings: %s\n")
-                           "  Should be t, nil, or a member of doct-warning-types")
-           symbol (if local (car doct--current) doct-warnings))))
-
-(defun doct--warning-enabled-p (warning)
-  "Return t if WARNING symbol is enabled.
-Checks for `doct--current-plist' local warnings before `doct-warnings'."
-  (if (member warning doct-warning-types)
-      (let* ((local (plist-member doct--current-plist :warn))
-             (warnings (if local
-                           (cadr local)
-                         doct-warnings)))
-        (pcase warnings
-          ((pred listp)
-           (dolist (symbol warnings)
-             (doct--warn-warning-symbol-maybe symbol local))
-           (member warning warnings))
-          ((or 'nil 't) warnings)
-          (_ (doct--warn-warning-symbol-maybe warnings local)
-             (lwarn 'doct :warning "Enabling all warnings")
-             t)))
-    (user-error "Unrecognized warning symbol %s" warning)))
+(defun doct--suppressed-warnings ()
+  "Return list of suppressed warnings for current declaration."
+  (let* ((local (plist-member doct--current-plist :warn))
+         (warnings (if local
+                       (cadr local)
+                     doct-warnings)))
+    (pcase warnings
+      ('t nil)
+      ('nil '((doct)))
+      (`(:not . ,_)
+       (mapcar (lambda (warning)
+                 `(doct ,warning))
+               (cdr warnings)))
+      ((pred listp)
+       (delq nil (mapcar (lambda (warning)
+                           (unless (member warning warnings)
+                             `(doct ,warning)))
+                         doct--warning-types))))))
 
 (defun doct--warn-symbol-maybe (keyword value &optional prefix)
   "Warn for unbound KEYWORD VALUE. If non-nil, PREFIX prefixes message."
-  (and (doct--warning-enabled-p 'unbound)
-       (doct--unbound-variable-p value)
-       (lwarn 'doct :warning (concat prefix
-                                     "%s %s unbound during conversion "
-                                     "in the \"%s\" declaration")
-              keyword value (car doct--current))))
+  (and
+   (doct--unbound-variable-p value)
+   (lwarn '(doct unbound) :warning
+          (concat prefix "%s %s unbound during conversion "
+                  "in the \"%s\" declaration")
+          keyword value (car doct--current))))
 
 (defun doct--type-check (keyword val predicates &optional current)
   "Type check KEYWORD's VAL.
 PREDICATES is a list of predicate functions.
 If non-nil, CURRENT is the declaration where an error has occurred.
-It defaults to `doct--current'."
+It defaults to `doct--current'.
+Returns VAL."
   (unless (seq-some (lambda (predicate)
                       (funcall predicate val))
                     predicates)
     (signal 'doct-wrong-type-argument `(,predicates (,keyword ,val)
                                                     ,(or current doct--current))))
-  (doct--warn-symbol-maybe keyword val))
+  (doct--warn-symbol-maybe keyword val)
+  val)
 
 ;;;###autoload
 (defun doct-get (keyword)
@@ -312,9 +307,7 @@ For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
 
 (defun doct--children ()
   "Type check and return declaration's :children."
-  (let ((children (doct--get :children)))
-    (doct--type-check :children children '(doct--child-list-p))
-    children))
+  (doct--type-check :children (doct--get :children) '(doct--child-list-p)))
 
 ;;;; Keys
 (defun doct--keys (&optional group)
@@ -344,19 +337,13 @@ If GROUP is non-nil, make sure there is no :keys value."
   (doct--type-check :file value '(stringp functionp doct--variable-p))
   (let (type target)
     (pcase (doct--first-in doct-file-extension-keywords)
-      (`(:olp ,path) (doct--type-check :olp path '(doct--list-of-strings-p))
+      ((or `(:olp ,path) `(:datetree ,_))
        (when (doct--get :datetree)
          (push :datetree type))
        (push :olp type)
-       (dolist (heading (nreverse path))
+       (dolist (heading (nreverse
+                         (doct--type-check :olp path '(doct--list-of-strings-p))))
          (push heading target)))
-      (`(:datetree ,_)
-       (push :datetree type)
-       (push :olp type)
-       (when-let ((path (doct--get :olp)))
-         (doct--type-check :olp path '(doct--list-of-strings-p))
-         (dolist (heading (nreverse path))
-           (push heading target))))
       (`(:function ,fn)
        (doct--type-check :function fn '(functionp doct--variable-p null))
        (push fn target)
@@ -388,6 +375,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
+;;@TODO: duplicate logic when testing during conversion...
 (defun doct--replace-template-strings (string &optional declaration)
   "Replace STRING's %{KEYWORD} occurrences with their :doct-custom values.
 If non-nil, DECLARATION is the declaration containing STRING."
@@ -399,7 +387,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
         (let* ((keyword (intern (concat ":" (match-string 1))))
                (val (doct-get keyword)))
           (unless (or (functionp val) (stringp val) (null val))
-            (lwarn 'doct :warning
+            (lwarn '(doct template-keyword-type) :warning
                    (concat
                     "%%{%s} wrong type: stringp %s"
                     (when declaration " in the \"%s\" declaration")
@@ -417,7 +405,7 @@ If non-nil, DECLARATION is the declaration containing STRING."
     (cond
      ((and (stringp value) (string-match-p old-regexp value))
       (let ((upgraded (replace-regexp-in-string old-regexp "%{\\1}" value)))
-        (lwarn 'doct :warning "Old template expansion syntax detected. Upgrading :template value.
+        (lwarn '(doct old-sytnax) :warning "Old template expansion syntax detected. Upgrading :template value.
 Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in the future."
                value upgraded)
         upgraded))
@@ -446,59 +434,55 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                                        (doct--fill-template element)
                                      element))
                                  value "\n")))))
-    (doct--type-check :template template '(stringp) declaration)
-    template))
+    (doct--type-check :template template '(stringp) declaration)))
 
+;;@REFACTOR: better name. Type checking throws errors.
+;;this is issuing warnings
 (defun doct--type-check-template-entry-type (string)
   "Check template STRING against entry type."
-  (when (doct--warning-enabled-p 'template-entry-type)
-    (let ((trimmed (string-trim string)))
-      ;;default templates are used when STRING is empty
-      (unless (or (string-empty-p trimmed)
-                  ;;arbitrary text can be inserted with these patterns
-                  (string-match-p (concat "^" doct--expansion-syntax-regexp)
-                                  trimmed)
-                  (string-prefix-p "%(" trimmed)
-                  (string-prefix-p "%[" trimmed))
-        (pcase (doct--entry-type)
-          ('entry
-           (unless (string-prefix-p "* " trimmed)
-             (lwarn 'doct :warning
-                    (concat
-                     "expanded :template \"%s\" in the \"%s\" declaration "
-                     "is not a valid Org entry.\n"
-                     "  Are you missing the leading '*'?")
-                    string (car doct--current))))
-          ('table-line
-           (unless (string-empty-p (with-temp-buffer
-                                     (insert string)
-                                     (goto-char (point-min))
-                                     (save-match-data
-                                       (flush-lines "\\(?:[[:space:]]*|\\)"))
-                                     (buffer-string)))
-             (lwarn 'doct :warning
-                    (concat
-                     ":template \"%s\" in the \"%s\" declaration "
-                     "is not a valid table-line.\n"
-                     "  Are you missing the leading pipe?")
-                    string (car doct--current)))))))))
+  (let ((trimmed (string-trim string)))
+    ;;default templates are used when STRING is empty
+    (unless (or (string-empty-p trimmed)
+                ;;arbitrary text can be inserted with these patterns
+                (string-match-p (concat "^" doct--expansion-syntax-regexp)
+                                trimmed)
+                (string-prefix-p "%(" trimmed)
+                (string-prefix-p "%[" trimmed))
+      (pcase (doct--entry-type)
+        ('entry
+         (unless (string-prefix-p "* " trimmed)
+           (lwarn '(doct template-entry-type) :warning
+                  (concat
+                   "expanded :template \"%s\" in the \"%s\" declaration "
+                   "is not a valid Org entry.\n"
+                   "  Are you missing the leading '*'?")
+                  string (car doct--current))))
+        ('table-line
+         (unless (string-empty-p (with-temp-buffer
+                                   (insert string)
+                                   (goto-char (point-min))
+                                   (save-match-data
+                                     (flush-lines "\\(?:[[:space:]]*|\\)"))
+                                   (buffer-string)))
+           (lwarn '(doct template-entry-type) :warning
+                  (concat
+                   ":template \"%s\" in the \"%s\" declaration "
+                   "is not a valid table-line.\n"
+                   "  Are you missing the leading pipe?")
+                  string (car doct--current)))))))
+  string)
 
 (defun doct--warn-template-maybe (&optional undeclared not-string)
   "If UNDECLARED or NOT-STRING are non-nil, issue appropriate warning."
-  (when (or undeclared not-string)
-    (apply #'lwarn
-           (delq nil
-                 `(doct
-                   :warning
-                   ,(concat "%%{KEYWORD} in the \"%s\" declaration:\n"
-                            (when undeclared "  %s undeclared during conversion")
-                            (when not-string
-                              (concat
-                               (when undeclared "\n")
-                               "  %s did not evaluate to a string")))
-                   ,(car doct--current)
-                   ,(when undeclared (string-join (nreverse undeclared) ", "))
-                   ,(when not-string (string-join (nreverse not-string) ", ")))))))
+  (let ((name (car doct--current)))
+    (dolist (symbol (nreverse undeclared))
+      (lwarn '(doct template-keyword) :warning
+             "%%{KEYWORD} %s undeclared in the \"%s\" declaration"
+             symbol name))
+    (dolist (symbol (nreverse not-string))
+      (lwarn '(doct template-keyword-type) :warning
+             "%%{KEYWORD} %s did not evaluate to a string in the \"%s\" declaration"
+             symbol name))))
 
 (defun doct--validate-template-maybe (strings)
   "Check STRINGS to make sure it is a proper template."
@@ -522,14 +506,12 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                   ;;If the value is a function, we can't reliably validate during
                   ;;conversion. It may rely on runtime context.
                   (when (functionp value) (throw 'deferred nil))
-                  (when (doct--warning-enabled-p 'template-keyword)
-                    (unless (or member
-                                ;;doct implicitly adds these
-                                (member keyword '(:inherited-keys :doct-name)))
-                      (push (symbol-name keyword) undeclared)))
-                  (when (doct--warning-enabled-p 'template-keyword-type)
-                    (unless (or (stringp value) (null value))
-                      (push (symbol-name keyword) not-string)))
+                  (unless (or member
+                              ;;doct implicitly adds these
+                              (member keyword '(:inherited-keys :doct-name)))
+                    (push (symbol-name keyword) undeclared))
+                  (unless (or (stringp value) (null value))
+                    (push (symbol-name keyword) not-string))
                   (replace-match (format "%s" value) nil t)
                   (setq string (buffer-string)))))))
         (push string template))
@@ -540,26 +522,23 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
   "Convert declaration's :template to Org capture template."
   (pcase (doct--first-in doct-template-keywords)
     (`(:template-file ,file)
-     (doct--type-check :template-file file '(stringp doct--variable-p))
-     (when (and (stringp file) (doct--warning-enabled-p 'template-file))
+     (when (stringp file)
        (unless (file-exists-p (expand-file-name file org-directory))
-         (lwarn 'doct :warning
+         (lwarn '(doct template-file) :warning
                 ":template-file \"%s\" not found during conversion in the \
 \"%s\" declaration"
                 file (car doct--current))))
-     `(file ,file))
+     `(file ,(doct--type-check :template-file file '(stringp doct--variable-p))))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax
      (setq template (doct--upgrade-expansion-syntax-maybe template))
      (pcase template
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
-        (doct--type-check-template-entry-type template)
-        template)
+        (doct--type-check-template-entry-type template))
        ((and (pred doct--list-of-strings-p)
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
-        (doct--type-check-template-entry-type (string-join template "\n"))
-        (string-join template "\n"))
+        (doct--type-check-template-entry-type (string-join template "\n")))
        (deferred
          (doct--type-check :template deferred
                            '(functionp stringp doct--list-of-strings-p doct--variable-p))
@@ -570,7 +549,8 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
 
 ;;;; Additional Options
 (defun doct--validate-option (pair)
-  "Type check :KEY VALUE option PAIR declaration."
+  "Type check :KEY VALUE option PAIR declaration.
+Returns PAIR."
   (pcase pair
     ;;nil values allowed for overrides. org-capture will just use defaults.
     (`(,(and (or :empty-lines :empty-lines-after :empty-lines-before) option) ,value)
@@ -581,22 +561,22 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
      ;;only a warning because `org-capture-set-target-location'
      ;;has a default if any symbol other than week or month is set
      (unless (member value '(week month nil))
-       (when (doct--warning-enabled-p 'option-type)
-         (lwarn 'doct :warning (concat
-                                ":tree-type %s in the \"%s\" declaration "
-                                "should be set to week or month.\n"
-                                "  Any other values use the default datetree type.")
-                value (car doct--current)))))))
+       (lwarn '(doct option-type) :warning (concat
+                                            ":tree-type %s in the \"%s\" declaration "
+                                            "should be set to week or month.\n"
+                                            "  Any other values use the default datetree type.")
+              value (car doct--current)))))
+  pair)
 
 (defun doct--additional-options ()
   "Convert declaration's additional options to Org capture syntax."
   (let (options)
     (dolist (keyword doct-option-keywords options)
       (when-let ((pair (plist-member doct--current-plist keyword)))
-        (let ((key (car pair))
-              (val (cadr pair)))
-          (doct--validate-option `(,key ,val))
-          (setq options (plist-put options key val)))))))
+        (setq options (apply #'plist-put
+                             `(,options
+                               ,@(doct--validate-option
+                                  `(,(car pair) ,(cadr pair))))))))))
 
 (defun doct--custom-properties ()
   "Return a copy of declaration's :custom plist with unrecognized keywords added."
@@ -605,10 +585,8 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
     (dolist (keyword keywords)
       (unless (member keyword doct-recognized-keywords)
         (setq custom (plist-put custom keyword (doct--get keyword)))))
-    (if-let ((explicit (doct--get :custom)))
-        (progn (doct--type-check :custom explicit '(doct--plist-p))
-               (append explicit custom))
-      custom)))
+    (append (doct--type-check :custom (doct--get :custom) '(doct--plist-p))
+            custom)))
 
 ;;; External Variables
 ;;;;Hooks
@@ -622,11 +600,10 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
   (dolist (keyword doct-hook-keywords)
     (let* ((name (substring (symbol-name keyword) 1))
            (fn-name (intern (concat "doct-run-" name)))
-           (fn (fset fn-name
-                     (apply-partially #'doct--run-hook keyword)))
            (hook (intern (concat "org-capture-" (if (string= name "hook")
                                                     "mode"
                                                   name) "-hook"))))
+      (fset fn-name (apply-partially #'doct--run-hook keyword))
       (add-to-list hook fn-name))))
 
 ;;;; Contexts
@@ -661,11 +638,11 @@ CONDITION is either when or unless."
 
 (defun doct--constraint-rule-list (constraint value)
   "Create a rule list for declaration's CONSTRAINT with VALUE."
+  ;;called outside of doct--type-check to add :contexts prefix
   (doct--warn-symbol-maybe constraint value ":contexts ")
   `(,(cond
       ((eq constraint :function)
-       (doct--type-check :function value '(functionp doct--variable-p))
-       value)
+       (doct--type-check :function value '(functionp doct--variable-p)))
       ((or (eq constraint :when) (eq constraint :unless))
        (eval (macroexpand `(doct--conditional-constraint
                             ,(intern (substring (symbol-name constraint) 1))
@@ -740,10 +717,9 @@ For a full description of the PROPERTIES plist see `doct'."
   (unless (eq (plist-get properties :disabled) t)
     (setq doct--current `(,name ,@properties))
     (setq doct--current-plist properties)
-    (let ((group (eq name :group)))
-      (unless (or (stringp name) group)
-        (signal 'doct-wrong-type-argument
-                `(stringp :group ,name ,doct--current)))
+    (let ((warning-suppress-log-types (doct--suppressed-warnings))
+          (group (eq name :group)))
+      (doct--type-check 'name name `(stringp (lambda (_) ,group)))
       ;;remove :group description
       (when (and group (stringp (car properties)))
         (let ((props (cdr properties)))
@@ -763,9 +739,8 @@ For a full description of the PROPERTIES plist see `doct'."
                                      `(,children))))
           (doct--add-contexts)
           (dolist (keyword doct-hook-keywords)
-            (when-let (member (plist-member doct--current-plist keyword))
-              (doct--type-check keyword (cadr member)
-                                '(functionp doct--variable-p null)))))
+            (when-let (val (cadr (plist-member doct--current-plist keyword)))
+              (doct--type-check keyword val '(functionp doct--variable-p null)))))
         (unless group
           (setq entry (doct--compose-entry keys name children)))
         (if children

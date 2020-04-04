@@ -673,7 +673,20 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
     warn when the ~:template-file~'s file is not found during conversion
   - option-type ::
     warn when additional options are not the proper type
+  If the list's first element is the ~:not~ keyword, the list of warnings is disabled.
   It can be overridden on a per-declaration basis with the :warn keyword."
+
+  For example:
+  #+begin_src emacs-lisp
+(let ((doct-warnings t))
+  (doct '(("Ignore unbound symbol warnings" :keys "i"
+           :warn (:not unbound)
+           :file     unbound-variable
+           :function unbound-function)
+          ("Warn here, though" :keys "w"
+           :file     unbound-variable
+           :function unbound-function))))
+  #+end_src
 
 *** Contributing
 

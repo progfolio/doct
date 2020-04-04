@@ -32,8 +32,13 @@ Can't add to them when they're void. Setting to nil (current solution)
 works but makes doct claim ownership of those variables. e.g.
 documentation claims variable is defined in doct.
 *** RESEARCH is there a way to push without 'owning' variable and not loading org-capture first?
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::(fn (fset fn-name][unused lexical var 'fn']]
+
 * Documentation :documentation:
 * Optimizations :optimization:
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::doct--type-check :children children '(doct--child-list-p)][doct--type-check return value when check passes]]
+** TODO [[file:~/.emacs.d/straight/repos/doct/doct.el::unless (or (stringp name) group][make use of doct--type-check here?]]
+
 * Features :feature:
 ** TODO add doct-unload-function
 remove installed hooks

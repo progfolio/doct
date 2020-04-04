@@ -559,16 +559,10 @@ during conversion in the \":function warn\" declaration.*"))
               :to-equal
               '(("t" "template join test" entry (file "") "* test")))))
   (describe ":template-file"
-    (it "errors if it is not a string, variable or nil"
-      ;;unbound symbol will warn
+    (it "errors if it is not a string or nil"
       (expect (doct-test-types '(":template-file type" :keys "t" :file ""
                                  :template-file type)))
-      :to-equal '(:nil :string :unbound-symbol))
-    (it "warns when value is unbound during conversion"
-      (expect (doct-test-warning-message
-                (doct '((":template-file unbound warning" :keys "f" :file ""
-                         :template-file unbound-symbol))))
-              :to-match "Warning (doct): :template-file unbound-symbol unbound during conversion in the \":template-file unbound warning\" declaration"))
+      :to-equal '(:nil :string))
     (it "warns when value is a string referring to a non-existant file"
       (expect (doct-test-warning-message
                 (doct '((":template-file file warning" :keys "f" :file ""
@@ -576,7 +570,7 @@ during conversion in the \":function warn\" declaration.*"))
               :to-match "Warning (doct): :template-file \"./not-found\" not found during conversion in the \":template-file file warning\" declaration"))
     (it "exclusively sets template target"
       ;;suppressing warning becasue "./template.txt" does not exist
-      (expect (let ((warning-suppress-log-types '((doct))))
+      (expect (let ((doct-warnings (cl-set-difference doct--warning-types '(template-file))))
                 (doct-test-without-declarations
                  '((":template-file exclusivity" :keys "t" :type entry :file ""
                     :template-file "./template.txt" :template "ignored"))))
@@ -659,24 +653,23 @@ during conversion in the \":function warn\" declaration.*"))
                 (doct '(("%{KEYWORD} keyword undeclared" :keys "t" :file ""
                          :template "* %{undeclared}"))))
               :to-match
-              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} keyword undeclared\" declaration:
-  :undeclared undeclared during conversion
+              "Warning (doct): %{KEYWORD} :undeclared undeclared in the \"%{KEYWORD} keyword undeclared\" declaration
 "))
     (it "warns when multiple keywords are not declared during conversion"
       (expect (doct-test-warning-message
                 (doct '(("%{KEYWORD} multiple undeclared" :keys "t" :file ""
                          :template "* %{first}%{second}"))))
               :to-match
-              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} multiple undeclared\" declaration:
-  :first, :second undeclared during conversion
+              "Warning (doct): %{KEYWORD} :first undeclared in the \"%{KEYWORD} multiple undeclared\" declaration
+Warning (doct): %{KEYWORD} :second undeclared in the \"%{KEYWORD} multiple undeclared\" declaration
 "))
     (it "warns for multiple :template strings"
       (expect (doct-test-warning-message
                 (doct '(("%{KEYWORD} list undeclared" :keys "t" :file ""
                          :template ("* %{first}" "%{second}")))))
               :to-match
-              "Warning (doct): %{KEYWORD} in the \"%{KEYWORD} list undeclared\" declaration:
-  :first, :second undeclared during conversion
+              "Warning (doct): %{KEYWORD} :first undeclared in the \"%{KEYWORD} list undeclared\" declaration
+Warning (doct): %{KEYWORD} :second undeclared in the \"%{KEYWORD} list undeclared\" declaration
 "))
     (it "warns when expansion is wrong type during conversion"
       (expect (doct-test-warning-message
@@ -693,7 +686,8 @@ during conversion in the \":function warn\" declaration.*"))
                          :type entry
                          :template "no leading star"))))
               :to-match
-              "Warning (doct): expanded :template \"no leading star\" in the \"template expansion entry type\" declaration is not a valid Org entry.
+              "Warning (doct): expanded :template \"no leading star\" in the \
+\"template expansion entry type\" declaration is not a valid Org entry.
   Are you missing the leading ’*’?"))
     (it "warns when type is table-line and '|' does not prefix template's lines"
       (expect (doct-test-warning-message
@@ -804,12 +798,6 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
         (expect (let ((doct--current-plist '(:test t)))
                   (doct--get :test))
                 :to-equal t)))
-    (describe "doct--warning-enabled-p"
-      (it "checks doct--current-plist before doct-warnings"
-        (expect (let ((doct-warnings t)
-                      (doct--current-plist '(:warn nil)))
-                  (doct--warning-enabled-p 'template-keyword))
-                :to-equal nil)))
     (describe "doct--replace-template-strings"
       (it "replaces functions with the result of their call"
         (expect (doct-test-with-templates
@@ -878,15 +866,22 @@ Should be member of (t nil unbound template-keyword template-keyword-type templa
                   "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
 Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
   Are you missing the leading ’*’?
-Warning (doct): %{KEYWORD} in the \"doct-warnings\" declaration:
-  :undeclared undeclared during conversion
-  :not-string did not evaluate to a string
+Warning (doct): %{KEYWORD} :undeclared undeclared in the \"doct-warnings\" declaration
+Warning (doct): %{KEYWORD} :not-string did not evaluate to a string in the \"doct-warnings\" declaration
 Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
   Any other values use the default datetree type.
 "))
         (it "can selectively enable a subset of warnings"
           (expect  (doct-test-warning-message
                      (let ((doct-warnings '(option-type)))
+                       (doct declarations)))
+                   :to-match
+                   "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
+declaration should be set to week or month.
+  Any other values use the default datetree type.$"))
+        (it "can selectively disable a subset of warnings"
+          (expect  (doct-test-warning-message
+                     (let ((doct-warnings '(:not unbound template-keyword template-entry-type)))
                        (doct declarations)))
                    :to-match
                    "^Warning (doct): :tree-type weak in the \"doct-warnings\" \
