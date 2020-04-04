@@ -271,8 +271,8 @@ Return (KEYWORD VAL)."
                                 "in the \"%s\" declaration")
                object value (car doct--current))))
 
-(defun doct--type-check (keyword val predicates &optional current)
-  "Type check KEYWORD's VAL.
+(defun doct--type-check (object val predicates &optional current)
+  "Type check OBJECT's VAL.
 PREDICATES is a list of predicate functions.
 If non-nil, CURRENT is the declaration where an error has occurred.
 It defaults to `doct--current'.
@@ -280,9 +280,9 @@ Returns VAL."
   (unless (seq-some (lambda (predicate)
                       (funcall predicate val))
                     predicates)
-    (signal 'doct-wrong-type-argument `(,predicates (,keyword ,val)
+    (signal 'doct-wrong-type-argument `(,predicates (,object ,val)
                                                     ,(or current doct--current))))
-  (doct--warn-symbol-maybe keyword val)
+  (doct--warn-symbol-maybe object val)
   val)
 
 ;;;###autoload
@@ -341,15 +341,14 @@ If GROUP is non-nil, make sure there is no :keys value."
 ;;;; Target
 (defun doct--target-file (value)
   "Convert declaration's :file VALUE and extensions to capture template syntax."
-  (doct--type-check :file value '(stringp functionp doct--variable-p))
   (let (type target)
     (pcase (doct--first-in doct-file-extension-keywords)
       ((or `(:olp ,path) `(:datetree ,_))
        (when (doct--get :datetree)
          (push :datetree type))
        (push :olp type)
-       (dolist (heading (nreverse
-                         (doct--type-check :olp path '(doct--list-of-strings-p))))
+       (dolist (heading
+                (nreverse (doct--type-check :olp path '(doct--list-of-strings-p))))
          (push heading target)))
       (`(:function ,fn)
        (doct--type-check :function fn '(functionp doct--variable-p null))
@@ -360,7 +359,7 @@ If GROUP is non-nil, make sure there is no :keys value."
        (push extension target)
        (push keyword type)))
     (push :file type)
-    (push value target)
+    (push (doct--type-check :file value '(stringp functionp doct--variable-p)) target)
     `(,(intern (mapconcat (lambda (keyword)
                             (substring (symbol-name keyword) 1))
                           (delq nil type) "+"))
@@ -372,20 +371,17 @@ If GROUP is non-nil, make sure there is no :keys value."
     ('nil
      (signal 'doct-no-target `(,doct-exclusive-location-keywords nil ,doct--current)))
     (`(:clock ,_) '(clock))
-    (`(:id ,id) (doct--type-check :id id '(stringp))
-     `(id ,id))
+    (`(:id ,id) `(id ,(doct--type-check :id id '(stringp))))
     (`(:function ,fn)
-     (doct--type-check :function fn '(functionp doct--variable-p null))
      (if-let ((file (doct--get :file)))
          (doct--target-file file)
-       `(function ,fn)))
+       `(function ,(doct--type-check :function fn '(functionp doct--variable-p null)))))
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
 ;;@TODO: duplicate logic when testing during conversion...
-(defun doct--replace-template-strings (string &optional declaration)
-  "Replace STRING's %{KEYWORD} occurrences with their :doct-custom values.
-If non-nil, DECLARATION is the declaration containing STRING."
+(defun doct--replace-template-strings (string)
+  "Replace STRING's %{KEYWORD} occurrences with their :doct-custom values."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
@@ -401,11 +397,11 @@ If non-nil, DECLARATION is the declaration containing STRING."
                         keyword val (doct-get :doct-name))
             (setq val ""))
           (replace-match (if (functionp val)
-                             (doct--replace-template-strings (funcall val) declaration)
+                             (doct--replace-template-strings (funcall val))
                            (or val "")))))
       (buffer-string))))
 
-(defun doct--upgrade-expansion-syntax-maybe (value)
+(defun doct--upgrade-expansion-syntax (value)
   "Upgrade declaration's template VALUE to current `doct--expansion-syntax-regexp'."
   (let ((old-regexp "%doct(\\(.*?\\))"))
     (cond
@@ -414,10 +410,10 @@ If non-nil, DECLARATION is the declaration containing STRING."
         (doct--warn 'old-sytnax
                     "Old template expansion syntax detected. Upgrading :template value.
 Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in the future."
-               value upgraded)
+                    value upgraded)
         upgraded))
      ((doct--list-of-strings-p value)
-      (mapcar #'doct--upgrade-expansion-syntax-maybe value))
+      (mapcar #'doct--upgrade-expansion-syntax value))
      (t value))))
 
 (defun doct--expansion-syntax-p (string)
@@ -426,13 +422,12 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((declaration (plist-get org-capture-plist :doct))
-         (value (doct--upgrade-expansion-syntax-maybe
-                 (or value (plist-get declaration :template))))
+  (let* ((value (doct--upgrade-expansion-syntax
+                 (or value (doct-get :template))))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
                                          (doct--replace-template-strings
-                                          value declaration)
+                                          value)
                                        value))
                      ((pred functionp) (doct--fill-template (funcall value)))
                      ((pred doct--list-of-strings-p)
@@ -441,7 +436,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                                        (doct--fill-template element)
                                      element))
                                  value "\n")))))
-    (doct--type-check :template template '(stringp) declaration)))
+    (doct--type-check :template template '(stringp))))
 
 ;;@REFACTOR: better name. Type checking throws errors.
 ;;this is issuing warnings
@@ -488,7 +483,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                   "%%{KEYWORD} %s did not evaluate to a string in the \"%s\" declaration"
                   symbol name))))
 
-(defun doct--validate-template-maybe (strings)
+(defun doct--validate-template (strings)
   "Check STRINGS to make sure it is a proper template."
   (let (undeclared
         not-string
@@ -501,8 +496,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
             (goto-char (point-min))
             (save-match-data
               (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-                (let* ((match   (match-string 1))
-                       (keyword (intern (concat ":" match)))
+                (let* ((keyword (intern (concat ":" (match-string 1))))
                        (custom  (plist-get doct--current-plist :custom))
                        (member  (or (plist-member custom keyword)
                                     (plist-member doct--current-plist keyword)))
@@ -528,14 +522,13 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
     (`(:template-file ,file)
      (when (stringp file)
        (unless (file-exists-p (expand-file-name file org-directory))
-         (lwarn '(doct template-file) :warning
-                ":template-file \"%s\" not found during conversion in the \
-\"%s\" declaration"
-                file (car doct--current))))
+         (doct--warn 'template-file
+                     ":template-file \"%s\" not found during conversion in the \"%s\" declaration"
+                     file (car doct--current))))
      `(file ,(doct--type-check :template-file file '(stringp doct--variable-p))))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax
-     (setq template (doct--upgrade-expansion-syntax-maybe template))
+     (setq template (doct--upgrade-expansion-syntax template))
      (pcase template
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
@@ -547,7 +540,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
          (doct--type-check :template deferred
                            '(functionp stringp doct--list-of-strings-p doct--variable-p))
          (unless (or (functionp deferred) (doct--variable-p deferred))
-           (doct--validate-template-maybe
+           (doct--validate-template
             (if (doct--list-of-strings-p deferred) deferred `(,deferred))))
          '(function doct--fill-template))))))
 
