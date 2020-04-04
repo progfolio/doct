@@ -259,14 +259,17 @@ Return (KEYWORD VAL)."
                              `(doct ,warning)))
                          doct--warning-types))))))
 
-(defun doct--warn-symbol-maybe (keyword value &optional prefix)
-  "Warn for unbound KEYWORD VALUE. If non-nil, PREFIX prefixes message."
+(defun doct--warn (type message &rest args)
+  "Issue warning of TYPE (doct TYPE) with MESSAGE and ARGS passed to `lwarn'."
+  (apply #'lwarn `((doct ,type) :warning ,message ,@args)))
+
+(defun doct--warn-symbol-maybe (object value &optional prefix)
+  "Warn for unbound OBJECT VALUE. If non-nil, PREFIX prefixes message."
   (and
    (doct--unbound-variable-p value)
-   (lwarn '(doct unbound) :warning
-          (concat prefix "%s %s unbound during conversion "
-                  "in the \"%s\" declaration")
-          keyword value (car doct--current))))
+   (doct--warn 'unbound (concat prefix "%s %s unbound during conversion "
+                                "in the \"%s\" declaration")
+               object value (car doct--current))))
 
 (defun doct--type-check (keyword val predicates &optional current)
   "Type check KEYWORD's VAL.
@@ -391,12 +394,11 @@ If non-nil, DECLARATION is the declaration containing STRING."
         (let* ((keyword (intern (concat ":" (match-string 1))))
                (val (doct-get keyword)))
           (unless (or (functionp val) (stringp val) (null val))
-            (lwarn '(doct template-keyword-type) :warning
-                   (concat
-                    "%%{%s} wrong type: stringp %s"
-                    (when declaration " in the \"%s\" declaration")
-                    "\n  Substituted for empty string.")
-                   keyword val declaration)
+            (doct--warn 'template-keyword-type
+                        (concat
+                         "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
+                         "\n  Substituted for empty string.")
+                        keyword val (doct-get :doct-name))
             (setq val ""))
           (replace-match (if (functionp val)
                              (doct--replace-template-strings (funcall val) declaration)
@@ -409,7 +411,8 @@ If non-nil, DECLARATION is the declaration containing STRING."
     (cond
      ((and (stringp value) (string-match-p old-regexp value))
       (let ((upgraded (replace-regexp-in-string old-regexp "%{\\1}" value)))
-        (lwarn '(doct old-sytnax) :warning "Old template expansion syntax detected. Upgrading :template value.
+        (doct--warn 'old-sytnax
+                    "Old template expansion syntax detected. Upgrading :template value.
 Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in the future."
                value upgraded)
         upgraded))
@@ -455,12 +458,11 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
       (pcase (doct--entry-type)
         ('entry
          (unless (string-prefix-p "* " trimmed)
-           (lwarn '(doct template-entry-type) :warning
-                  (concat
-                   "expanded :template \"%s\" in the \"%s\" declaration "
-                   "is not a valid Org entry.\n"
-                   "  Are you missing the leading '*'?")
-                  string (car doct--current))))
+           (doct--warn  'template-entry-type
+                        (concat "expanded :template \"%s\" in the \"%s\" declaration "
+                                "is not a valid Org entry.\n"
+                                "  Are you missing the leading '*'?")
+                        string (car doct--current))))
         ('table-line
          (unless (string-empty-p (with-temp-buffer
                                    (insert string)
@@ -468,25 +470,23 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                                    (save-match-data
                                      (flush-lines "\\(?:[[:space:]]*|\\)"))
                                    (buffer-string)))
-           (lwarn '(doct template-entry-type) :warning
-                  (concat
-                   ":template \"%s\" in the \"%s\" declaration "
-                   "is not a valid table-line.\n"
-                   "  Are you missing the leading pipe?")
-                  string (car doct--current)))))))
+           (doct--warn 'template-entry-type
+                       (concat ":template \"%s\" in the \"%s\" declaration "
+                               "is not a valid table-line.\n"
+                               "  Are you missing the leading pipe?")
+                       string (car doct--current)))))))
   string)
 
 (defun doct--warn-template-maybe (&optional undeclared not-string)
   "If UNDECLARED or NOT-STRING are non-nil, issue appropriate warning."
   (let ((name (car doct--current)))
     (dolist (symbol (nreverse undeclared))
-      (lwarn '(doct template-keyword) :warning
-             "%%{KEYWORD} %s undeclared in the \"%s\" declaration"
-             symbol name))
+      (doct--warn 'template-keyword "%%{KEYWORD} %s undeclared in the \"%s\" declaration"
+                  symbol name))
     (dolist (symbol (nreverse not-string))
-      (lwarn '(doct template-keyword-type) :warning
-             "%%{KEYWORD} %s did not evaluate to a string in the \"%s\" declaration"
-             symbol name))))
+      (doct--warn 'template-keyword-type
+                  "%%{KEYWORD} %s did not evaluate to a string in the \"%s\" declaration"
+                  symbol name))))
 
 (defun doct--validate-template-maybe (strings)
   "Check STRINGS to make sure it is a proper template."
@@ -565,11 +565,10 @@ Returns PAIR."
      ;;only a warning because `org-capture-set-target-location'
      ;;has a default if any symbol other than week or month is set
      (unless (member value '(week month nil))
-       (lwarn '(doct option-type) :warning (concat
-                                            ":tree-type %s in the \"%s\" declaration "
-                                            "should be set to week or month.\n"
-                                            "  Any other values use the default datetree type.")
-              value (car doct--current)))))
+       (doct--warn 'option-type (concat ":tree-type %s in the \"%s\" declaration "
+                                        "should be set to week or month.\n"
+                                        "  Any other values use the default datetree type.")
+                   value (car doct--current)))))
   pair)
 
 (defun doct--additional-options ()
