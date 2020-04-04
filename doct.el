@@ -438,9 +438,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                                  value "\n")))))
     (doct--type-check :template template '(stringp))))
 
-;;@REFACTOR: better name. Type checking throws errors.
-;;this is issuing warnings
-(defun doct--type-check-template-entry-type (string)
+(defun doct--warn-template-entry-type-maybe (string)
   "Check template STRING against entry type."
   (let ((trimmed (string-trim string)))
     ;;default templates are used when STRING is empty
@@ -513,7 +511,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                   (replace-match (format "%s" value) nil t)
                   (setq string (buffer-string)))))))
         (push string template))
-      (doct--type-check-template-entry-type (string-join (nreverse template) "\n"))
+      (doct--warn-template-entry-type-maybe (string-join (nreverse template) "\n"))
       (doct--warn-template-maybe undeclared not-string))))
 
 (defun doct--template ()
@@ -532,10 +530,10 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
      (pcase template
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
-        (doct--type-check-template-entry-type template))
+        (doct--warn-template-entry-type-maybe template))
        ((and (pred doct--list-of-strings-p)
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
-        (doct--type-check-template-entry-type (string-join template "\n")))
+        (doct--warn-template-entry-type-maybe (string-join template "\n")))
        (deferred
          (doct--type-check :template deferred
                            '(functionp stringp doct--list-of-strings-p doct--variable-p))
