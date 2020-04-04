@@ -196,6 +196,10 @@ Its value is not stored between invocations to doct.")
 (define-error 'doct-wrong-type-argument "Wrong type argument"            'doct-error)
 
 ;;; Utility Functions
+(defun doct--wrap-list (list)
+  "If LIST is not a list of lists, wrap it in a list."
+  (if (seq-every-p #'listp list) list `(,list)))
+
 (defun doct--get (keyword)
   "Return value for KEYWORD in `doct--current-plist'."
   (plist-get doct--current-plist keyword))
@@ -661,7 +665,7 @@ CONDITION is either when or unless."
     (let ((keys (doct--keys))
           definitions)
       ;;allow a single, or list, of context definitions
-      (dolist (context (if (seq-every-p #'listp contexts) contexts `(,contexts)))
+      (dolist (context (doct--wrap-list contexts))
         (if-let ((first (doct--first-in doct-context-keywords context)))
             (let* ((constraint (car first))
                    (value (cadr first))
@@ -734,9 +738,7 @@ For a full description of the PROPERTIES plist see `doct'."
                                             `(,(car child)
                                               ,@(doct--inherit properties
                                                                (cdr child)))))
-                                   (if (seq-every-p #'listp children)
-                                       children
-                                     `(,children))))
+                                   (doct--wrap-list children)))
           (doct--add-contexts)
           (dolist (keyword doct-hook-keywords)
             (when-let (val (cadr (plist-member doct--current-plist keyword)))
@@ -1230,9 +1232,7 @@ returns:
 
 Normally template \"Four\" would throw an error because its :keys are not a string."
 
-  (let* ((declarations
-          ;;allow a single declaration or a list of declarations
-          (if (seq-every-p #'listp declarations) declarations `(,declarations)))
+  (let* ((declarations (doct--wrap-list declarations))
          (entries (mapcar #'doct--convert-declaration-maybe (copy-tree declarations))))
     (unwind-protect
         (progn
