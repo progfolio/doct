@@ -118,7 +118,7 @@ Its value is not stored between invocations to doct.")
 (defvar doct--current-plist nil
   "The plist of the current declaration being processed by doct.")
 
-(defvar doct--expansion-syntax-regexp "%{\\(.*?\\)}"
+(defvar doct--expansion-syntax-regexp "\\(\\\\\\)?%{\\([^z-a]*?\\)}"
   "The regular expression for matching keyword in %{KEYWORD} template strings.")
 
 (defvar doct-entry-types '(entry item checkitem table-line plain)
@@ -387,19 +387,23 @@ If GROUP is non-nil, make sure there is no :keys value."
     (goto-char (point-min))
     (save-match-data
       (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-        (let* ((keyword (intern (concat ":" (match-string 1))))
-               (val (doct-get keyword)))
-          (unless (or (functionp val) (stringp val) (null val))
-            (doct--warn 'template-keyword-type
-                        (concat
-                         "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
-                         "\n  Substituted for empty string.")
-                        keyword val (doct-get :doct-name))
-            (setq val ""))
-          (replace-match (if (functionp val)
-                             (doct--replace-template-strings (funcall val))
-                           (or val "")))))
-      (buffer-string))))
+        (if (not (match-string 1))
+            (let* ((keyword (intern (concat ":" (match-string 2))))
+                   (val (doct-get keyword)))
+              (unless (or (functionp val) (stringp val) (null val))
+                (doct--warn 'template-keyword-type
+                            (concat
+                             "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
+                             "\n  Substituted for empty string.")
+                            keyword val (doct-get :doct-name))
+                (setq val ""))
+              (replace-match (if (functionp val)
+                                 (doct--replace-template-strings (funcall val))
+                               (or val ""))
+                             nil t))
+          (replace-match "" nil t nil 1)
+          (re-search-forward doct--expansion-syntax-regexp nil :no-error))))
+    (buffer-string)))
 
 (defun doct--upgrade-expansion-syntax (value)
   "Upgrade declaration's template VALUE to current `doct--expansion-syntax-regexp'."
@@ -494,7 +498,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
             (goto-char (point-min))
             (save-match-data
               (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-                (let* ((keyword (intern (concat ":" (match-string 1))))
+                (let* ((keyword (intern (concat ":" (match-string 2))))
                        (custom  (plist-get doct--current-plist :custom))
                        (member  (or (plist-member custom keyword)
                                     (plist-member doct--current-plist keyword)))
@@ -508,7 +512,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
                     (push (symbol-name keyword) undeclared))
                   (unless (or (stringp value) (null value))
                     (push (symbol-name keyword) not-string))
-                  (replace-match (format "%s" value) nil t)
+                  (replace-match (format "%s" (or value "")) nil t nil)
                   (setq string (buffer-string)))))))
         (push string template))
       (doct--warn-template-entry-type-maybe (string-join (nreverse template) "\n"))
@@ -629,8 +633,7 @@ Clean up `org-capture-mode' hooks."
                                 ((string-suffix-p "mode" name) '(symbol-name major-mode)))))
          (fn `(seq-some (lambda (val) ,test) ',value)))
     (if (string-prefix-p ":unless" name)
-        `(lambda ()
-           (not ,fn))
+        `(lambda () (not ,fn))
       `(lambda () ,fn))))
 
 (defmacro doct--conditional-constraint (condition value)
@@ -1007,7 +1010,7 @@ Custom data
 doct stores unrecognized keywords on the template's `org-capture-plist' \
 as members of the doct-custom plist.
 This makes a template's metadata accessible during capture.
-See \"%doct String Expansion\" below for detail on using that data.
+See \"%{KEYWORD} Expansion\" below for detail on using that data.
 
 The :custom keyword accepts a plist.
 The doct-custom plist stores its elements.
@@ -1042,7 +1045,7 @@ The parent's :keys prefix each child's :keys.
    (\"pc\" \"child\")
    (\"pcg\" \"grandchild\" plain (file \"\") \"test\"))
 
-%doct String Expansion
+%{KEYWORD} Expansion
 ======================
 
 A declaration :template may include a keyword's value during capture.

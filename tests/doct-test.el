@@ -791,7 +791,19 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
               :template "%{num} = 2"
               :num "2")))
          (doct-test-filled-template "f"))
-       :to-equal "1 = 1")))
+       :to-equal "1 = 1"))
+    (it "can be escaped with a \\"
+      (expect (doct-test-with-templates
+                '("escaped %{KEYWORD}" :keys "e"
+                  :file ""
+                  :immediate-finish t
+                  :no-save t
+                  :type plain
+                  :fail "FAIL"
+                  :pass "PASS"
+                  :template "%{pass} \\%{fail}")
+                (doct-test-filled-template "e"))
+              :to-match "PASS %{fail}")))
   (describe "Utility functions"
     (describe "doct--get"
       (it "gets a value from `doct--current-plist'"
@@ -864,7 +876,7 @@ Should be member of (t nil unbound template-keyword template-keyword-type templa
                       (doct declarations)))
                   :to-equal
                   "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
-Warning (doct): expanded :template \"nil 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
+Warning (doct): expanded :template \" 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
   Are you missing the leading ’*’?
 Warning (doct): %{KEYWORD} :undeclared undeclared in the \"doct-warnings\" declaration
 Warning (doct): %{KEYWORD} :not-string did not evaluate to a string in the \"doct-warnings\" declaration
