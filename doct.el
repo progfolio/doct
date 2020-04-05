@@ -289,7 +289,7 @@ Returns VAL."
 ;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from current capture plist.
-Checks :doct-custom for KEYWORD and then `org-capture-plist'.
+The declaration is queried from `org-capture-current-plist' if it exists, `org-capture-plist' if it does not. :doct-custom KEYWORD takes precedence over KEYWORD on the declaration.
 Intended to be used at runtime."
   (let* ((declaration (plist-get (or org-capture-current-plist org-capture-plist)
                                  :doct))
@@ -428,8 +428,11 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((value (doct--upgrade-expansion-syntax
-                 (or value (doct-get :template))))
+  ;;Avoiding doct-get here because org-capture-current-plist is not set
+  ;;yet for overlapping capture processes. We want org-capture-plist.
+  (let* ((declaration (plist-get org-capture-plist :doct))
+         (value (doct--upgrade-expansion-syntax
+                 (or value (plist-get declaration :template))))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
                                          (doct--replace-template-strings
