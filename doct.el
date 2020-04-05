@@ -600,6 +600,17 @@ Returns PAIR."
       (fset fn-name (apply-partially #'doct--run-hook keyword))
       (add-to-list hook fn-name))))
 
+(defun doct-unload-function ()
+  "Called when doct is unloaded.
+Clean up `org-capture-mode' hooks."
+  (dolist (keyword doct-hook-keywords)
+    (let* ((name (substring (symbol-name keyword) 1))
+           (fn-name (intern (concat "doct-run-" name)))
+           (hook (intern (concat "org-capture-" (if (string= name "hook")
+                                                    "mode"
+                                                  name) "-hook"))))
+      (remove-hook hook fn-name))))
+
 ;;;; Contexts
 (defun doct--convert-constraint-keyword (keyword)
   "Convert KEYWORD to `org-capture-templates-contexts' equivalent symbol."
