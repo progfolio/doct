@@ -100,6 +100,7 @@ It can be overridden on a per-declaration basis with the :warn keyword."
 ;;necessary for byte-compiler warnings/pre runtime
 (defvar org-directory)
 (defvar org-capture-plist)
+(defvar org-capture-current-plist)
 (defvar org-capture-templates-contexts)
 (defvar org-capture-mode-hook)
 (defvar org-capture-before-finalize-hook)
@@ -287,10 +288,11 @@ Returns VAL."
 
 ;;;###autoload
 (defun doct-get (keyword)
-  "Return KEYWORD's value from `org-capture-plist'.
+  "Return KEYWORD's value from current capture plist.
 Checks :doct-custom for KEYWORD and then `org-capture-plist'.
 Intended to be used at runtime."
-  (let* ((declaration (plist-get org-capture-plist :doct))
+  (let* ((declaration (plist-get (or org-capture-current-plist org-capture-plist)
+                                 :doct))
          (custom (plist-get declaration :doct-custom)))
     (if-let ((member (plist-member custom keyword)))
         (cadr member)
