@@ -660,6 +660,22 @@ Would be compatible with org-roam
 CLOSED: [2020-03-29 Sun 12:20]
 - State "STARTED"    from "TODO"       [2020-03-22 Sun 14:55]
   It's a breaking change.
+*** 2020-03-30 Monday
+**** DONE do we need to depend on org-capture?
+CLOSED: [2020-03-30 Mon 23:21]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 19:55
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Miscellaneous
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: misc
+:END:
+Only using  ~org-capture-plist~ at runtime.
+org-capture loaded by then.
+we also add to: org-capture-hooks, org-capture-contexts
+OK to defvar these before org-capture loaded?
+
 *** 2020-03-31 Tuesday
 **** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::`(:template-file ,file][warn if file does not exist during conversion]]
 CLOSED: [2020-03-31 Tue 02:19]
@@ -673,3 +689,143 @@ CLOSED: [2020-03-31 Tue 02:19]
 :END:
 Common case is for the file to exist during conversion.
 Warn here if it does not. It's possible to create the file after conversion, but before capture, but users can disable that particular warning when appropriate.
+** 2020-04 April
+*** 2020-04-04 Saturday
+**** DONE fix hook definition
+CLOSED: [2020-04-04 Sat 14:08]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 14:10
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+Since we're not depending on org-capture, we defvar its hooks.
+Can't add to them when they're void. Setting to nil (current solution)
+works but makes doct claim ownership of those variables. e.g.
+documentation claims variable is defined in doct.
+***** DONE is there a way to push without 'owning' variable and not loading org-capture first?
+CLOSED: [2020-04-04 Sat 14:08]
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::(fn (fset fn-name][unused lexical var 'fn']]
+CLOSED: [2020-04-04 Sat 14:09]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 14:10
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::unless (or (stringp name) group][make use of doct--type-check here?]]
+CLOSED: [2020-04-04 Sat 14:25]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 14:25
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::doct--type-check :children children '(doct--child-list-p)][doct--type-check return value when check passes]]
+CLOSED: [2020-04-04 Sat 16:09]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 16:09
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+**** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::doct--type-check :children children '(doct--child-list-p)][doct--type-check return value when check passes]]
+CLOSED: [2020-04-04 Sat 16:09]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 16:09
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimizations
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+**** DONE add doct-unload-function
+CLOSED: [2020-04-04 Sat 19:55]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 19:55
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+remove installed hooks
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Unloading.html#Unloading
+**** DONE doct expansion syntax escaping
+CLOSED: [2020-04-04 Sat 23:30]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-04 Sat 23:30
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: feature
+:END:
+- State "STARTED"    from "IDEA"       [2020-04-04 Sat 20:09]
+#+begin_src emacs-lisp
+"%{interpreted} \%{verbatim}"
+#+end_src
+*** 2020-04-05 Sunday
+**** DONE overlapping captures & doct-get?
+CLOSED: [2020-04-05 Sun 13:37]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-05 Sun 13:38
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Bugs
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: bug
+:END:
+- State "DONE"       from "CANCELED"   [2020-04-05 Sun 13:37]
+- State "STARTED"    from "CANCELED"   [2020-03-30 Mon 23:14]
+
+From ~org-capture-current-plist~ docstring:
+#+begin_src emacs-lisp
+  "Local variable holding the plist in a capture buffer.
+This is used to store the plist for use when finishing a capture process
+because another such process might have changed the global variable by then.
+
+Each time a new capture buffer has been set up, the global `org-capture-plist'
+is copied to this variable, which is local in the indirect buffer.")
+#+end_src
+
+In our case we may need access to ~doct-get~ before the buffer is set up.
+Modifying ~doct-get~ to prefer  ~org-capture-current-plist~ over ~org-capture-plist~
+should work in all cases.
+
+***** CANCELED reliable test for overlapping templates
+CLOSED: [2020-04-05 Sun 13:37]
+- State "CANCELED"   from "TODO"       [2020-04-05 Sun 13:37]
+****** CANCELED Use hooks to simulate overlap
+CLOSED: [2020-04-05 Sun 13:37]
+- State "CANCELED"   from "TODO"       [2020-04-05 Sun 13:37]
+- Call first template. It calls ~doct-get~ in a finalizing hook to add info to the template.
+- It calls second template in its ~:hook~.
+- Second template set to fill and ~:immediate-finish~.
+- It's finalizing hook finalizes first template.
+**** CANCELED doct expansion syntax back refs?
+CLOSED: [2020-04-05 Sun 13:38]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-04-05 Sun 13:38
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Features
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: CANCELED
+:ARCHIVE_ITAGS: feature
+:END:
+- State "CANCELED"   from "IDEA"       [2020-04-05 Sun 13:38] \\
+  Too complex for little benefit.
+#+begin_src emacs-lisp
+"%{data} %{\1}"
+#+end_src
