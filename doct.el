@@ -71,17 +71,17 @@ Valid values are:
   - nil
     do not warn
 Or a list containing any of the following symbols:
-  - unbound
+  - `unbound'
       warn when a symbol is unbound during conversion
-  - template-keyword
+  - `template-keyword'
       warn when %{KEYWORD} is not found on the declaration during conversion
-  - template-keyword-type
+  - `template-keyword-type'
       warn when %{KEYWORD} expansion does not return a string.
-  - template-entry-type
+  - `template-entry-type'
       warn when the expanded template does not match the capture template's type
-  - template-file
+  - `template-file'
       warn when the :template-file's file is not found during conversion
-  - option-type
+  - `option-type'
       warn when additional options are not the proper type
 
 If the list's first element is the :not keyword, the list of warnings is disabled.
@@ -289,7 +289,8 @@ Returns VAL."
 ;;;###autoload
 (defun doct-get (keyword)
   "Return KEYWORD's value from current capture plist.
-The declaration is queried from `org-capture-current-plist' if it exists, `org-capture-plist' if it does not. :doct-custom KEYWORD takes precedence over KEYWORD on the declaration.
+Queries `org-capture-plist' after trying `org-capture-current-plist'.
+:doct-custom KEYWORD takes precedence over KEYWORD on the declaration.
 Intended to be used at runtime."
   (let* ((declaration (plist-get (or org-capture-current-plist org-capture-plist)
                                  :doct))
