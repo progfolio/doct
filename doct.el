@@ -145,7 +145,7 @@ Its value is not stored between invocations to doct.")
 (defvar doct-file-extension-keywords '(:datetree :function :headline :olp :regexp)
   "Keywords that define the insertion location in the target file.")
 
-(defvar doct-exclusive-location-keywords '(:clock :file :function :id)
+(defvar doct-exclusive-target-keywords '(:clock :file :function :id)
   "Keywords that exclusively set the target location.")
 
 (defvar doct-hook-keywords '(:after-finalize :before-finalize :hook :prepare-finalize)
@@ -180,7 +180,7 @@ Its value is not stored between invocations to doct.")
                                       ;;only need to add once
                                       (remq :function
                                             doct-file-extension-keywords)
-                                      doct-exclusive-location-keywords
+                                      doct-exclusive-target-keywords
                                       doct-hook-keywords
                                       doct-template-keywords
                                       doct-option-keywords))
@@ -370,9 +370,9 @@ If GROUP is non-nil, make sure there is no :keys value."
 
 (defun doct--target ()
   "Convert declaration's target to template target."
-  (pcase (doct--first-in doct-exclusive-location-keywords)
+  (pcase (doct--first-in doct-exclusive-target-keywords)
     ('nil
-     (signal 'doct-no-target `(,doct-exclusive-location-keywords nil ,doct--current)))
+     (signal 'doct-no-target `(,doct-exclusive-target-keywords nil ,doct--current)))
     (`(:clock ,_) '(clock))
     (`(:id ,id) `(id ,(doct--type-check :id id '(stringp))))
     (`(:function ,fn)
