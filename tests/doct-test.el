@@ -23,8 +23,7 @@
                               :plist (:plist t)
                               :string "string"
                               :t t
-                              :unbound-symbol unbound-symbol
-                              )
+                              :unbound-symbol unbound-symbol)
   "List of typed data to for `doct-test-types'.")
 
 (defmacro doct-test-with-templates (templates &rest body)
@@ -137,14 +136,14 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
           (push `(,(match-string 1) ,(match-string 3)) menu-items))))
     (nreverse menu-items)))
 
-(defun doct-replace-type-placeholder (declaration value)
+(defun doct-test-replace-type-placeholder (declaration value)
   "Return copy of DECLARATION with TYPE replaced with VALUE."
   (let (copy)
     (dolist (element declaration (nreverse copy))
       (if (eq element 'type)
           (push value copy)
         (when (listp element)
-          (setq element (doct-replace-type-placeholder element value)))
+          (setq element (doct-test-replace-type-placeholder element value)))
         (push element copy)))))
 
 (defun doct-test-types (declaration)
@@ -156,7 +155,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                        (sort results (lambda (a b)
                                        (string< (symbol-name a) (symbol-name b)))))
         (let* ((val (plist-get doct-test-type-data keyword))
-               (typed (doct-replace-type-placeholder declaration val))
+               (typed (doct-test-replace-type-placeholder declaration val))
                result
                ;;override buttercup's debug-on-error binding so we don't hit debugger.
                debug-on-error)
