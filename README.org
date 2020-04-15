@@ -644,7 +644,7 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
 
 - doct-default-entry-type 'entry ::
   The default template entry type.
-  It can be overridden by using the ~:type~ keyword in an entry.
+  It can be overridden on a per-declaration basis by using the ~:type~ keyword.
 
 - doct-after-conversion-functions ::
   Abnormal hook run after converting declarations to templates.
@@ -668,11 +668,12 @@ Normally template "Four" would throw an error because its ~:keys~ are not a stri
   - template-keyword-type ::
     warn when %{KEYWORD} expansion does not return a string.
   - template-entry-type ::
-    warn when the expanded template does not match the capture template's type
+    warn when the expanded template string does not match the capture template's entry type
   - template-file ::
     warn when the ~:template-file~'s file is not found during conversion
   - option-type ::
     warn when additional options are not the proper type
+
   If the list's first element is the ~:not~ keyword, the list of warnings is disabled.
   It can be overridden on a per-declaration basis with the :warn keyword."
 
