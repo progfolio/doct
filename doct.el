@@ -611,8 +611,7 @@ Returns PAIR."
       (add-to-list hook fn-name))))
 
 (defun doct-unload-function ()
-  "Called when doct is unloaded.
-Clean up `org-capture-mode' hooks."
+  "Called when doct is unloaded. Remove hooks."
   (dolist (keyword doct-hook-keywords)
     (let* ((name (substring (symbol-name keyword) 1))
            (fn-name (intern (concat "doct-run-" name)))
