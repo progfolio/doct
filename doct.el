@@ -217,7 +217,7 @@ Return (KEYWORD VAL)."
               (seq-filter #'keywordp target))))
 
 (defun doct--plist-p (list)
-  "Non-null if and only if LIST is a plist."
+  "Non-null if and only if LIST is a plist of form (KEYWORD VAL...)."
   (while (consp list)
     (setq list (if (and (keywordp (car list))
                         (consp (cdr list)))
@@ -729,37 +729,35 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
   "Convert declaration to a template named NAME with PROPERTIES.
 For a full description of the PROPERTIES plist see `doct'."
   (unless (eq (plist-get properties :disabled) t)
-    (setq doct--current `(,name ,@properties))
-    (setq doct--current-plist properties)
-    (let ((warning-suppress-log-types (doct--suppressed-warnings))
-          (group (eq name :group)))
-      (doct--type-check 'name name `(stringp (lambda (_) ,group)))
+    (let ((group (eq name :group)))
       ;;remove :group description
       (when (and group (stringp (car properties)))
-        (let ((props (cdr properties)))
-          (setq properties props
-                doct--current-plist props)))
-      (let ((children (doct--children))
-            (keys (doct--keys group))
-            entry)
-        (if children
-            (setq children (mapcar (lambda (child)
-                                     (apply #'doct--convert
-                                            `(,(car child)
-                                              ,@(doct--inherit properties
-                                                               (cdr child)))))
-                                   (doct--wrap-list children)))
-          (doct--add-contexts)
-          (dolist (keyword doct-hook-keywords)
-            (when-let (val (cadr (plist-member doct--current-plist keyword)))
-              (doct--type-check keyword val '(functionp doct--variable-p null)))))
-        (unless group
-          (setq entry (doct--compose-entry keys name children)))
-        (if children
-            (if group
-                `(,@children)
-              `(,entry ,@children))
-          entry)))))
+        (setq properties (cdr properties)))
+      (setq doct--current `(,name ,@properties))
+      (setq doct--current-plist (doct--type-check 'properties properties '(doct--plist-p)))
+      (let ((warning-suppress-log-types (doct--suppressed-warnings)))
+        (doct--type-check 'name name `(stringp (lambda (_) ,group)))
+        (let ((children (doct--children))
+              (keys (doct--keys group))
+              entry)
+          (if children
+              (setq children (mapcar (lambda (child)
+                                       (apply #'doct--convert
+                                              `(,(car child)
+                                                ,@(doct--inherit properties
+                                                                 (cdr child)))))
+                                     (doct--wrap-list children)))
+            (doct--add-contexts)
+            (dolist (keyword doct-hook-keywords)
+              (when-let (val (cadr (plist-member doct--current-plist keyword)))
+                (doct--type-check keyword val '(functionp doct--variable-p null)))))
+          (unless group
+            (setq entry (doct--compose-entry keys name children)))
+          (if children
+              (if group
+                  `(,@children)
+                `(,entry ,@children))
+            entry))))))
 
 (defun doct--convert-declaration-maybe (declaration)
   "Attempt to convert DECLARATION to Org capture template syntax."

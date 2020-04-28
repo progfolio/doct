@@ -170,6 +170,12 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
     (setq doct-warnings                  t
           doct-default-entry-type        'entry
           org-capture-templates-contexts nil))
+  (it "errors if a declaration's properties are not a plist of form (:KEYWORD VAL...)"
+    (expect (doct-test-signal-to-message
+             '(:group
+               :file ""
+               :children ("One" :template "PASS" :keys "1" ) ("Extra" :keys "e" :template "FAIL")))
+            :to-equal "Wrong type argument"))
   (it "allows a single declaration as its argument"
     (expect (doct-test-without-declarations
              '("single declaration" :keys "s"
