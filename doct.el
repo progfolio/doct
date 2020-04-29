@@ -302,7 +302,8 @@ Intended to be used at runtime."
 ;;;###autoload
 (defun doct-flatten-lists-in (list &optional acc)
   "Flatten each list in LIST. Return ACC.
-For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))"
+For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5)).
+Note this mutates original list."
   (dolist (element (nreverse list))
     (if (seq-every-p #'listp element)
         (setq acc (doct-flatten-lists-in element acc))
