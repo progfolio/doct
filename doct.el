@@ -350,8 +350,8 @@ If GROUP is non-nil, make sure there is no :keys value."
        (when (doct--get :datetree)
          (push :datetree type))
        (push :olp type)
-       (dolist (heading
-                (nreverse (doct--type-check :olp path '(doct--list-of-strings-p))))
+       (dolist (heading (nreverse
+                         (copy-tree (doct--type-check :olp path '(doct--list-of-strings-p)))))
          (push heading target)))
       (`(:function ,fn)
        (doct--type-check :function fn '(functionp doct--variable-p null))
