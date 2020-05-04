@@ -43,3 +43,6 @@ Both macros return lambdas...
   (unload-feature 'doct t))
 (load-file "~/.emacs.d/straight/repos/doct/doct.el")
 #+end_src
+** TODO Adopt semver [0/2]
+*** TODO bump major version number
+*** TODO drop support for old %doct(KEYWORD) syntax
