@@ -1,13 +1,13 @@
 #+TITLE: DOCT notes
 #+archive: %s_archive::datetree/
-* Bugs :bug:
+* Bug :bug:
 * Documentation :documentation:
-* Optimizations :optimization:
+* Optimization :optimization:
 ** similar logic between doct--replace-template-strings and doct--validate-template-maybe
 Can these be generalized into single function?
-* Features :feature:
-* Enhancements :enhancement:
-* Miscellaneous :misc:
+* Feature :feature:
+* Enhancement :enhancement:
+* Miscellaneous                                                        :misc:
 ** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in one case?]]
 Both macros return lambdas...
 
