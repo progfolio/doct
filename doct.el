@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 1.0
+;; Version: 2.0.0
 
 ;; This file is not part of GNU Emacs.
 
@@ -409,29 +409,13 @@ If GROUP is non-nil, make sure there is no :keys value."
           (re-search-forward doct--expansion-syntax-regexp nil :no-error))))
     (buffer-string)))
 
-(defun doct--upgrade-expansion-syntax (value)
-  "Upgrade declaration's template VALUE to current `doct--expansion-syntax-regexp'."
-  (let ((old-regexp "%doct(\\(.*?\\))"))
-    (cond
-     ((and (stringp value) (string-match-p old-regexp value))
-      (let ((upgraded (replace-regexp-in-string old-regexp "%{\\1}" value)))
-        (doct--warn 'old-sytnax
-                    "Old template expansion syntax detected. Upgrading :template value.
-Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in the future."
-                    value upgraded)
-        upgraded))
-     ((doct--list-of-strings-p value)
-      (mapcar #'doct--upgrade-expansion-syntax value))
-     (t value))))
-
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %{KEYWORD} syntax, else nil."
   (and (string-match-p doct--expansion-syntax-regexp string) t))
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((value (doct--upgrade-expansion-syntax
-                 (or value (doct-get :template))))
+  (let* ((value (or value (doct-get :template)))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
                                          (doct--replace-template-strings
@@ -534,7 +518,7 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
      `(file ,(doct--type-check :template-file file '(stringp doct--variable-p))))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax
-     (setq template (doct--upgrade-expansion-syntax template))
+     (setq template template)
      (pcase template
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))

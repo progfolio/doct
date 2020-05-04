@@ -7,18 +7,6 @@
 Can these be generalized into single function?
 * Features :feature:
 * Enhancements :enhancement:
-** IDEA eliminate or reduce use of doct--fill-template
-vanilla syntax for elisp execution already exists.
-Would it be worth it to replace %{KEYWORD} during conversion
-and return a string?
-#+begin_src emacs-lisp
-"%{key}" -> "%((doct-get key))"
-#+end_src
-What do we gain? Template string is more transparent to user?
-doct-get can't handle case where key's value is a function...
-
-** IDEA doct--type-check take pair as first arg? Returns pair if succesful
-May reduce verbosity when using doct--first-in...
 * Miscellaneous :misc:
 ** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in one case?]]
 Both macros return lambdas...
@@ -43,6 +31,3 @@ Both macros return lambdas...
   (unload-feature 'doct t))
 (load-file "~/.emacs.d/straight/repos/doct/doct.el")
 #+end_src
-** TODO Adopt semver [0/2]
-*** TODO bump major version number
-*** TODO drop support for old %doct(KEYWORD) syntax
