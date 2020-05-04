@@ -848,3 +848,49 @@ CLOSED: [2020-05-04 Mon 12:46]
 :ARCHIVE_TODO: DONE
 :ARCHIVE_ITAGS: bug
 :END:
+**** DONE Adopt semver [2/2]
+CLOSED: [2020-05-04 Mon 18:41]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-05-04 Mon 18:41
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Miscellaneous
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: misc
+:END:
+***** DONE bump major version number
+CLOSED: [2020-05-04 Mon 18:41]
+***** DONE drop support for old %doct(KEYWORD) syntax
+CLOSED: [2020-05-04 Mon 18:41]
+**** CANCELED eliminate or reduce use of doct--fill-template
+CLOSED: [2020-05-04 Mon 18:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-05-04 Mon 18:42
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: CANCELED
+:ARCHIVE_ITAGS: enhancement
+:END:
+- State "CANCELED"   from "IDEA"       [2020-05-04 Mon 18:42]
+vanilla syntax for elisp execution already exists.
+Would it be worth it to replace %{KEYWORD} during conversion
+and return a string?
+#+begin_src emacs-lisp
+"%{key}" -> "%((doct-get key))"
+#+end_src
+What do we gain? Template string is more transparent to user?
+doct-get can't handle case where key's value is a function...
+
+**** CANCELED doct--type-check take pair as first arg? Returns pair if succesful
+CLOSED: [2020-05-04 Mon 18:42]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-05-04 Mon 18:42
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Enhancements
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: CANCELED
+:ARCHIVE_ITAGS: enhancement
+:END:
+- State "CANCELED"   from "IDEA"       [2020-05-04 Mon 18:42]
+May reduce verbosity when using doct--first-in...
