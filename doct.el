@@ -287,13 +287,13 @@ Returns VAL."
   val)
 
 ;;;###autoload
-(defun doct-get (keyword)
-  "Return KEYWORD's value from current capture plist.
-Queries `org-capture-plist' after trying `org-capture-current-plist'.
+(defun doct-get (keyword &optional local)
+  "Return KEYWORD's value from :doct plist on `org-capture-plist'.
+If LOCAL is non-nil, query `org-capture-current-plist' instead.
 :doct-custom KEYWORD takes precedence over KEYWORD on the declaration.
 Intended to be used at runtime."
-  (let* ((declaration (plist-get (or org-capture-current-plist org-capture-plist)
-                                 :doct))
+  (let* ((declaration (plist-get
+                       (if local org-capture-current-plist org-capture-plist) :doct))
          (custom (plist-get declaration :doct-custom)))
     (if-let ((member (plist-member custom keyword)))
         (cadr member)
@@ -430,11 +430,8 @@ Substitute \"%s\" for \"%s\" in your configuration to prevent this warning in th
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  ;;Avoiding doct-get here because org-capture-current-plist is not set
-  ;;yet for overlapping capture processes. We want org-capture-plist.
-  (let* ((declaration (plist-get org-capture-plist :doct))
-         (value (doct--upgrade-expansion-syntax
-                 (or value (plist-get declaration :template))))
+  (let* ((value (doct--upgrade-expansion-syntax
+                 (or value (doct-get :template))))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
                                          (doct--replace-template-strings
@@ -597,8 +594,14 @@ Returns PAIR."
 ;;;;Hooks
 (defun doct--run-hook (keyword)
   "Run declaration's KEYWORD function."
-  (when-let ((fn (doct-get keyword)))
+  ;;:org-capture-current-plist not available when :hook and :after-finalize are run.
+  (when-let ((fn (doct-get keyword (not (member keyword '(:hook :after-finalize))))))
     (funcall fn)))
+
+(defun doct--restore-org-capture-plist ()
+  "Restore `org-capture-plist' for use in `org-capture-after-finalize-hook'.
+Necessary since `org-capture-after-finalize-hook' cannot access `org-capture-current-plist'."
+  (setq org-capture-plist org-capture-current-plist))
 
 ;;install hook functions
 (with-eval-after-load 'org-capture
@@ -609,7 +612,9 @@ Returns PAIR."
                                                     "mode"
                                                   name) "-hook"))))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
-      (add-to-list hook fn-name))))
+      (add-hook hook fn-name)
+      (when (eq fn-name 'doct-run-before-finalize)
+        (advice-add fn-name :after #'doct--restore-org-capture-plist)))))
 
 (defun doct-unload-function ()
   "Called when doct is unloaded. Remove hooks."
