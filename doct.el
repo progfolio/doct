@@ -635,8 +635,8 @@ Returns PAIR."
          (test `(string-match val
                               ,(cond
                                 ((string-suffix-p "buffer" name) '(buffer-name))
-                                ((string-suffix-p "file" name) '(or (buffer-file-name) ""))
-                                ((string-suffix-p "mode" name) '(symbol-name major-mode)))))
+                                ((string-suffix-p "file"   name) '(or (buffer-file-name (buffer-base-buffer)) ""))
+                                ((string-suffix-p "mode"   name) '(symbol-name major-mode)))))
          (fn `(seq-some (lambda (val) ,test) ',value)))
     (if (string-prefix-p ":unless" name)
         `(lambda () (not ,fn))
