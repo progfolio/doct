@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 2.0.0
+;; Version: 2.0.1
 
 ;; This file is not part of GNU Emacs.
 
@@ -302,9 +302,8 @@ Intended to be used at runtime."
 ;;;###autoload
 (defun doct-flatten-lists-in (list &optional acc)
   "Flatten each list in LIST. Return ACC.
-For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5)).
-Note this mutates original list."
-  (dolist (element (nreverse list))
+For example: '((1) ((2 3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))."
+  (dolist (element (nreverse (copy-tree list)))
     (if (seq-every-p #'listp element)
         (setq acc (doct-flatten-lists-in element acc))
       (push element acc)))
