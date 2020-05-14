@@ -1236,15 +1236,16 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
          (entries (mapcar #'doct--convert-declaration-maybe (copy-tree declarations))))
     (unwind-protect
         (progn
-          (run-hook-with-args 'doct-after-conversion-functions entries)
+          (setq doct-templates entries)
+          (run-hook-with-args 'doct-after-conversion-functions doct-templates)
           ;;hook functions may set doct-templates to return manipulated list
           ;;remove metadata from parent templates
-          (or doct-templates (mapcar (lambda (template)
-                                       (if (eq (nth 2 template) :doct)
-                                           `(,(car template) ,(cadr template))
-                                         template))
-                                     (doct-flatten-lists-in entries))))
-      (setq doct-templates nil))))
+          (mapcar (lambda (template)
+                    (if (eq (nth 2 template) :doct)
+                        `(,(car template) ,(cadr template))
+                      template))
+                  (doct-flatten-lists-in doct-templates)))
+    (setq doct-templates nil))))
 
 (provide 'doct)
 
