@@ -708,11 +708,11 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
               `(,(doct--entry-type)
                 ,(doct--target)
                 ,(doct--template)
-                ,@(doct--additional-options)
-                :doct (:doct-name ,name
-                                  ,@(cdr doct--current)
-                                  ,@(when-let ((custom (doct--custom-properties)))
-                                      `(:doct-custom ,(doct--custom-properties))))))))
+                ,@(doct--additional-options)))
+          :doct (:doct-name ,name
+                            ,@(cdr doct--current)
+                            ,@(when-let ((custom (doct--custom-properties)))
+                                `(:doct-custom ,(doct--custom-properties))))))
 
 (defun doct--convert (name &rest properties)
   "Convert declaration to a template named NAME with PROPERTIES.
@@ -741,6 +741,10 @@ For a full description of the PROPERTIES plist see `doct'."
               (when-let (val (cadr (plist-member doct--current-plist keyword)))
                 (doct--type-check keyword val '(functionp doct--variable-p null)))))
           (unless group
+            (when children
+              ;;restore these because processing children overwrites them
+              (setq doct--current `(,name ,@properties))
+              (setq doct--current-plist (doct--type-check 'properties properties '(doct--plist-p))))
             (setq entry (doct--compose-entry keys name children)))
           (if children
               (if group
@@ -1235,7 +1239,12 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
         (progn
           (run-hook-with-args 'doct-after-conversion-functions entries)
           ;;hook functions may set doct-templates to return manipulated list
-          (or doct-templates (doct-flatten-lists-in entries)))
+          ;;remove metadata from parent templates
+          (or doct-templates (mapcar (lambda (template)
+                                       (if (eq (nth 2 template) :doct)
+                                           `(,(car template) ,(cadr template))
+                                         template))
+                                     (doct-flatten-lists-in entries))))
       (setq doct-templates nil))))
 
 (provide 'doct)
