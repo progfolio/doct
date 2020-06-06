@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 2.0.1
+;; Version: 2.0.2
 
 ;; This file is not part of GNU Emacs.
 
@@ -441,7 +441,8 @@ If GROUP is non-nil, make sure there is no :keys value."
                 (string-prefix-p "%[" trimmed))
       (pcase (doct--entry-type)
         ('entry
-         (unless (string-prefix-p "* " trimmed)
+         (unless (or (string-prefix-p "* " trimmed)
+                     (string= trimmed "*"))
            (doct--warn  'template-entry-type
                         (concat "expanded :template \"%s\" in the \"%s\" declaration "
                                 "is not a valid Org entry.\n"
