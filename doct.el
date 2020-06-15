@@ -36,7 +36,8 @@
 ;;; Custom Options
 (defgroup doct nil
   "DOCT: Declarative Org Capture Templates"
-  :group 'org)
+  :group 'org
+  :prefix "doct-")
 
 (defcustom doct-default-entry-type 'entry
   "The default template entry type.
