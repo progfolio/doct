@@ -1252,7 +1252,7 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
                         `(,(car template) ,(cadr template))
                       template))
                   (doct-flatten-lists-in doct-templates)))
-    (setq doct-templates nil))))
+      (setq doct-templates nil))))
 
 (provide 'doct)
 
