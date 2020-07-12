@@ -591,13 +591,18 @@ Necessary since `org-capture-after-finalize-hook' cannot access `org-capture-cur
 ;;install hook functions
 (with-eval-after-load 'org-capture
   (dolist (keyword doct-hook-keywords)
-    (let* ((name (substring (symbol-name keyword) 1))
-           (fn-name (intern (concat "doct-run-" name)))
-           (hook (intern (concat "org-capture-" (if (string= name "hook")
-                                                    "mode"
-                                                  name) "-hook"))))
+    (let* ((name (symbol-name keyword))
+           (short-name (substring name 1))
+           (fn-name (intern (concat "doct-run-" short-name)))
+           (hook-name (concat "org-capture-" (if (string= short-name "hook")
+                                                 "mode"
+                                               short-name) "-hook")))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
-      (add-hook hook fn-name)
+      (put  fn-name 'function-documentation
+            (concat "Run the current declaration's " name " hook."
+                    "\nREST is ignored and the function should not take any arguments."
+                    "\nFor information on when this hook is run see `" hook-name "'."))
+      (add-hook (intern hook-name) fn-name)
       (when (eq fn-name 'doct-run-before-finalize)
         (advice-add fn-name :after #'doct--restore-org-capture-plist)))))
 
