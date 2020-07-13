@@ -596,7 +596,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access `org-capture-cur
            (fn-name (intern (concat "doct-run-" short-name)))
            (hook-name (concat "org-capture-" (if (string= short-name "hook")
                                                  "mode"
-                                               short-name) "-hook")))
+                                              short-name) "-hook")))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
       (put  fn-name 'function-documentation
             (concat "Run the current declaration's " name " hook."
