@@ -809,6 +809,17 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                   :template "%{pass} \\%{fail}")
                 (doct-test-filled-template "e"))
               :to-match "PASS %{fail}")))
+    (it "preserves match data around user's function calls"
+      (expect (doct-test-with-templates
+                '("save-match-data %{KEYWORD}" :keys "e"
+                  :file ""
+                  :immediate-finish t
+                  :no-save t
+                  :type plain
+                  :test (lambda () (re-search-backward "T" nil t) "PASS")
+                  :template "TEST %{test}")
+                (doct-test-filled-template "e"))
+                :to-equal "TEST PASS")))
   (describe "Utility functions"
     (describe "doct--get"
       (it "gets a value from `doct--current-plist'"

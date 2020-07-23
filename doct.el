@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 2.0.2
+;; Version: 2.0.3
 
 ;; This file is not part of GNU Emacs.
 
@@ -402,7 +402,10 @@ If GROUP is non-nil, make sure there is no :keys value."
                             keyword val (doct-get :doct-name))
                 (setq val ""))
               (replace-match (if (functionp val)
-                                 (doct--replace-template-strings (funcall val))
+                                 (doct--replace-template-strings
+                                  (save-excursion
+                                    (save-restriction
+                                      (save-match-data (funcall val)))))
                                (or val ""))
                              nil t))
           (replace-match "" nil t nil 1)
