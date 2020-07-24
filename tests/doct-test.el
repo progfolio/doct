@@ -808,7 +808,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                   :pass "PASS"
                   :template "%{pass} \\%{fail}")
                 (doct-test-filled-template "e"))
-              :to-match "PASS %{fail}")))
+              :to-match "PASS %{fail}"))
     (it "preserves match data around user's function calls"
       (expect (doct-test-with-templates
                 '("save-match-data %{KEYWORD}" :keys "e"
