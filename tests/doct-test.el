@@ -341,7 +341,7 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                  '(("Context :function test" :keys "cf" :file ""
                     :contexts (:function t))))
                 :to-equal "Wrong type argument"))
-      (it "only includes templates which pass predicate"
+      (it "only includes templates which satisfy predicate"
         (setq org-capture-templates-contexts nil)
         (expect (doct-test-with-templates
                   '((:group
