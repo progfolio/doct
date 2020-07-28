@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 2.0.3
+;; Version: 2.0.4
 
 ;; This file is not part of GNU Emacs.
 
@@ -383,33 +383,44 @@ If GROUP is non-nil, make sure there is no :keys value."
     (`(:file ,file) (doct--target-file file))))
 
 ;;;; Template
-;;@TODO: duplicate logic when testing during conversion...
+(defmacro doct--map-keyword-syntax (string during &rest after)
+  "Run DURING form for each of STRING's unescaped `doct--expansion-syntax-regexp' matches.
+Retrun AFTER form."
+  (declare (indent 1))
+  (let ((s (make-symbol "string")))
+    `(let ((,s ,string))
+       (with-temp-buffer
+         (insert ,s)
+         (goto-char (point-min))
+         (save-match-data
+           (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
+             (if (match-string 1)
+                 ;;replace escaped \%{KEYORD} syntax and seek to next match
+                 ;;so outer loop doesn't repeat replacement.
+                 (progn (replace-match "" nil t nil 1)
+                        (re-search-forward doct--expansion-syntax-regexp nil :no-error))
+               ,during)))
+         ,@after))))
+
 (defun doct--replace-template-strings (string)
   "Replace STRING's %{KEYWORD} occurrences with their :doct-custom values."
-  (with-temp-buffer
-    (insert string)
-    (goto-char (point-min))
-    (save-match-data
-      (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-        (if (not (match-string 1))
-            (let* ((keyword (intern (concat ":" (match-string 2))))
-                   (val (doct-get keyword)))
-              (unless (or (functionp val) (stringp val) (null val))
-                (doct--warn 'template-keyword-type
-                            (concat
-                             "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
-                             "\n  Substituted for empty string.")
-                            keyword val (doct-get :doct-name))
-                (setq val ""))
-              (replace-match (if (functionp val)
-                                 (doct--replace-template-strings
-                                  (save-excursion
-                                    (save-restriction
-                                      (save-match-data (funcall val)))))
-                               (or val ""))
-                             nil t))
-          (replace-match "" nil t nil 1)
-          (re-search-forward doct--expansion-syntax-regexp nil :no-error))))
+  (doct--map-keyword-syntax string
+    (let* ((keyword (intern (concat ":" (match-string 2))))
+           (val (doct-get keyword)))
+      (unless (or (functionp val) (stringp val) (null val))
+        (doct--warn 'template-keyword-type
+                    (concat
+                     "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
+                     "\n  Substituted for empty string.")
+                    keyword val (doct-get :doct-name))
+        (setq val ""))
+      (replace-match (if (functionp val)
+                         (doct--replace-template-strings
+                          (save-excursion
+                            (save-restriction
+                              (save-match-data (funcall val)))))
+                       (or val ""))
+                     nil t))
     (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
@@ -485,27 +496,23 @@ If GROUP is non-nil, make sure there is no :keys value."
     (catch 'deferred
       (dolist (string strings)
         (when (doct--expansion-syntax-p string)
-          (with-temp-buffer
-            (insert string)
-            (goto-char (point-min))
-            (save-match-data
-              (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-                (let* ((keyword (intern (concat ":" (match-string 2))))
-                       (custom  (plist-get doct--current-plist :custom))
-                       (member  (or (plist-member custom keyword)
-                                    (plist-member doct--current-plist keyword)))
-                       (value   (cadr member)))
-                  ;;If the value is a function, we can't reliably validate during
-                  ;;conversion. It may rely on runtime context.
-                  (when (functionp value) (throw 'deferred nil))
-                  (unless (or member
-                              ;;doct implicitly adds these
-                              (member keyword '(:inherited-keys :doct-name)))
-                    (push (symbol-name keyword) undeclared))
-                  (unless (or (stringp value) (null value))
-                    (push (symbol-name keyword) not-string))
-                  (replace-match (format "%s" (or value "")) nil t nil)
-                  (setq string (buffer-string)))))))
+          (doct--map-keyword-syntax string
+            (let* ((keyword (intern (concat ":" (match-string 2))))
+                   (custom  (plist-get doct--current-plist :custom))
+                   (member  (or (plist-member custom keyword)
+                                (plist-member doct--current-plist keyword)))
+                   (value   (cadr member)))
+              ;;If the value is a function, we can't reliably validate during
+              ;;conversion. It may rely on runtime context.
+              (when (functionp value) (throw 'deferred nil))
+              (unless (or member
+                          ;;doct implicitly adds these
+                          (member keyword '(:inherited-keys :doct-name)))
+                (push (symbol-name keyword) undeclared))
+              (unless (or (stringp value) (null value))
+                (push (symbol-name keyword) not-string))
+              (replace-match (format "%s" (or value "")) nil t nil)
+              (setq string (buffer-string)))))
         (push string template))
       (doct--warn-template-entry-type-maybe (string-join (nreverse template) "\n"))
       (doct--warn-template-maybe undeclared not-string))))
