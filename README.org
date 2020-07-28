@@ -113,7 +113,8 @@ Require it in your init file.
 (doct declarations)
 #+end_src
 
-~doct~ expects a declaration or a list of declarations as its sole argument.
+~doct~ expects a declaration or a list of declarations as its sole argument
+and converts it into a list of `org-capture-templates`.
 Each declaration is either a child, parent, or group.
 **** Child
 A child declaration must have:

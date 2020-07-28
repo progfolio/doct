@@ -769,7 +769,8 @@ For a full description of the PROPERTIES plist see `doct'."
 
 ;;;###autoload
 (defun doct (declarations)
-  "DECLARATIONS may be a single declaration or a list of declarations.
+  "Convert DECLARATIONS to `org-capture-templates'.
+DECLARATIONS may be a single declaration or a list of declarations.
 Each declaration is either a child, parent, or group.
 
 A child declaration must have:
