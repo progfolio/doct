@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 2.0.4
+;; Version: 3.0.4
 
 ;; This file is not part of GNU Emacs.
 
@@ -392,14 +392,13 @@ Retrun AFTER form."
        (with-temp-buffer
          (insert ,s)
          (goto-char (point-min))
-         (save-match-data
-           (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
-             (if (match-string 1)
-                 ;;replace escaped \%{KEYORD} syntax and seek to next match
-                 ;;so outer loop doesn't repeat replacement.
-                 (progn (replace-match "" nil t nil 1)
-                        (re-search-forward doct--expansion-syntax-regexp nil :no-error))
-               ,during)))
+         (while (re-search-forward doct--expansion-syntax-regexp nil :no-error)
+           (if (match-string 1)
+               ;;replace escaped \%{KEYORD} syntax and seek to next match
+               ;;so outer loop doesn't repeat replacement.
+               (progn (replace-match "" nil t nil 1)
+                      (re-search-forward doct--expansion-syntax-regexp nil :no-error))
+             ,during))
          ,@after))))
 
 (defun doct--replace-template-strings (string)
@@ -415,10 +414,9 @@ Retrun AFTER form."
                     keyword val (doct-get :doct-name))
         (setq val ""))
       (replace-match (if (functionp val)
-                         (doct--replace-template-strings
-                          (save-excursion
-                            (save-restriction
-                              (save-match-data (funcall val)))))
+                         (save-excursion
+                           (save-restriction
+                             (save-match-data (funcall val))))
                        (or val ""))
                      nil t))
     (buffer-string)))
@@ -606,7 +604,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access `org-capture-cur
            (fn-name (intern (concat "doct-run-" short-name)))
            (hook-name (concat "org-capture-" (if (string= short-name "hook")
                                                  "mode"
-                                              short-name) "-hook")))
+                                               short-name) "-hook")))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
       (put  fn-name 'function-documentation
             (concat "Run the current declaration's " name " hook."
