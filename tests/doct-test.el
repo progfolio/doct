@@ -788,7 +788,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                                     :type plain
                                     :template "%{num} = 1"
                                     :num "1"))
-         ;;simulating org-capture-templates being lexical bound elswhere
+         ;;simulating org-capture-templates being lexical bound elsewhere
          (doct-test-with-templates
            '(("some other f" :keys "f"
               :file ""
