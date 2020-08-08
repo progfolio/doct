@@ -52,10 +52,13 @@ becomes:
 #+end_src
 
 ** Releases
+
+***  3.0.0
+- drop support for recursive =%{keyword}= expansion.
 ***  2.0.0
-  - drop support for =%doct(KEYWORD)= syntax. Replaced with =%{keyword}=
-  - =doct-get= now accepts an optional parameter to determine whether to query =org-capture-plist= or =org-capture-current-plist=.
-  - adopt semver
+- drop support for =%doct(KEYWORD)= syntax. Replaced with =%{keyword}=
+- =doct-get= now accepts an optional parameter to determine whether to query =org-capture-plist= or =org-capture-current-plist=.
+- adopt semver
 ** Contents
 :PROPERTIES:
 :TOC:      this
