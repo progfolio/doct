@@ -384,7 +384,7 @@ If GROUP is non-nil, make sure there is no :keys value."
 
 ;;;; Template
 (defmacro doct--map-keyword-syntax (string during &rest after)
-  "Run DURING form for each of STRING's unescaped `doct--expansion-syntax-regexp' matches.
+  "Eval DURING for STRING substrings matching `doct--expansion-syntax-regexp'.
 Retrun AFTER form."
   (declare (indent 1))
   (let ((s (make-symbol "string")))
