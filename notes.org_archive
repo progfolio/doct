@@ -894,3 +894,18 @@ CLOSED: [2020-05-04 Mon 18:42]
 :END:
 - State "CANCELED"   from "IDEA"       [2020-05-04 Mon 18:42]
 May reduce verbosity when using doct--first-in...
+** 2020-08 August
+*** 2020-08-21 Friday
+**** DONE similar logic between doct--replace-template-strings and doct--validate-template-maybe
+CLOSED: [2020-08-21 Fri 23:37]
+:PROPERTIES:
+:ARCHIVE_TIME: 2020-08-21 Fri 23:37
+:ARCHIVE_FILE: ~/.emacs.d/straight/repos/doct/notes.org
+:ARCHIVE_OLPATH: Optimization
+:ARCHIVE_CATEGORY: notes
+:ARCHIVE_TODO: DONE
+:ARCHIVE_ITAGS: optimization
+:END:
+- Note taken on [2020-08-21 Fri 23:37] \\
+  abstracted common logic into a macro.
+Can these be generalized into single function?

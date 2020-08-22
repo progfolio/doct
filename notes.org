@@ -3,8 +3,6 @@
 * Bug :bug:
 * Documentation :documentation:
 * Optimization :optimization:
-** similar logic between doct--replace-template-strings and doct--validate-template-maybe
-Can these be generalized into single function?
 * Feature :feature:
 * Enhancement :enhancement:
 * Miscellaneous                                                        :misc:
