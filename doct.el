@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.0.5
+;; Version: 3.0.6
 
 ;; This file is not part of GNU Emacs.
 
@@ -432,7 +432,8 @@ Retrun AFTER form."
          (value (or value
                     (if (eq keyword :template-file)
                         (with-temp-buffer
-                          (insert-file-contents (cadr pair))
+                          (insert-file-contents
+                           (expand-file-name (cadr pair) org-directory))
                           (buffer-string))
                       (doct-get :template))))
          (template (pcase value

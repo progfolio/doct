@@ -839,15 +839,20 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                 :to-equal "* PASS")))
     (describe "doct--fill-template"
       (it "fills :template-file's contents"
-        (expect (doct-test-with-templates
-                  '(("doct--fill-template :template-file"
-                     :keys "t"
-                     :file ""
-                     :immediate-finish t
-                     :no-save t
-                     :test (lambda () "* PASS")
-                     :template-file "./tests/template-file.test"))
-                  (doct-test-filled-template "t"))
+        (expect (progn
+                  ;; @HACK: Buttercup runs make tests in the parent directory.
+                  ;; This allows us to run interactively as well:
+                  (ignore-errors (cd "./tests"))
+                  (let ((org-directory default-directory))
+                    (doct-test-with-templates
+                      `(("doct--fill-template :template-file"
+                         :keys "t"
+                         :file ""
+                         :immediate-finish t
+                         :no-save t
+                         :test (lambda () "* PASS")
+                         :template-file "./template-file.test"))
+                      (doct-test-filled-template "t"))))
                 :to-equal "* PASS"))))
   (describe "Hooks"
     (it "errors if value is not a function, variable or nil"
