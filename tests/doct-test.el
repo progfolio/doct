@@ -9,21 +9,20 @@
 (require 'cl-lib)
 (require 'doct)
 (require 'org-capture)
-(defvar doct-test-type-data '(
-                              :character ?c
-                              :child-declaration ("child" :keys "c" :file "")
-                              :float 1.0
-                              :function ignore
-                              :integer 1
-                              :keyword :keyword
-                              :lambda (lambda () (ignore))
-                              :list-of-strings ("list" "of" "strings")
-                              :mixed-list (mixed list 1)
-                              :nil nil
-                              :plist (:plist t)
-                              :string "string"
-                              :t t
-                              :unbound-symbol unbound-symbol)
+(defvar doct-test-type-data '( :character ?c
+                               :child-declaration ("child" :keys "c" :file "")
+                               :float 1.0
+                               :function ignore
+                               :integer 1
+                               :keyword :keyword
+                               :lambda (lambda () (ignore))
+                               :list-of-strings ("list" "of" "strings")
+                               :mixed-list (mixed list 1)
+                               :nil nil
+                               :plist (:plist t)
+                               :string "string"
+                               :t t
+                               :unbound-symbol unbound-symbol)
   "List of typed data to for `doct-test-types'.")
 
 (defmacro doct-test-with-templates (templates &rest body)
@@ -581,7 +580,7 @@ during conversion in the \":function warn\" declaration.*"))
                     :template-file "./template.txt" :template "ignored"))))
               :to-equal
               '(("t" ":template-file exclusivity" entry (file "")
-                 (file "./template.txt"))))))
+                 (function doct--fill-template))))))
   (describe ":type"
     (it "errors if entry type is not a member of `doct-entry-types' or nil"
       (expect (doct-test-types '(":type type" :keys "t" :file "" :type type))
@@ -819,7 +818,7 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                   :test (lambda () (re-search-backward "T" nil t) "PASS")
                   :template "TEST %{test}")
                 (doct-test-filled-template "e"))
-                :to-equal "TEST PASS")))
+              :to-equal "TEST PASS")))
   (describe "Utility functions"
     (describe "doct--get"
       (it "gets a value from `doct--current-plist'"
@@ -836,6 +835,18 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                      :no-save t
                      :test (lambda () "* PASS")
                      :template "%{test}"))
+                  (doct-test-filled-template "t"))
+                :to-equal "* PASS")))
+    (describe "doct--fill-template"
+      (it "fills :template-file's contents"
+        (expect (doct-test-with-templates
+                  '(("doct--fill-template :template-file"
+                     :keys "t"
+                     :file ""
+                     :immediate-finish t
+                     :no-save t
+                     :test (lambda () "* PASS")
+                     :template-file "./tests/template-file.test"))
                   (doct-test-filled-template "t"))
                 :to-equal "* PASS"))))
   (describe "Hooks"

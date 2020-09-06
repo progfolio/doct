@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.0.4
+;; Version: 3.0.5
 
 ;; This file is not part of GNU Emacs.
 
@@ -427,7 +427,14 @@ Retrun AFTER form."
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((value (or value (doct-get :template)))
+  (let* ((pair (doct--first-in doct-template-keywords))
+         (keyword (car pair))
+         (value (or value
+                    (if (eq keyword :template-file)
+                        (with-temp-buffer
+                          (insert-file-contents (cadr pair))
+                          (buffer-string))
+                      (doct-get :template))))
          (template (pcase value
                      ((pred stringp) (if (doct--expansion-syntax-p value)
                                          (doct--replace-template-strings
@@ -519,12 +526,13 @@ Retrun AFTER form."
   "Convert declaration's :template to Org capture template."
   (pcase (doct--first-in doct-template-keywords)
     (`(:template-file ,file)
+     (doct--type-check :template-file file '(stringp doct--variable-p))
      (when (stringp file)
        (unless (file-exists-p (expand-file-name file org-directory))
          (doct--warn 'template-file
                      ":template-file \"%s\" not found during conversion in the \"%s\" declaration"
                      file (car doct--current))))
-     `(file ,(doct--type-check :template-file file '(stringp doct--variable-p))))
+     '(function doct--fill-template))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax
      (setq template template)
