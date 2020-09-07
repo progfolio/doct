@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.0.6
+;; Version: 3.0.7
 
 ;; This file is not part of GNU Emacs.
 
@@ -427,7 +427,8 @@ Retrun AFTER form."
 
 (defun doct--fill-template (&optional value)
   "Fill declaration's :template VALUE at capture time."
-  (let* ((pair (doct--first-in doct-template-keywords))
+  (let* ((pair (doct--first-in doct-template-keywords
+                               (plist-get org-capture-plist :doct)))
          (keyword (car pair))
          (value (or value
                     (if (eq keyword :template-file)
