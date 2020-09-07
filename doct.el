@@ -426,7 +426,7 @@ Retrun AFTER form."
   (and (string-match-p doct--expansion-syntax-regexp string) t))
 
 (defun doct--fill-template (&optional value)
-  "Fill declaration's :template VALUE at capture time."
+  "Fill declaration's template VALUE at capture time."
   (let* ((pair (doct--first-in doct-template-keywords
                                (plist-get org-capture-plist :doct)))
          (keyword (car pair))
