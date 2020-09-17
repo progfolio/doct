@@ -5,6 +5,9 @@
 * Optimization :optimization:
 * Feature :feature:
 * Enhancement :enhancement:
+** DONE [[file:~/.emacs.d/straight/repos/doct/doct.el::"in the \"%s\" declaration")][Use %S format spec string]]
+CLOSED: [2020-09-17 Thu 13:11]
+
 * Miscellaneous                                                        :misc:
 ** RESEARCH [[file:~/.emacs.d/straight/repos/doct/doct.el::defun doct--constraint-rule-list (constraint value][why do we only need eval in one case?]]
 Both macros return lambdas...

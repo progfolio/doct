@@ -270,7 +270,7 @@ Return (KEYWORD VAL)."
   (and
    (doct--unbound-variable-p value)
    (doct--warn 'unbound (concat prefix "%s %s unbound during conversion "
-                                "in the \"%s\" declaration")
+                                "in the %S declaration")
                object value (car doct--current))))
 
 (defun doct--type-check (object val predicates &optional current)
@@ -409,7 +409,7 @@ Retrun AFTER form."
       (unless (or (functionp val) (stringp val) (null val))
         (doct--warn 'template-keyword-type
                     (concat
-                     "%%{%s} wrong type: stringp %s in the \"%s\" declaration"
+                     "%%{%s} wrong type: stringp %s in the %S declaration"
                      "\n  Substituted for empty string.")
                     keyword val (doct-get :doct-name))
         (setq val ""))
@@ -466,7 +466,7 @@ Retrun AFTER form."
          (unless (or (string-prefix-p "* " trimmed)
                      (string= trimmed "*"))
            (doct--warn  'template-entry-type
-                        (concat "expanded :template \"%s\" in the \"%s\" declaration "
+                        (concat "expanded :template %S in the %S declaration "
                                 "is not a valid Org entry.\n"
                                 "  Are you missing the leading '*'?")
                         string (car doct--current))))
@@ -478,7 +478,7 @@ Retrun AFTER form."
                                      (flush-lines "\\(?:[[:space:]]*|\\)"))
                                    (buffer-string)))
            (doct--warn 'template-entry-type
-                       (concat ":template \"%s\" in the \"%s\" declaration "
+                       (concat ":template %S in the %S declaration "
                                "is not a valid table-line.\n"
                                "  Are you missing the leading pipe?")
                        string (car doct--current)))))))
@@ -488,11 +488,11 @@ Retrun AFTER form."
   "If UNDECLARED or NOT-STRING are non-nil, issue appropriate warning."
   (let ((name (car doct--current)))
     (dolist (symbol (nreverse undeclared))
-      (doct--warn 'template-keyword "%%{KEYWORD} %s undeclared in the \"%s\" declaration"
+      (doct--warn 'template-keyword "%%{KEYWORD} %s undeclared in the %S declaration"
                   symbol name))
     (dolist (symbol (nreverse not-string))
       (doct--warn 'template-keyword-type
-                  "%%{KEYWORD} %s did not evaluate to a string in the \"%s\" declaration"
+                  "%%{KEYWORD} %s did not evaluate to a string in the %S declaration"
                   symbol name))))
 
 (defun doct--validate-template (strings)
@@ -532,7 +532,7 @@ Retrun AFTER form."
      (when (stringp file)
        (unless (file-exists-p (expand-file-name file org-directory))
          (doct--warn 'template-file
-                     ":template-file \"%s\" not found during conversion in the \"%s\" declaration"
+                     ":template-file %S not found during conversion in the %S declaration"
                      file (car doct--current))))
      '(function doct--fill-template))
     (`(:template ,template)
@@ -567,7 +567,7 @@ Returns PAIR."
      ;;only a warning because `org-capture-set-target-location'
      ;;has a default if any symbol other than week or month is set
      (unless (member value '(week month nil))
-       (doct--warn 'option-type (concat ":tree-type %s in the \"%s\" declaration "
+       (doct--warn 'option-type (concat ":tree-type %s in the %S declaration "
                                         "should be set to week or month.\n"
                                         "  Any other values use the default datetree type.")
                    value (car doct--current)))))
