@@ -61,33 +61,39 @@ becomes:
 - adopt semver
 ** Contents
 :PROPERTIES:
-:TOC:      this
+:TOC:      :include all
 :END:
--  [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
-  -  [[#releases][Releases]]
-    -  [[#200][2.0.0]]
-  -  [[#installation][Installation]]
-    -  [[#melpa][MELPA]]
-    -  [[#manual][Manual]]
-  -  [[#documentation][Documentation]]
-    -  [[#doct][doct]]
-      -  [[#child][Child]]
-      -  [[#parent][Parent]]
-      -  [[#group][Group]]
-      -  [[#name--keys][Name & Keys]]
-      -  [[#children][Children]]
-      -  [[#inherited-properties][Inherited Properties]]
-      -  [[#type][Type]]
-      -  [[#target][Target]]
-      -  [[#template][Template]]
-      -  [[#additional-options][Additional options]]
-      -  [[#custom-data][Custom data]]
-      -  [[#keyword-expansion][%{KEYWORD} Expansion]]
-      -  [[#hooks][Hooks]]
-      -  [[#contexts][Contexts]]
-      -  [[#disabling-templates][Disabling Templates]]
-    -  [[#custom-variables][Custom Variables]]
-    -  [[#contributing][Contributing]]
+:CONTENTS:
+- [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
+  - [[#tldr][tl;dr]]
+  - [[#releases][Releases]]
+    - [[#300][3.0.0]]
+    - [[#200][2.0.0]]
+  - [[#contents][Contents]]
+  - [[#installation][Installation]]
+    - [[#melpa][MELPA]]
+    - [[#manual][Manual]]
+  - [[#documentation][Documentation]]
+    - [[#doct][doct]]
+      - [[#child][Child]]
+      - [[#parent][Parent]]
+      - [[#group][Group]]
+      - [[#name--keys][Name & Keys]]
+      - [[#children][Children]]
+      - [[#inherited-properties][Inherited Properties]]
+      - [[#type][Type]]
+      - [[#target][Target]]
+      - [[#template][Template]]
+      - [[#additional-options][Additional options]]
+      - [[#custom-data][Custom data]]
+      - [[#keyword-expansion][%{KEYWORD} Expansion]]
+      - [[#hooks][Hooks]]
+      - [[#contexts][Contexts]]
+      - [[#disabling-templates][Disabling Templates]]
+      - [[#disabling-warnings][Disabling Warnings]]
+    - [[#custom-variables][Custom Variables]]
+    - [[#contributing][Contributing]]
+:END:
 
 ** Installation
 *** MELPA
@@ -649,7 +655,27 @@ returns:
 
 Normally template "Four" would throw an error because its ~:keys~ are not a string.
 
+**** Disabling Warnings
+The =:warn= keyword disables =doct='s warnings on a per-declaration basis.
+For example:
+
+#+begin_src emacs-lisp
+(let ((doct-warnings t))
+  (doct '(("Ignore unbound symbol warnings" :keys "i"
+           :warn (:not unbound)
+           :file     unbound-variable
+           :function unbound-function)
+          ("Warn here, though" :keys "w"
+           :file     unbound-variable
+           :function unbound-function))))
+#+end_src
+
+For global control of warnings and an explanation of accepted values see =doct-warnings= in [[#custom-variables][Custom Variables]].
+
 *** Custom Variables
+:PROPERTIES:
+:CUSTOM_ID: custom-variables
+:END:
 ~doct~ supports the following variables for customization:
 
 - doct-default-entry-type 'entry ::
