@@ -799,7 +799,8 @@ A child declaration must have:
 and may also have:
 
   - hook functions defined with the hook keywords
-  - additional arguments
+  - contexts declared via the :contexts keyword
+  - additional KEY VAL arguments
 
 A parent declaration must have:
 
