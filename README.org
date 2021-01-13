@@ -693,8 +693,8 @@ e.g.
 
 (setq org-capture-templates
       (doct-add-to org-capture-templates
-                   '("example" :keys "e" ...))
-      'append)
+                   '("example" :keys "e" ...)
+                   'append))
 #+end_src
 *** Custom Variables
 :PROPERTIES:
