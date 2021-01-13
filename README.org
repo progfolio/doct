@@ -53,6 +53,8 @@ becomes:
 
 ** Releases
 
+***  3.1.0
+- add [[#doct-add-to][=doct-add-to=]] function
 ***  3.0.0
 - drop support for recursive =%{keyword}= expansion.
 ***  2.0.0
@@ -67,6 +69,7 @@ becomes:
 - [[#doct-declarative-org-capture-templates][DOCT: Declarative Org Capture Templates]]
   - [[#tldr][tl;dr]]
   - [[#releases][Releases]]
+    - [[#310][3.1.0]]
     - [[#300][3.0.0]]
     - [[#200][2.0.0]]
   - [[#contents][Contents]]
@@ -91,6 +94,7 @@ becomes:
       - [[#contexts][Contexts]]
       - [[#disabling-templates][Disabling Templates]]
       - [[#disabling-warnings][Disabling Warnings]]
+    - [[#doct-add-to][doct-add-to]]
     - [[#custom-variables][Custom Variables]]
     - [[#contributing][Contributing]]
 :END:
@@ -673,6 +677,25 @@ For example:
 
 For global control of warnings and an explanation of accepted values see =doct-warnings= in [[#custom-variables][Custom Variables]].
 
+*** doct-add-to
+#+begin_src emacs-lisp
+(doct-add-to list declarations &optional append)
+#+end_src
+
+Return a copy of =LIST= with converted =DECLARATIONS= added.
+If =APPEND= is non-nil, add to back of =LIST=.
+Otherwise, add to the front of =LIST=.
+=DECLARATIONS= are passed to =doct= and must be the same of the same form =doct= accepts.
+
+e.g.
+#+begin_src emacs-lisp
+;; `org-capture-templates' set earlier elsewhere...
+
+(setq org-capture-templates
+      (doct-add-to org-capture-templates
+                   '("example" :keys "e" ...))
+      'append)
+#+end_src
 *** Custom Variables
 :PROPERTIES:
 :CUSTOM_ID: custom-variables

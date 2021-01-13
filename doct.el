@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.0.7
+;; Version: 3.1.0
 
 ;; This file is not part of GNU Emacs.
 
@@ -1273,6 +1273,14 @@ Normally template \"Four\" would throw an error because its :keys are not a stri
                       template))
                   (doct-flatten-lists-in doct-templates)))
       (setq doct-templates nil))))
+
+;;;###autoload
+(defun doct-add-to (list declarations &optional append)
+  "Return copy of LIST with converted DECLARATIONS added.
+If APPEND is non-nil, add to back of LIST.
+Otherwise, add to front."
+  (let ((args (list (doct declarations) (copy-tree list))))
+    (apply #'append (if append (nreverse args) args))))
 
 (provide 'doct)
 

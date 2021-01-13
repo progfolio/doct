@@ -853,7 +853,92 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                          :test (lambda () "* PASS")
                          :template-file "./template-file.test"))
                       (doct-test-filled-template "t"))))
-                :to-equal "* PASS"))))
+                :to-equal "* PASS")))
+    (describe "doct-add-to"
+      (describe "list declarations"
+        (it "does not mutate LIST"
+          (expect (let ((original (doct '("example" :keys "e" :file "" :template ""))))
+                    (doct-add-to original '("added" :keys "a"  :file "" :template ""))
+                    original)
+                  :to-equal '(("e" "example" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "example" :keys "e" :file "" :template "")))))
+        (it "adds converted DECLARATIONS to front of LIST"
+          (expect (let ((original (doct '("example" :keys "e" :file "" :template ""))))
+                    (doct-add-to original '("added" :keys "a"  :file "" :template "")))
+                  :to-equal '(("a" "added" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "added" :keys "a" :file "" :template ""))
+                              ("e" "example" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "example" :keys "e" :file "" :template "")))))
+        (it "works with parent DECLARATIONS"
+          (expect (let ((original (doct '("original-parent" :keys "p" :file "" :template ""
+                                          :children ("original-child" :keys "c")))))
+                    (doct-add-to original '("added-parent" :keys "p1"  :file "" :template ""
+                                            :children ("added-child" :keys "c"))))
+                  :to-equal '(("p1" "added-parent")
+                              ("p1c" "added-child" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "added-child" :keys "c"
+                                           :inherited-keys "p1c" :file "" :template ""))
+                              ("p" "original-parent")
+                              ("pc" "original-child" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "original-child" :keys "c"
+                                           :inherited-keys "pc" :file "" :template "")))))
+        (it "works with :group DECLARATIONS"
+          (expect (let ((original (doct '(:group "test" :file "" :template ""
+                                                 :children (("A" :keys "a" :children ("A1" :keys "1"))
+                                                            ("B" :keys "b")
+                                                            ("C" :keys "c"))))))
+                    (doct-add-to original '(:group "added-group" :file "" :template ""
+                                                   :children (("D" :keys "d" :children ("D1" :keys "1"))
+                                                              ("E" :keys "e")
+                                                              ("F" :keys "f")))))
+                  :to-equal '(("d" "D")
+                              ("d1" "D1" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "D1" :keys "1" :inherited-keys "d1" :file "" :template ""))
+                              ("e" "E" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "E" :keys "e" :file "" :template ""))
+                              ("f" "F" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "F" :keys "f" :file "" :template ""))
+                              ("a" "A")
+                              ("a1" "A1" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "A1" :keys "1" :inherited-keys "a1" :file "" :template ""))
+                              ("b" "B" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "B" :keys "b" :file "" :template ""))
+                              ("c" "C" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "C" :keys "c" :file "" :template ""))))))
+      (describe "list declarations append"
+        (it "appends to end of LIST"
+          (expect (let ((original (doct '("example" :keys "e" :file "" :template ""))))
+                    (doct-add-to original '("added" :keys "a"  :file "" :template "") 'append))
+                  :to-equal '(("e" "example" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "example" :keys "e" :file "" :template ""))
+                              ("a" "added" entry
+                               (file "")
+                               "" :doct
+                               (:doct-name "added" :keys "a" :file "" :template ""))))))))
   (describe "Hooks"
     (it "errors if value is not a function, variable or nil"
       (expect (doct-test-types '("hook keyword type" :keys "h"
