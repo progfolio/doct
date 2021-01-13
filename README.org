@@ -54,7 +54,7 @@ becomes:
 ** Releases
 
 ***  3.1.0
-- add [[#doct-add-to][=doct-add-to=]] function
+- add [[#doct-add-to][doct-add-to]] function
 ***  3.0.0
 - drop support for recursive =%{keyword}= expansion.
 ***  2.0.0
