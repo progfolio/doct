@@ -210,7 +210,7 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                 :to-throw 'user-error))
       (it "allows nested groups"
         (expect (doct-test-without-declarations
-                 '((:group "Outter" :outter t
+                 '((:group "Outer" :outer t
                            :children
                            ((:group "Inner" :inner t :children
                                     ("nested group" :keys "t" :file ""))))))
@@ -491,7 +491,7 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
               :to-match
               "Warning (doct): :function unbound-symbol unbound \
 during conversion in the \":function warn\" declaration.*"))
-    (it "exlucsively sets target when not used with :file"
+    (it "exclusively sets target when not used with :file"
       (expect (doct-test-without-declarations
                '((":function exclusivity" :keys "f" :function identity
                   ;;remaining keywords ignored
@@ -567,7 +567,7 @@ during conversion in the \":function warn\" declaration.*"))
       (expect (doct-test-types '(":template-file type" :keys "t" :file ""
                                  :template-file type)))
       :to-equal '(:nil :string))
-    (it "warns when value is a string referring to a non-existant file"
+    (it "warns when value is a string referring to a non-existent file"
       (expect (doct-test-warning-message
                 (doct '((":template-file file warning" :keys "f" :file ""
                          :template-file "./not-found"))))
@@ -1109,7 +1109,7 @@ declaration should be set to week or month.
                   :id "1")))
               :to-equal
               '(("e" "example" entry (clock) nil))))
-    (it "returns documented value for :custom exmaple"
+    (it "returns documented value for :custom example"
       (doct '(("Music Gear" :keys "m" :file ""
                :custom (:keys "Moog"))))
       :to-equal

@@ -758,4 +758,4 @@ Please add a test to the test suite if you introduce any changes.
 Thanks,
 nv
 
-#  LocalWords:  DOCT MELPA init doct txt plist unintern nv tl dr
+#  LocalWords:  DOCT MELPA init doct txt plist unintern nv tl dr semver
