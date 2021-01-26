@@ -85,7 +85,7 @@ Or a list containing any of the following symbols:
   - `option-type'
       warn when additional options are not the proper type
 
-If the list's first element is the :not keyword, the list of warnings is disabled.
+If the list's first element is the :not keyword, the warnings are disabled.
 It can be overridden on a per-declaration basis with the :warn keyword."
   :group 'doct
   :type `(choice (const :tag "Enable all warnings" t)
