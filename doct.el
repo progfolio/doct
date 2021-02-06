@@ -32,6 +32,7 @@
 (eval-when-compile (require 'subr-x))
 (require 'seq)
 (require 'warnings)
+(require 'cl-lib)
 
 ;;; Custom Options
 (defgroup doct nil
@@ -1281,6 +1282,87 @@ If APPEND is non-nil, add to back of LIST.
 Otherwise, add to front."
   (let ((args (list (doct declarations) (copy-tree list))))
     (apply #'append (if append (nreverse args) args))))
+
+
+;; A structure for captures
+;; PARENTS is a list of strings which are the names of the capture's parents
+;; CHILD is t if the capture is a child of another and nil if it isn't
+;; DECLARATION is the declaration of the capture in doct
+(cl-defstruct doct--capture
+  parents
+  child
+  declaration)
+
+;; The capture namespace. Hash-keys are strings.
+(defvar doct--capture-namespace (make-hash-table :test 'equal))
+
+(defun doct--capture-boundp (name)
+  "Return t if NAME is bound to a capture and nil if it isn't."
+  (and (gethash name doct--capture-namespace) t))
+
+
+(defun doct--compute-children (name)
+  "Search the doct--capture-namespace for the children of the capture NAME.
+Return them as a list."
+  (cl-loop for k being each hash-key of doct--capture-namespace
+           using (hash-value c)
+           appending
+           (when (cl-member name (doct--capture-parents c) :test #'equal)
+             (list k))))
+
+(defun doct--make-declaration (name)
+  "Return the complete declaration for doct--capture NAME collecting it's children."
+  (let ((children (doct--compute-children name)))
+    (if children
+        (append (doct--capture-declaration
+                 (gethash name doct--capture-namespace))
+                (list
+                 :children (mapcar #'doct--make-declaration
+                                   children)))
+      (doct--capture-declaration
+       (gethash name doct--capture-namespace)))))
+
+;;;###autoload
+(cl-defmacro doct-defcapture (name (&rest parents) &body body)
+  "Define a capture NAME and optionally add it to the children of PARENTS.
+NAME must be a string. BODY is the capture template's declarations in
+doct syntax. Then, update org-capture-templates."
+  `(progn
+     (puthash ,name
+              (make-doct--capture :parents ',parents
+                                  :child ,(and parents t)
+                                  :declaration ',(cons name body))
+              doct--capture-namespace)
+     (setq org-capture-templates
+           (doct (loop for k being each hash-key of doct--capture-namespace
+                       using (hash-value c)
+                       appending
+                       (unless (and (doct--capture-child c) t)
+                         (list (doct--make-declaration k))))))))
+
+;;;###autoload
+(defun doct-generate-defcapture (name)
+  "Return capture NAME's definition if NAME is doct--capture-boundp.
+Otherwise return nil."
+  (when (doct--capture-boundp name)
+    (let ((capture (gethash name doct--capture-namespace)))
+      `(defcapture ,name (,@(doct--capture-parents capture))
+         ,@(doct--capture-declaration capture)))))
+
+;;;###autoload
+(defmacro doct-remove-capture (name)
+  "Remove the capture NAME if NAME is doct--capture-boundp.
+Then, update org-capture-templates. If NAME is not doct--capture-boundp
+return nil."
+  `(when (doct--capture-boundp ,name)
+     (remhash ,name doct--capture-namespace)
+     (setq org-capture-templates
+           (doct (loop for k being each hash-key of doct--capture-namespace
+                       using (hash-value c)
+                       appending
+                       (unless (and (doct--capture-child c) t)
+                         (list (doct--make-declaration k))))))))
+
 
 (provide 'doct)
 

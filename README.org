@@ -6,6 +6,7 @@
 ** tl;dr
 :PROPERTIES:
 :TOC:      ignore
+:CUSTOM_ID: tl-dr
 :END:
 #+begin_src emacs-lisp
 (defun my-org-template-hook ()
@@ -696,6 +697,94 @@ e.g.
                    '("example" :keys "e" ...)
                    'append))
 #+end_src
+
+*** doct-defcapture
+
+The =doct-defcapture= macro is a =defun= analog for defining capture templates. It provides a useful veneer to the =doct= DSL that allows us to define capture templates in a way that is arguably more legible. It's syntax is:
+
+#+begin_src emacs-lisp
+(doct-defcapture NAME (PARENTS) &body DECLARATION)
+
+#+end_src
+
+where =NAME= is a string that corresponds to the capture template's name, =PARENTS= is any number of strings that correspond to the capture template's parents' names, and =DECLARATION= is a capture template declaration in =doct=.
+
+With the =doct-defcapture= macro, the [[#tl-dr][example above]] becomes:
+
+#+begin_src emacs-lisp
+(doct-defcapture "Parent" ()
+  :keys "p"
+  :file "~/example.org"
+  :prepend t
+  :template ("* %{todo-state} %^{Description}"
+             ":PROPERTIES:"
+             ":Created: %U"
+             ":END:"
+             ":%?"))
+
+(doct-defcapture "First Child" ("Parent")
+  :headline "One"
+  :todo-state "TODO"
+  :hook (lambda () (message "\" First Child\" selected.")))
+
+(doct-defcapture "Second Child" ("Parent")
+  :headline "Two"
+  :todo-state "NEXT")
+
+(doct-defcapture "Third Child" ("Parent")
+  :headline "Three"
+  :todo-state "MAYBE")
+#+end_src
+
+It has the added feature that if we would like to try out a few capture template definitions on =ielm=,  we could do that capture by capture, instead of having to set the =org-capture-templates= variable every time manually. Suppose you didn't like how the =todo-state= "MAYBE" looks in the example above. You can try out a few others on =ielm= or through =M-x eval-expression= like so:
+
+#+begin_src emacs-lisp
+
+;; Try one
+(doct-defcapture "Third Child" ("Parent")
+  :headline "Three"
+  :todo-state "STUCK")
+
+;; Try two
+(doct-defcapture "Third Child" ("Parent")
+  :headline "Three"
+  :todo-state "COULD")
+
+#+end_src
+
+Finally, if you would like to add that to you configuration, you can use =doct-generate-defcapture= to =insert= it to your config file:
+
+#+begin_src emacs-lisp
+;; With M-x eval-espression,
+(insert (format "%S" (doct-generate-defcapture "Third Child")))
+
+;; inserts the following:
+(doct-defcapture "Third Child" ("Parent") :headline "Three" :todo-state "COULD")
+
+#+end_src
+
+The function =doct-generate-defcapture= is a =generate-defclass= analog ([[https://mitpress.mit.edu/books/art-metaobject-protocol][Kiczales, et al.]], 1991, p. 53). It takes an argument which is a string that corresponds to a capture template's name. It returns it's definition as a =doct-defcapture= macro. It can be useful for editing a capture template's definition or you can use it together with =doct-remove-capture= to temporarily remove a capture template definition. For example:
+
+#+begin_src emacs-lisp
+;; Define a variable with the definition of the "First Child"
+;; capture template.
+(defvar old-capture (doct-generate-defcapture "First Child"))
+
+;; Define a new one.
+(doct-defcapture "First Child" ("Some other")
+  ...)
+
+;; Or remove the capture.
+(doct-remove-capture "First Child")
+
+;; Do something... Perhaps use the same :keys "First Child"
+;; uses for something else while working with a particular file.
+;; or a particular project.
+
+;; Reinstall old-capture
+(eval old-capture)
+#+end_src
+
 *** Custom Variables
 :PROPERTIES:
 :CUSTOM_ID: custom-variables

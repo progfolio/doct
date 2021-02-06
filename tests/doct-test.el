@@ -1114,7 +1114,24 @@ declaration should be set to week or month.
                :custom (:keys "Moog"))))
       :to-equal
       '((#1="m" #2="Music Gear" entry (file #3="") nil
-            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#))))))
+            :doct (#2# :keys #1# :file #3# :custom #4=(:keys "Moog") :doct-custom #4#)))))
+  (describe "doct-defcapture"
+    :var (namespace)
+    (before-all (setq namespace doct--capture-namespace))
+    (after-all (setq doct--capture-namespace namespace))
+    (it "returns complete doct definition collecting children"
+        (expect (progn
+                  (doct-defcapture "parent" ()
+                                   :keys "p")
+                  (doct-defcapture "child" ("parent")
+                                   :keys "c")
+                  (doct-defcapture "grandchild" ("child")
+                                   :keys "g"
+                                   :type plain
+                                   :template "test")
+                  (doct--make-declaration "parent"))
+                :to-equal
+                '(("p" "parent")("pc" "child")("pcg" "grandchild" plain (file "") "test"))))))
 
 (provide 'doct-test)
 
