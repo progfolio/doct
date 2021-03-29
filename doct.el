@@ -35,7 +35,7 @@
 
 ;;; Custom Options
 (defgroup doct nil
-  "DOCT: Declarative Org Capture Templates"
+  "DOCT: Declarative Org Capture Templates."
   :group 'org
   :prefix "doct-")
 
