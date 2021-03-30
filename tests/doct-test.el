@@ -905,28 +905,28 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               ("d1" "D1" entry
                                (file "")
                                "" :doct
-                               (:doct-name "D1" :keys "1" :inherited-keys "d1" :file "" :template ""))
+                               (:doct-name "D1" :keys "1" :inherited-keys "d1" :file "" :template "" :doct-group "added-group"))
                               ("e" "E" entry
                                (file "")
                                "" :doct
-                               (:doct-name "E" :keys "e" :file "" :template ""))
+                               (:doct-name "E" :keys "e" :file "" :template "" :doct-group "added-group"))
                               ("f" "F" entry
                                (file "")
                                "" :doct
-                               (:doct-name "F" :keys "f" :file "" :template ""))
+                               (:doct-name "F" :keys "f" :file "" :template "" :doct-group "added-group"))
                               ("a" "A")
                               ("a1" "A1" entry
                                (file "")
                                "" :doct
-                               (:doct-name "A1" :keys "1" :inherited-keys "a1" :file "" :template ""))
+                               (:doct-name "A1" :keys "1" :inherited-keys "a1" :file "" :template "" :doct-group "test"))
                               ("b" "B" entry
                                (file "")
                                "" :doct
-                               (:doct-name "B" :keys "b" :file "" :template ""))
+                               (:doct-name "B" :keys "b" :file "" :template "" :doct-group "test"))
                               ("c" "C" entry
                                (file "")
                                "" :doct
-                               (:doct-name "C" :keys "c" :file "" :template ""))))))
+                               (:doct-name "C" :keys "c" :file "" :template "" :doct-group "test"))))))
       (describe "list declarations append"
         (it "appends to end of LIST"
           (expect (let ((original (doct '("example" :keys "e" :file "" :template ""))))

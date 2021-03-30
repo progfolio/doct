@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.0
+;; Version: 3.2.0
 
 ;; This file is not part of GNU Emacs.
 
@@ -172,6 +172,7 @@ Its value is not stored between invocations to doct.")
                                    :disabled
                                    :doct
                                    :doct-name
+                                   :doct-group
                                    :inherited-keys
                                    :keys
                                    :type
@@ -404,22 +405,22 @@ Retrun AFTER form."
 (defun doct--replace-template-strings (string)
   "Replace STRING's %{KEYWORD} occurrences with their :doct-custom values."
   (doct--map-keyword-syntax string
-    (let* ((keyword (intern (concat ":" (match-string 2))))
-           (val (doct-get keyword)))
-      (unless (or (functionp val) (stringp val) (null val))
-        (doct--warn 'template-keyword-type
-                    (concat
-                     "%%{%s} wrong type: stringp %s in the %S declaration"
-                     "\n  Substituted for empty string.")
-                    keyword val (doct-get :doct-name))
-        (setq val ""))
-      (replace-match (if (functionp val)
-                         (save-excursion
-                           (save-restriction
-                             (save-match-data (funcall val))))
-                       (or val ""))
-                     nil t))
-    (buffer-string)))
+                            (let* ((keyword (intern (concat ":" (match-string 2))))
+                                   (val (doct-get keyword)))
+                              (unless (or (functionp val) (stringp val) (null val))
+                                (doct--warn 'template-keyword-type
+                                            (concat
+                                             "%%{%s} wrong type: stringp %s in the %S declaration"
+                                             "\n  Substituted for empty string.")
+                                            keyword val (doct-get :doct-name))
+                                (setq val ""))
+                              (replace-match (if (functionp val)
+                                                 (save-excursion
+                                                   (save-restriction
+                                                     (save-match-data (funcall val))))
+                                               (or val ""))
+                                             nil t))
+                            (buffer-string)))
 
 (defun doct--expansion-syntax-p (string)
   "Return t for STRING containing %{KEYWORD} syntax, else nil."
@@ -504,22 +505,22 @@ Retrun AFTER form."
       (dolist (string strings)
         (when (doct--expansion-syntax-p string)
           (doct--map-keyword-syntax string
-            (let* ((keyword (intern (concat ":" (match-string 2))))
-                   (custom  (plist-get doct--current-plist :custom))
-                   (member  (or (plist-member custom keyword)
-                                (plist-member doct--current-plist keyword)))
-                   (value   (cadr member)))
-              ;;If the value is a function, we can't reliably validate during
-              ;;conversion. It may rely on runtime context.
-              (when (functionp value) (throw 'deferred nil))
-              (unless (or member
-                          ;;doct implicitly adds these
-                          (member keyword '(:inherited-keys :doct-name)))
-                (push (symbol-name keyword) undeclared))
-              (unless (or (stringp value) (null value))
-                (push (symbol-name keyword) not-string))
-              (replace-match (format "%s" (or value "")) nil t nil)
-              (setq string (buffer-string)))))
+                                    (let* ((keyword (intern (concat ":" (match-string 2))))
+                                           (custom  (plist-get doct--current-plist :custom))
+                                           (member  (or (plist-member custom keyword)
+                                                        (plist-member doct--current-plist keyword)))
+                                           (value   (cadr member)))
+                                      ;;If the value is a function, we can't reliably validate during
+                                      ;;conversion. It may rely on runtime context.
+                                      (when (functionp value) (throw 'deferred nil))
+                                      (unless (or member
+                                                  ;;doct implicitly adds these
+                                                  (member keyword '(:inherited-keys :doct-name)))
+                                        (push (symbol-name keyword) undeclared))
+                                      (unless (or (stringp value) (null value))
+                                        (push (symbol-name keyword) not-string))
+                                      (replace-match (format "%s" (or value "")) nil t nil)
+                                      (setq string (buffer-string)))))
         (push string template))
       (doct--warn-template-entry-type-maybe (string-join (nreverse template) "\n"))
       (doct--warn-template-maybe undeclared not-string))))
@@ -706,9 +707,10 @@ CONDITION is either when or unless."
 The only exceptions to this are the :keys, :children and :group properties.
 CHILD's keys are prefixed with PARENT's.
 The :children and :group properties are ignored."
-  ;;remove :group description
-  (when (stringp (car child))
-    (pop child))
+  ;;remove nested :group description
+  (when-let ((group (or (and (stringp (car child)) (pop child))
+                        (plist-get child :group))))
+    (setq child (plist-put child :doct-group group)))
   (dolist (keyword (seq-filter (lambda (el)
                                  (and (keywordp el)
                                       (not (member el '(:children :group)))))
@@ -743,9 +745,11 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
 For a full description of the PROPERTIES plist see `doct'."
   (unless (eq (plist-get properties :disabled) t)
     (let ((group (eq name :group)))
-      ;;remove :group description
-      (when (and group (stringp (car properties)))
-        (setq properties (cdr properties)))
+      ;; Store :group description as :doct-group.
+      (when group
+        (let ((description (car properties)))
+          (when (stringp description)
+            (setq properties (plist-put (cdr properties) :doct-group description)))))
       (setq doct--current `(,name ,@properties))
       (setq doct--current-plist (doct--type-check 'properties properties '(doct--plist-p)))
       (let ((warning-suppress-log-types (doct--suppressed-warnings)))
