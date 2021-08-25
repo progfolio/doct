@@ -671,9 +671,9 @@ CONDITION is either when or unless."
       ((eq constraint :function)
        (doct--type-check :function value '(functionp doct--variable-p)))
       ((or (eq constraint :when) (eq constraint :unless))
-       (eval (macroexpand `(doct--conditional-constraint
-                            ,(intern (substring (symbol-name constraint) 1))
-                            ,value))))
+       (eval `(doct--conditional-constraint
+               ,(intern (substring (symbol-name constraint) 1))
+               ,value)))
       ((stringp value)
        `(,(doct--convert-constraint-keyword constraint) . ,value))
       ((doct--list-of-strings-p value)
