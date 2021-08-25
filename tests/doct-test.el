@@ -991,10 +991,10 @@ Should be member of (t nil unbound template-keyword template-keyword-type templa
           (expect (doct-test-warning-message
                     (let ((doct-warnings t))
                       (doct declarations)))
-                  :to-equal
+                  :to-match
                   "Warning (doct): :file unbound unbound during conversion in the \"doct-warnings\" declaration
 Warning (doct): expanded :template \" 2\" in the \"doct-warnings\" declaration is not a valid Org entry.
-  Are you missing the leading ’*’?
+  Are you missing the leading .*.?
 Warning (doct): %{KEYWORD} :undeclared undeclared in the \"doct-warnings\" declaration
 Warning (doct): %{KEYWORD} :not-string did not evaluate to a string in the \"doct-warnings\" declaration
 Warning (doct): :tree-type weak in the \"doct-warnings\" declaration should be set to week or month.
