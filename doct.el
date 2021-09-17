@@ -1,6 +1,6 @@
 ;;; doct.el --- DOCT: Declarative Org capture templates -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2020 Nicholas Vollmer
+;; Copyright (C) 2019-2021 Nicholas Vollmer
 
 ;; Author: Nicholas Vollmer <progfolio@protonmail.com>
 ;; URL: https://github.com/progfolio/doct
