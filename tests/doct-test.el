@@ -938,7 +938,14 @@ no leading pipe\" in the \"template table-line entry type\" declaration is not a
                               ("a" "added" entry
                                (file "")
                                "" :doct
-                               (:doct-name "added" :keys "a" :file "" :template ""))))))))
+                               (:doct-name "added" :keys "a" :file "" :template "")))))))
+    (describe "doct-get"
+      (it "prefers :doct-custom"
+        (expect (let ((org-capture-plist
+                       (nthcdr 5 (car (doct '("test" :keys "t" :file "" :implicit t :custom
+                                              (:explicit t :keys "Moog")))))))
+                  (list (doct-get :keys) (doct-get :implicit) (doct-get :explicit)))
+                :to-equal '("Moog" t t)))))
   (describe "Hooks"
     (it "errors if value is not a function, variable or nil"
       (expect (doct-test-types '("hook keyword type" :keys "h"

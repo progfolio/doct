@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.0
+;; Version: 3.1.1
 
 ;; This file is not part of GNU Emacs.
 
@@ -586,12 +586,10 @@ Returns PAIR."
 (defun doct--custom-properties ()
   "Return a copy of declaration's :custom plist with unrecognized keywords added."
   (let ((keywords (delete-dups (seq-filter #'keywordp doct--current-plist)))
-        custom)
-    (dolist (keyword keywords)
+        (custom (copy-tree (doct--get :custom))))
+    (dolist (keyword keywords (doct--type-check :custom custom '(doct--plist-p)))
       (unless (member keyword doct-recognized-keywords)
-        (setq custom (plist-put custom keyword (doct--get keyword)))))
-    (append (doct--type-check :custom (doct--get :custom) '(doct--plist-p))
-            custom)))
+        (setq custom (plist-put custom keyword (doct--get keyword)))))))
 
 ;;; External Variables
 ;;;;Hooks
@@ -733,10 +731,10 @@ If PARENT is non-nil, list is of the form (KEYS NAME)."
                 ,(doct--target)
                 ,(doct--template)
                 ,@(doct--additional-options)))
-          :doct (:doct-name ,name
-                            ,@(cdr doct--current)
-                            ,@(when-let ((custom (doct--custom-properties)))
-                                `(:doct-custom ,(doct--custom-properties))))))
+          :doct ( :doct-name ,name
+                  ,@(cdr doct--current)
+                  ,@(when-let ((custom (doct--custom-properties)))
+                      `(:doct-custom ,custom)))))
 
 (defun doct--convert (name &rest properties)
   "Convert declaration to a template named NAME with PROPERTIES.
