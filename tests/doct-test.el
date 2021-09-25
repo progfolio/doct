@@ -93,6 +93,7 @@ Returns *Warnings* `buffer-string'."
   "Return t."
   t)
 
+;;@OPTIMIZATION: This could be replaced with org-capture-fill-template + string-trim
 (defun doct-test-filled-template (keys)
   "Return filled template string for template starting with KEYS."
   ;;otherwise we get an error because we can't bookmark temp buffer
@@ -125,7 +126,8 @@ Each pair is of the form: (KEY TEMPLATE-DESCRIPTION)."
                                         (buffer-string))))))
               (org-mks (org-contextualize-keys
                         org-capture-templates
-                        org-capture-templates-contexts) "Selection Test"))))
+                        org-capture-templates-contexts)
+                       "Selection Test"))))
          menu-items)
     (with-temp-buffer
       (insert selection-menu)
@@ -383,9 +385,9 @@ during conversion in the \":context rule unbound warning\" declaration\n"))
                        :custom (:keys "Moog"))))
               :to-equal
               '((#1="c" #2=":custom data" entry (file #3="") nil
-                    :doct (:doct-name #2# :keys #1# :file #3# #4=:implicit #5=t
-                                      :custom (#6=:keys #7="Moog")
-                                      :doct-custom (#6# #7# #4# #5#))))))
+                    :doct ( :doct-name #2# :keys #1# :file #3# #4=:implicit #5=t
+                            :custom (#6=:keys #7="Moog")
+                            :doct-custom (#6# #7# #4# #5#))))))
     (it "errors if value is not a plist or nil"
       (expect (doct-test-types '(":custom type" :keys "t" :file "" :custom type))
               :to-equal '(:nil :plist))))
