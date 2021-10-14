@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.1
+;; Version: 3.1.2
 
 ;; This file is not part of GNU Emacs.
 
@@ -601,7 +601,8 @@ Returns PAIR."
 
 (defun doct--restore-org-capture-plist ()
   "Restore `org-capture-plist' for use in `org-capture-after-finalize-hook'.
-Necessary since `org-capture-after-finalize-hook' cannot access `org-capture-current-plist'."
+Necessary since `org-capture-after-finalize-hook' cannot access
+`org-capture-current-plist'."
   (setq org-capture-plist org-capture-current-plist))
 
 ;;install hook functions
@@ -834,7 +835,7 @@ Inherited Properties
 ====================
 
 A child inherits its ancestors' properties.
-It may optionally override an inherited property by specifying that property \
+It may optionally override an inherited property by specifying that property
 directly.
 For example, considering:
 
@@ -843,7 +844,7 @@ For example, considering:
               :children (\"Parent\" :keys \"p\"
                          :children (\"Child\" :keys \"c\")))))
 
-The \"Child\" template inherits its :file property from the \"Grandparent\" \
+The \"Child\" template inherits its :file property from the \"Grandparent\"
 declaration.
 The \"Parent\" declaration could override this value:
 
@@ -872,7 +873,7 @@ The :keys keyword defines the keys to access the template from the capture menu.
 Type
 ====
 
-The :type keyword defines the template's entry type and accepts the following \
+The :type keyword defines the template's entry type and accepts the following
 symbols:
 
   - entry
@@ -892,7 +893,7 @@ symbols:
   - plain
     Text inserted as is.
 
-`doct-default-entry-type' defines the entry type when the :type keyword is not \
+`doct-default-entry-type' defines the entry type when the :type keyword is not
 provided.
 
 For example, with `doct-default-entry-type' set to entry (the default):
@@ -929,10 +930,10 @@ The :file keyword is not necessary for these.
 
   - :function (lambda () ;visit file and move point to desired location...)
     This keyword is exclusive when used without the :file keyword.
-    It is responsible for finding the proper file and location to insert the \
-capture item.
-    If :file defines a target file, then the function is only responsible for \
-moving point to the desired location within that file.
+    It is responsible for finding the proper file and location to insert the
+    capture item.
+    If :file defines a target file, then the function is only responsible for
+    moving point to the desired location within that file.
 
   (doct \\='((\"example\"
               :keys \"e\"
@@ -962,7 +963,7 @@ It may be:
   - a function:
 
   ;;lambda
-  (doct ... :file (lambda () (concat (read-string \"Org Capture Path: \") \".org\")))
+  (doct ... :file (lambda () (concat (read-string \"Capture Path: \") \".org\")))
   ;;or a function symbol
   (doct ... :file my/get-file-path)
 
@@ -982,17 +983,18 @@ The following keywords refine the target file location:
     Requires use of the :file keyword.
     If :datetree has a non-nil value, create a date tree for today's date.
     Use a non-nil :time-prompt property to prompt for a different date.
-    Set the :tree-type property to the symbol 'week' to make a week tree \
-instead of the default month tree.
+    Set the :tree-type property to the symbol 'week' to make a week tree
+    instead of the default month tree.
 
   - :regexp \"regexp describing location\"
     File to entry matching regexp in target file
 
   - :function location-finding-function
-    If used in addition to the :file keyword, the value should be a function \
-that finds the desired location in that file.
-    If used as an exclusive keyword (see above), the function must locate \
-both the target file and move point to the desired location.
+    If used in addition to the :file keyword, the value should be a function
+    that finds the desired location in that file.
+    If used as an exclusive keyword (see above), the function must locate
+    both the target file and move point to the desired location.
+
 
 Template
 ========
@@ -1028,10 +1030,10 @@ see `org-capture-templates' for a full list of additional options.
 Custom data
 ===========
 
-doct stores unrecognized keywords on the template's `org-capture-plist' \
-as members of the doct-custom plist.
-This makes a template's metadata accessible during capture.
-See \"%{KEYWORD} Expansion\" below for detail on using that data.
+doct stores unrecognized keywords on the template's `org-capture-plist' as
+members of the doct-custom plist. This makes a template's metadata accessible
+during capture. See \"%{KEYWORD} Expansion\" below for detail on using that
+data.
 
 The :custom keyword accepts a plist.
 The doct-custom plist stores its elements.
@@ -1083,8 +1085,7 @@ For example, with:
            :children ((\"One\" :keys \"1\" :todo-state \"TODO\")
                       (\"Two\" :keys \"2\" :todo-state \"IDEA\")))))
 
-Each child template has its :todo-state value expanded in the inherited \
-:template.
+Each child  has its :todo-state value expanded in the inherited :template.
 
 Values should be strings, functions or nil.
 
@@ -1119,9 +1120,8 @@ Nil values expand to an empty string.
 Hooks
 =====
 
-Adding the following keywords in a declaration adds its value to the appropriate \
-`org-capture' hook.
-The value may be a function or a variable.
+Adding the following keywords in a declaration adds its value to the appropriate
+`org-capture' hook. The value may be a function or a variable.
 
   - :hook
     `org-capture-mode-hook'
@@ -1140,7 +1140,7 @@ For example:
            :hook ,(defun my/fn ()
                    (ignore)))))
 
-runs my/fn during the `org-capture-mode-hook' when selecting the \"example\" template.
+runs my/fn during `org-capture-mode-hook' when selecting template \"example\".
 
 Contexts
 ========
@@ -1216,20 +1216,20 @@ The following keywords are available to create contextual rules:
                                (string-to-number (format-time-string \"%H\"))
                                17)))))))
 
-Adding :keys to a rule does the same as above, but remaps the template's keys \
-to the template with keys matching the :keys string.
-For example:
+Adding :keys to a rule does the same as above, but remaps the template's keys to
+the template with keys matching the :keys string. For example:
 
   (doct \\='((\"In *scratch* remapped to t, else use original template\"
            :keys \"n\" :file \"\"
            :contexts ((:unless-buffer \"^\\*scratch\\*$\" :keys \"n\")
                       (:in-buffer     \"^\\*scratch\\*$\" :keys \"t\")))))
 
-Rule keywords, spare :function, :when, and :unless may also take a list of \
+Rule keywords, spare :function, :when, and :unless may also take a list of
 strings for their values.
 
   (doct \\='((\"Only in org-mode or emacs-lisp-mode\" :keys \"n\" :file \"\"
            :contexts ((:in-mode (\"org-mode\" \"emacs-lisp-mode\"))))))
+
 
 Disabling Templates
 ===================
@@ -1255,8 +1255,7 @@ returns:
    (\"2\" \"Two\"   entry (file \"\") nil)
    (\"3\" \"Three\" entry (file \"\") nil))
 
-Normally template \"Four\" would throw an error because its :keys are not a string."
-
+Normally template \"Four\" would error because its :keys are not a string."
   (let* ((declarations (doct--wrap-list declarations))
          (entries (mapcar #'doct--convert-declaration-maybe (copy-tree declarations))))
     (unwind-protect
