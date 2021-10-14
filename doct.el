@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.2
+;; Version: 3.1.3
 
 ;; This file is not part of GNU Emacs.
 
@@ -304,11 +304,10 @@ Intended to be used at runtime."
 (defun doct-flatten-lists-in (list &optional acc)
   "Flatten each list in LIST. Return recursive accumulator, ACC.
 For example: '((1) ((2) (3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))."
-  (dolist (element (nreverse (copy-tree list)))
+  (dolist (element (nreverse (copy-tree list)) acc)
     (if (seq-every-p #'listp element)
         (setq acc (doct-flatten-lists-in element acc))
-      (push element acc)))
-  acc)
+      (push element acc))))
 
 ;;; Acessors
 ;;;; Children
