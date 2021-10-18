@@ -137,6 +137,7 @@ Its value is not stored between invocations to doct.")
                                :kill-buffer
                                :no-save
                                :prepend
+                               :refile-targets
                                :table-line-pos
                                :time-prompt
                                :tree-type
