@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.3
+;; Version: 3.1.4
 
 ;; This file is not part of GNU Emacs.
 
@@ -329,7 +329,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     (when (and group keys)
       (signal 'doct-group-keys `(,doct--current)))
     (unless (or group keys inherited) (signal 'doct-no-keys `(,doct--current)))
-    (let ((keys (or (cadr inherited) (cadr keys))))
+    (let ((keys (cadr (or inherited keys))))
       (unless (or (stringp keys) group)
         (signal 'doct-wrong-type-argument `(stringp (:keys ,keys) ,doct--current)))
       keys)))
@@ -351,8 +351,8 @@ If GROUP is non-nil, make sure there is no :keys value."
        (when (doct--get :datetree)
          (push :datetree type))
        (push :olp type)
-       (dolist (heading (nreverse
-                         (copy-tree (doct--type-check :olp path '(doct--list-of-strings-p)))))
+       (dolist (heading (reverse
+                         (doct--type-check :olp path '(doct--list-of-strings-p))))
          (push heading target)))
       (`(:function ,fn)
        (doct--type-check :function fn '(functionp doct--variable-p null))
@@ -537,7 +537,6 @@ Retrun AFTER form."
      '(function doct--fill-template))
     (`(:template ,template)
      ;;simple values: string, list of strings with no expansion syntax
-     (setq template template)
      (pcase template
        ((and (pred stringp)
              (guard (not (doct--expansion-syntax-p template))))
@@ -546,12 +545,12 @@ Retrun AFTER form."
              (guard (not (seq-some #'doct--expansion-syntax-p template))))
         (doct--warn-template-entry-type-maybe (string-join template "\n")))
        (deferred
-         (doct--type-check :template deferred
-                           '(functionp stringp doct--list-of-strings-p doct--variable-p))
-         (unless (or (functionp deferred) (doct--variable-p deferred))
-           (doct--validate-template
-            (if (doct--list-of-strings-p deferred) deferred `(,deferred))))
-         '(function doct--fill-template))))))
+        (doct--type-check :template deferred
+                          '(functionp stringp doct--list-of-strings-p doct--variable-p))
+        (unless (or (functionp deferred) (doct--variable-p deferred))
+          (doct--validate-template
+           (if (doct--list-of-strings-p deferred) deferred `(,deferred))))
+        '(function doct--fill-template))))))
 
 ;;;; Additional Options
 (defun doct--validate-option (pair)
@@ -579,9 +578,8 @@ Returns PAIR."
     (dolist (keyword doct-option-keywords options)
       (when-let ((pair (plist-member doct--current-plist keyword)))
         (setq options (apply #'plist-put
-                             `(,options
-                               ,@(doct--validate-option
-                                  `(,(car pair) ,(cadr pair))))))))))
+                             `(,options ,@(doct--validate-option
+                                           `(,(car pair) ,(cadr pair))))))))))
 
 (defun doct--custom-properties ()
   "Return a copy of declaration's :custom plist with unrecognized keywords added."
@@ -611,9 +609,8 @@ Necessary since `org-capture-after-finalize-hook' cannot access
     (let* ((name (symbol-name keyword))
            (short-name (substring name 1))
            (fn-name (intern (concat "doct-run-" short-name)))
-           (hook-name (concat "org-capture-" (if (string= short-name "hook")
-                                                 "mode"
-                                               short-name) "-hook")))
+           (hook-name (format "org-capture-%s-hook"
+                              (if (string= short-name "hook") "mode" short-name))))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
       (put  fn-name 'function-documentation
             (concat "Run the current declaration's " name " hook."
@@ -628,9 +625,8 @@ Necessary since `org-capture-after-finalize-hook' cannot access
   (dolist (keyword doct-hook-keywords)
     (let* ((name (substring (symbol-name keyword) 1))
            (fn-name (intern (concat "doct-run-" name)))
-           (hook (intern (concat "org-capture-" (if (string= name "hook")
-                                                    "mode"
-                                                  name) "-hook"))))
+           (hook (intern (format "org-capture-%-hook"
+                                 (if (string= name "hook") "mode" name)))))
       (remove-hook hook fn-name))))
 
 ;;;; Contexts
@@ -657,10 +653,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access
 (defmacro doct--conditional-constraint (condition value)
   "Return a lambda which wraps VALUE in the appropraite CONDITION form.
 CONDITION is either when or unless."
-  (let ((form (if (functionp value)
-                  `(,value)
-                value)))
-    `(lambda () (,condition ,form t))))
+  `(lambda () (,condition ,(if (functionp value) `(,value) value) t)))
 
 (defun doct--constraint-rule-list (constraint value)
   "Create a rule list for declaration's CONSTRAINT with VALUE."
@@ -761,13 +754,14 @@ For a full description of the PROPERTIES plist see `doct'."
                                      (doct--wrap-list children)))
             (doct--add-contexts)
             (dolist (keyword doct-hook-keywords)
-              (when-let (val (cadr (plist-member doct--current-plist keyword)))
+              (when-let ((val (cadr (plist-member doct--current-plist keyword))))
                 (doct--type-check keyword val '(functionp doct--variable-p null)))))
           (unless group
             (when children
               ;;restore these because processing children overwrites them
               (setq doct--current `(,name ,@properties))
-              (setq doct--current-plist (doct--type-check 'properties properties '(doct--plist-p))))
+              (setq doct--current-plist
+                    (doct--type-check 'properties properties '(doct--plist-p))))
             (setq entry (doct--compose-entry keys name children)))
           (if children
               (if group
@@ -1266,7 +1260,7 @@ Normally template \"Four\" would error because its :keys are not a string."
           ;;remove metadata from parent templates
           (mapcar (lambda (template)
                     (if (eq (nth 2 template) :doct)
-                        `(,(car template) ,(cadr template))
+                        (list (car template) (cadr template))
                       template))
                   (doct-flatten-lists-in doct-templates)))
       (setq doct-templates nil))))
