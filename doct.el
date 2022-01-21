@@ -464,7 +464,7 @@ Retrun AFTER form."
       (pcase (doct--entry-type)
         ('entry
          (unless (or (string-prefix-p "* " trimmed)
-                     (string= trimmed "*"))
+                     (equal trimmed "*"))
            (doct--warn  'template-entry-type
                         (concat "expanded :template %S in the %S declaration "
                                 "is not a valid Org entry.\n"
@@ -610,7 +610,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access
            (short-name (substring name 1))
            (fn-name (intern (concat "doct-run-" short-name)))
            (hook-name (format "org-capture-%s-hook"
-                              (if (string= short-name "hook") "mode" short-name))))
+                              (if (equal short-name "hook") "mode" short-name))))
       (fset fn-name (apply-partially #'doct--run-hook keyword))
       (put  fn-name 'function-documentation
             (concat "Run the current declaration's " name " hook."
@@ -626,7 +626,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access
     (let* ((name (substring (symbol-name keyword) 1))
            (fn-name (intern (concat "doct-run-" name)))
            (hook (intern (format "org-capture-%-hook"
-                                 (if (string= name "hook") "mode" name)))))
+                                 (if (equal name "hook") "mode" name)))))
       (remove-hook hook fn-name))))
 
 ;;;; Contexts
