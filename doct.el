@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.4
+;; Version: 3.1.5
 
 ;; This file is not part of GNU Emacs.
 
@@ -976,6 +976,7 @@ The following keywords refine the target file location:
   - :datetree nil|t
     Requires use of the :file keyword.
     If :datetree has a non-nil value, create a date tree for today's date.
+    If :olp is given, the date tree is added under that heading path.
     Use a non-nil :time-prompt property to prompt for a different date.
     Set the :tree-type property to the symbol 'week' to make a week tree
     instead of the default month tree.
