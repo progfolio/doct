@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.5
+;; Version: 3.1.6
 
 ;; This file is not part of GNU Emacs.
 
@@ -345,15 +345,18 @@ If GROUP is non-nil, make sure there is no :keys value."
 ;;;; Target
 (defun doct--target-file (value)
   "Convert declaration's :file VALUE and extensions to capture template syntax."
-  (let (type target)
-    (pcase (doct--first-in doct-file-extension-keywords)
-      ((or `(:olp ,path) `(:datetree ,_))
-       (when (doct--get :datetree)
-         (push :datetree type))
-       (push :olp type)
-       (dolist (heading (reverse
-                         (doct--type-check :olp path '(doct--list-of-strings-p))))
-         (push heading target)))
+  (let ((first (doct--first-in doct-file-extension-keywords))
+        type target)
+    (pcase first
+      ((or `(:olp ,path) `(:datetree ,datetree))
+       (let ((datetree (or datetree (doct--get :datetree)))
+             (olp      (or path (doct--get :olp))))
+         (when datetree (push :datetree type))
+         (push :olp type)
+         (when olp
+           (dolist (heading (reverse
+                             (doct--type-check :olp olp '(doct--list-of-strings-p))))
+             (push heading target)))))
       (`(:function ,fn)
        (doct--type-check :function fn '(functionp doct--variable-p null))
        (push fn target)
