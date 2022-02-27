@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.6
+;; Version: 3.1.7
 
 ;; This file is not part of GNU Emacs.
 
@@ -348,9 +348,9 @@ If GROUP is non-nil, make sure there is no :keys value."
   (let ((first (doct--first-in doct-file-extension-keywords))
         type target)
     (pcase first
-      ((or `(:olp ,path) `(:datetree ,datetree))
-       (let ((datetree (or datetree (doct--get :datetree)))
-             (olp      (or path (doct--get :olp))))
+      ((or `(:olp ,_) `(:datetree ,_))
+       (let ((datetree (doct--get :datetree))
+             (olp      (doct--get :olp)))
          (when datetree (push :datetree type))
          (push :olp type)
          (when olp
