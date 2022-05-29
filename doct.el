@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.7
+;; Version: 3.1.8
 
 ;; This file is not part of GNU Emacs.
 
@@ -304,7 +304,7 @@ Intended to be used at runtime."
 ;;;###autoload
 (defun doct-flatten-lists-in (list &optional acc)
   "Flatten each list in LIST. Return recursive accumulator, ACC.
-For example: '((1) ((2) (3) (4)) (((5)))) returns: '((1) (2) (3) (4) (5))."
+For example: \\='((1) ((2) (3) (4)) (((5)))) returns: \\='((1) (2) (3) (4) (5))."
   (dolist (element (nreverse (copy-tree list)) acc)
     (if (seq-every-p #'listp element)
         (setq acc (doct-flatten-lists-in element acc))
@@ -981,7 +981,7 @@ The following keywords refine the target file location:
     If :datetree has a non-nil value, create a date tree for today's date.
     If :olp is given, the date tree is added under that heading path.
     Use a non-nil :time-prompt property to prompt for a different date.
-    Set the :tree-type property to the symbol 'week' to make a week tree
+    Set the :tree-type property to the symbol `week` to make a week tree
     instead of the default month tree.
 
   - :regexp \"regexp describing location\"
