@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.8
+;; Version: 3.1.9
 
 ;; This file is not part of GNU Emacs.
 
@@ -466,8 +466,7 @@ Retrun AFTER form."
                 (string-prefix-p "%[" trimmed))
       (pcase (doct--entry-type)
         ('entry
-         (unless (or (string-prefix-p "* " trimmed)
-                     (equal trimmed "*"))
+         (unless (string-match-p "\\(?:^\\*+\\)" trimmed)
            (doct--warn  'template-entry-type
                         (concat "expanded :template %S in the %S declaration "
                                 "is not a valid Org entry.\n"
