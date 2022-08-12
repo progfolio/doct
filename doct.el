@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.9
+;; Version: 3.1.10
 
 ;; This file is not part of GNU Emacs.
 
@@ -627,7 +627,7 @@ Necessary since `org-capture-after-finalize-hook' cannot access
   (dolist (keyword doct-hook-keywords)
     (let* ((name (substring (symbol-name keyword) 1))
            (fn-name (intern (concat "doct-run-" name)))
-           (hook (intern (format "org-capture-%-hook"
+           (hook (intern (format "org-capture-%s-hook"
                                  (if (equal name "hook") "mode" name)))))
       (remove-hook hook fn-name))))
 
