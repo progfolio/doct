@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.1.10
+;; Version: 3.2.0
 
 ;; This file is not part of GNU Emacs.
 
@@ -147,7 +147,7 @@ Its value is not stored between invocations to doct.")
 (defvar doct-file-extension-keywords '(:datetree :function :headline :olp :regexp)
   "Keywords that define the insertion location in the target file.")
 
-(defvar doct-exclusive-target-keywords '(:clock :file :function :id)
+(defvar doct-exclusive-target-keywords '(:clock :file :function :id :here)
   "Keywords that exclusively set the target location.")
 
 (defvar doct-hook-keywords '(:after-finalize :before-finalize :hook :prepare-finalize)
@@ -173,6 +173,7 @@ Its value is not stored between invocations to doct.")
                                    :disabled
                                    :doct
                                    :doct-name
+                                   :here
                                    :inherited-keys
                                    :keys
                                    :type
@@ -378,6 +379,7 @@ If GROUP is non-nil, make sure there is no :keys value."
     ('nil
      (signal 'doct-no-target `(,doct-exclusive-target-keywords nil ,doct--current)))
     (`(:clock ,_) '(clock))
+    (`(:here ,_) '(here))
     (`(:id ,id) `(id ,(doct--type-check :id id '(stringp))))
     (`(:function ,fn)
      (if-let ((file (doct--get :file)))
@@ -923,6 +925,9 @@ The :file keyword is not necessary for these.
 
   - :clock t
     File to the currently clocked entry
+
+  - :here t
+    The position of point when `org-capture' is called
 
   - :function (lambda () ;visit file and move point to desired location...)
     This keyword is exclusive when used without the :file keyword.
