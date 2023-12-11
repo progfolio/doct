@@ -54,8 +54,7 @@ becomes:
 ** Releases
 
 ***  3.2.0
-- add [[#doct-add-to][doct-add-to]] function
-  Add support for "here" target (Org 9.7)
+- Add support for "here" target (Org 9.7)
 ***  3.1.0
 - add [[#doct-add-to][doct-add-to]] function
 ***  3.0.0

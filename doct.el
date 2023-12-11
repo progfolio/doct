@@ -7,7 +7,7 @@
 ;; Created: December 10, 2019
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 3.2.0
+;; Version: 3.2.1
 
 ;; This file is not part of GNU Emacs.
 
